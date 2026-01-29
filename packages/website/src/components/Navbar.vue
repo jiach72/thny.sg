@@ -48,10 +48,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref } from 'vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 
-const router = useRouter()
 const mobileMenuOpen = ref(false)
 
 const openClientPortal = () => {

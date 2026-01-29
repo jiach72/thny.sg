@@ -202,7 +202,6 @@ const zhCN: MessageSchema = {
         about: '关于我们',
         team: '团队',
         contact: '联络我们',
-        portal: '登录入口',
         clientPortal: '登录',
         staffPortal: '员工入口',
         ctaButton: '立即咨询'

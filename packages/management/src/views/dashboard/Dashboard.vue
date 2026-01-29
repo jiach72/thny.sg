@@ -5,7 +5,7 @@
       <div class="header-content">
         <div>
           <h1 class="page-title">早安，{{ userName }}</h1>
-          <p class="page-desc">今天是 {{ currentDate }}，由于您的高效工作，已有 {{ taskStats?.completed || 0 }} 项任务完成。</p>
+          <p class="page-desc">今天是 {{ currentDate }}，由于您的高效工作，已有 {{ taskStats?.byStatus?.DONE || 0 }} 项任务完成。</p>
         </div>
         <div class="header-actions">
            <el-button type="primary" class="btn-create" :icon="Plus" @click="handleCreate">快速创建</el-button>

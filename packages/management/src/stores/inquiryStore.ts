@@ -2,8 +2,20 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { inquiryApi } from '@/api'
 
+// 定义基础接口
+interface Inquiry {
+    id: string
+    name: string
+    email: string
+    phone?: string
+    message: string
+    status: string
+    createdAt: string
+    updatedAt: string
+}
+
 export const useInquiryStore = defineStore('inquiry', () => {
-    const inquiries = ref([])
+    const inquiries = ref<Inquiry[]>([])
     const loading = ref(false)
 
     async function fetchInquiries(params: any = {}) {
