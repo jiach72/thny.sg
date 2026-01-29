@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body, query, param } from 'express-validator'
-import { authMiddleware, adminAuth, validate } from '../middlewares'
-import messageService from '../services/messageService'
+import { authMiddleware, adminAuth, validate } from '../middlewares/index.js'
+import messageService from '../services/messageService.js'
 
 const router = Router()
 

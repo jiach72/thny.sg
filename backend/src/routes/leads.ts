@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body, param, query } from 'express-validator'
-import { leadService } from '../services'
-import { validate, authMiddleware, optionalAuth } from '../middlewares'
+import { leadService } from '../services/index.js'
+import { validate, authMiddleware, optionalAuth } from '../middlewares/index.js'
 import { LeadStatus } from '@prisma/client'
 
 const router = Router()

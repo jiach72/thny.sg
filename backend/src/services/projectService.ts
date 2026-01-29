@@ -1,4 +1,4 @@
-import { prisma } from '../config'
+import { prisma } from '../config/index.js'
 import { Prisma } from '@prisma/client'
 
 export const projectService = {

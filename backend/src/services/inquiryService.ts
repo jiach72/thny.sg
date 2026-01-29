@@ -1,5 +1,5 @@
-import { prisma } from '../config'
-import { NotFoundError } from '../middlewares'
+import { prisma } from '../config/index.js'
+import { NotFoundError } from '../middlewares/index.js'
 import type { Prisma, InquiryStatus } from '@prisma/client'
 
 interface CreateInquiryInput {

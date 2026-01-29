@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { prisma, config } from '../config'
-import { UnauthorizedError, NotFoundError } from '../middlewares'
+import { prisma, config } from '../config/index.js'
+import { UnauthorizedError, NotFoundError } from '../middlewares/index.js'
 
 interface LoginInput {
     email: string

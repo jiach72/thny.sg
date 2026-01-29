@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { authMiddleware, requireRole, requirePermission } from '../middlewares/auth'
-import { rbacService } from '../services/rbacService'
+import { authMiddleware, requireRole, requirePermission } from '../middlewares/auth.js'
+import { rbacService } from '../services/rbacService.js'
 
 const router = Router()
 

@@ -1,6 +1,6 @@
-import { prisma } from '../config'
+import { prisma } from '../config/index.js'
 import bcrypt from 'bcryptjs'
-import { NotFoundError, UnauthorizedError, ConflictError } from '../middlewares'
+import { NotFoundError, UnauthorizedError, ConflictError } from '../middlewares/index.js'
 
 interface UpdateProfileInput {
     name?: string

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
-import { config } from '../config'
-import { rbacService } from '../services/rbacService'
+import { config } from '../config/index.js'
+import { rbacService } from '../services/rbacService.js'
 
 // 扩展 Express Request 类型
 declare global {

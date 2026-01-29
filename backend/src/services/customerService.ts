@@ -1,4 +1,4 @@
-import { prisma } from '../config'
+import { prisma } from '../config/index.js'
 
 export const customerService = {
     // 获取客户列表（简略版，用于下拉选择）

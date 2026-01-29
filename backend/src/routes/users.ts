@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { authMiddleware, requireRole } from '../middlewares/auth'
-import { prisma } from '../config'
+import { authMiddleware, requireRole } from '../middlewares/auth.js'
+import { prisma } from '../config/index.js'
 import bcrypt from 'bcryptjs'
 
 const router = Router()

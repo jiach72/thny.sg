@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body } from 'express-validator'
-import { authService } from '../services'
-import { rbacService } from '../services/rbacService'
-import { validate } from '../middlewares'
-import { authMiddleware } from '../middlewares'
+import { authService } from '../services/index.js'
+import { rbacService } from '../services/rbacService.js'
+import { validate } from '../middlewares/index.js'
+import { authMiddleware } from '../middlewares/index.js'
 
 const router = Router()
 

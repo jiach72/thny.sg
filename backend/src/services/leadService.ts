@@ -1,5 +1,5 @@
-import { prisma } from '../config'
-import { NotFoundError, ConflictError } from '../middlewares'
+import { prisma } from '../config/index.js'
+import { NotFoundError, ConflictError } from '../middlewares/index.js'
 import type { LeadStatus, Prisma } from '@prisma/client'
 
 interface CreateLeadInput {

@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body, param } from 'express-validator'
-import { customerAuth, validate } from '../middlewares'
-import portalService from '../services/portalService'
+import { customerAuth, validate } from '../middlewares/index.js'
+import portalService from '../services/portalService.js'
 
 const router = Router()
 
@@ -97,7 +97,7 @@ router.get('/dashboard', customerAuth, async (req: Request, res: Response, next:
 })
 
 // ==================== 站内消息接口 ====================
-import messageService from '../services/messageService'
+import messageService from '../services/messageService.js'
 
 /**
  * GET /portal/messages - 获取站内消息列表

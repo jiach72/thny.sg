@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body, param, query } from 'express-validator'
-import { taskService } from '../services'
-import { validate, authMiddleware } from '../middlewares'
+import { taskService } from '../services/index.js'
+import { validate, authMiddleware } from '../middlewares/index.js'
 
 const router = Router()
 
