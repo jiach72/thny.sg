@@ -33,7 +33,7 @@ app.use(errorHandler)
 // 启动服务器
 const PORT = config.port
 
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`
   ╔═══════════════════════════════════════════════╗
   ║                                               ║
