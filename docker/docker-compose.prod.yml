@@ -49,6 +49,9 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: 7d
+      FRONTEND_URL: ${FRONTEND_URL}
+      MANAGEMENT_URL: ${MANAGEMENT_URL}
+      PORTAL_URL: ${PORTAL_URL}
     depends_on:
       postgres:
         condition: service_healthy

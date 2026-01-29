@@ -153,6 +153,9 @@ jobs:
             echo "GITHUB_REPO=$GITHUB_REPO" > .env
             echo "JWT_SECRET=$JWT_SECRET" >> .env
             echo "DB_PASSWORD=$DB_PASSWORD" >> .env
+            echo "FRONTEND_URL=https://www.thny.sg" >> .env
+            echo "MANAGEMENT_URL=https://crm.thny.sg" >> .env
+            echo "PORTAL_URL=https://portal.thny.sg" >> .env
             
             # 2. 修复权限
             sudo chown -R $USER:$USER /var/www/tonghai
