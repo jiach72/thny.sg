@@ -162,13 +162,10 @@ async function main() {
         console.log(`  ✅ ${roleCode}: ${permCodes.length} 个权限`)
     }
 
-    // 4. 创建测试用户 (如果不存在)
-    console.log('👤 创建测试用户...')
+    // 4. 创建管理员用户 (如果不存在)
+    console.log('👤 创建管理员用户...')
     const passwordHash = await bcrypt.hash('password123', 12)
     const adminRoleId = roleMap.get('ADMIN')!
-    const salesRoleId = roleMap.get('SALES')!
-    const deliveryRoleId = roleMap.get('DELIVERY')!
-    const customerRoleId = roleMap.get('CUSTOMER')!
 
     // 管理员
     await prisma.user.upsert({
@@ -184,58 +181,10 @@ async function main() {
     })
     console.log('  ✅ admin@thny.sg (管理员)')
 
-    // 销售
-    const sales1 = await prisma.user.upsert({
-        where: { email: 'lisi@thny.sg' },
-        update: { roleId: salesRoleId },
-        create: {
-            email: 'lisi@thny.sg',
-            name: '李四',
-            passwordHash,
-            roleId: salesRoleId,
-            department: '销售部',
-        },
-    })
-    console.log('  ✅ lisi@thny.sg (销售)')
-
-    // 交付
-    const delivery = await prisma.user.upsert({
-        where: { email: 'zhaoliu@thny.sg' },
-        update: { roleId: deliveryRoleId },
-        create: {
-            email: 'zhaoliu@thny.sg',
-            name: '赵六',
-            passwordHash,
-            roleId: deliveryRoleId,
-            department: '交付部',
-        },
-    })
-    console.log('  ✅ zhaoliu@thny.sg (交付)')
-
-    // 客户账号
-    const customerEmails = ['client@example.com', 'liming@startup.io', 'harvey@global.com']
-    const customerNames = ['陈大文', '李明', 'Harvey Tan']
-
-    for (let i = 0; i < customerEmails.length; i++) {
-        await prisma.user.upsert({
-            where: { email: customerEmails[i] },
-            update: { roleId: customerRoleId },
-            create: {
-                email: customerEmails[i],
-                name: customerNames[i],
-                passwordHash,
-                roleId: customerRoleId,
-            },
-        })
-        console.log(`  ✅ ${customerEmails[i]} (客户)`)
-    }
-
     console.log('\n🎉 RBAC 数据初始化完成!')
-    console.log('\n📋 测试账号 (密码均为 password123):')
-    console.log('  - 管理员: admin@thny.sg')
-    console.log('  - 销售: lisi@thny.sg')
-    console.log('  - 交付: zhaoliu@thny.sg')
-    console.log('  - 客户: client@example.com')
+    console.log('\n📋 管理员账号:')
+    console.log('  - 邮箱: admin@thny.sg')
+    console.log('  - 密码: password123')
 }
 
 main()
