@@ -3,7 +3,7 @@ import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axio
 import { useAuthStore } from '@/stores/authStore'
 
 const apiClient: AxiosInstance = axios.create({
-    baseURL: '/api/v1',
+    baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
