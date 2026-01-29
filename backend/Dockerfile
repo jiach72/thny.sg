@@ -7,7 +7,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # 安装依赖
-RUN npm ci
+RUN npm install
 
 # 复制源码并构建
 COPY . .
