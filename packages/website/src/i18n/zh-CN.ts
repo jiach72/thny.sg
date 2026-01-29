@@ -204,7 +204,7 @@ const zhCN: MessageSchema = {
         contact: '联络我们',
         clientPortal: '登录',
         staffPortal: '员工入口',
-        ctaButton: '立即咨询'
+        ctaButton: '立即咨询' // force update
     },
     home: {
         hero: {

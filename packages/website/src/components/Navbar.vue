@@ -50,7 +50,7 @@
 import { ref } from 'vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 
-const mobileMenuOpen = ref(false)
+const mobileMenuOpen = ref(false) // force update
 
 const openClientPortal = () => {
   window.open('http://localhost:3002', '_blank')
