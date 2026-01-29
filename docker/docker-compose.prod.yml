@@ -57,6 +57,23 @@ services:
     networks:
       - tonghai-network
 
+  # ========== Nginx 反向代理 ==========
+  nginx:
+    image: nginx:alpine
+    container_name: tonghai-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "8880:8880"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /var/www/tonghai/static:/var/www/html:ro
+    depends_on:
+      - backend
+    networks:
+      - tonghai-network
+
 volumes:
   postgres_data:
   redis_data:
