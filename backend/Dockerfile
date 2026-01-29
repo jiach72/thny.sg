@@ -17,6 +17,9 @@ RUN npx prisma generate
 # ========== 生产镜像 ==========
 FROM node:20-alpine AS runner
 
+# 安装 OpenSSL (Prisma 需要)
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 ENV NODE_ENV=production
 
