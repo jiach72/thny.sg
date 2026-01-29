@@ -421,15 +421,19 @@ export const leadService = {
             const bcrypt = await import('bcryptjs')
             const hashedPassword = await bcrypt.hash(tempPassword, 10)
 
+            const customerRole = await tx.role.findUnique({ where: { code: 'CUSTOMER' } })
+            if (!customerRole) throw new Error('System error: CUSTOMER role not found')
+
             const user = await tx.user.create({
                 data: {
                     email: lead.email!,
                     name: lead.contactName,
                     passwordHash: hashedPassword,
-                    role: 'CUSTOMER',
+                    roleId: customerRole.id,
                     setupToken,
                     setupTokenExpiry,
                 },
+                include: { role: true }
             })
 
             // 2. 创建客户记录

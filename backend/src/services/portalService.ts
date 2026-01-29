@@ -185,7 +185,7 @@ export const portalService = {
             id: doc.id,
             type: 'document',
             title: '新文档待查看',
-            description: `${doc.project.title} - ${doc.fileName}`,
+            description: `${(doc.project?.title || 'Unknown')} - ${doc.fileName}`,
             createdAt: doc.createdAt,
         }))
     },

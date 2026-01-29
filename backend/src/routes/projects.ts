@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { body, query } from 'express-validator'
 import { validate, authMiddleware } from '../middlewares'
 import { projectService } from '../services/projectService'
@@ -18,7 +18,7 @@ router.get(
         query('customerId').optional().isString(),
         validate
     ],
-    async (req, res, next) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await projectService.getProjects(req.query)
             res.json(result)
@@ -29,7 +29,7 @@ router.get(
 )
 
 // 获取当前登录客户的项目列表
-router.get('/mine', async (req, res, next) => {
+router.get('/mine', async (req: Request, res: Response, next: NextFunction) => {
     try {
         // req.user 由 authMiddleware 提供，包含 email 和 role
         const projects = await projectService.getMyProjects(req.user!.email)
@@ -40,7 +40,7 @@ router.get('/mine', async (req, res, next) => {
 })
 
 // 获取单个项目详情
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         let project
 
@@ -69,7 +69,7 @@ router.post(
         body('projectType').notEmpty().withMessage('项目类型必填'),
         validate
     ],
-    async (req, res, next) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const project = await projectService.createProject(req.body)
             res.status(201).json(project)
@@ -80,7 +80,7 @@ router.post(
 )
 
 // 更新项目
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const project = await projectService.updateProject(req.params.id, req.body)
         res.json(project)
@@ -93,7 +93,7 @@ router.put('/:id', async (req, res, next) => {
 router.patch(
     '/:id/status',
     [body('status').isIn(['PLANNING', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'ARCHIVED']), validate],
-    async (req, res, next) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const project = await projectService.updateStatus(req.params.id, req.body.status)
             res.json(project)
@@ -104,7 +104,7 @@ router.patch(
 )
 
 // 删除项目
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await projectService.deleteProject(req.params.id)
         res.status(204).send()

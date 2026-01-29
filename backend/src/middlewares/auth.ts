@@ -185,6 +185,7 @@ export function customerAuth(req: Request, res: Response, next: NextFunction) {
             id: decoded.sub,
             email: decoded.email,
             role: decoded.role,
+            roleId: decoded.roleId,
         }
 
         next()
@@ -233,6 +234,7 @@ export function adminAuth(req: Request, res: Response, next: NextFunction) {
             id: decoded.sub,
             email: decoded.email,
             role: decoded.role,
+            roleId: decoded.roleId,
         }
 
         next()

@@ -211,7 +211,7 @@ export const messageService = {
      */
     async getCustomerUsers() {
         const customers = await prisma.user.findMany({
-            where: { role: 'CUSTOMER', status: 'ACTIVE' },
+            where: { role: { code: 'CUSTOMER' }, status: 'ACTIVE' },
             select: { id: true, name: true, email: true },
             orderBy: { name: 'asc' },
         })

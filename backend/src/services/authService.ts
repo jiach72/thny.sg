@@ -228,18 +228,19 @@ export const authService = {
 
         const passwordHash = await bcrypt.hash(password, 12)
 
-        await prisma.user.update({
+        const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
                 passwordHash,
                 setupToken: null,
                 setupTokenExpiry: null,
             },
+            include: { role: true },
         })
 
         // 自动登录
-        const accessToken = this.generateAccessToken(user)
-        const refreshToken = this.generateRefreshToken(user)
+        const accessToken = this.generateAccessToken(updatedUser)
+        const refreshToken = this.generateRefreshToken(updatedUser)
 
         return {
             success: true,
@@ -249,11 +250,11 @@ export const authService = {
             tokenType: 'Bearer',
             expiresIn: 900,
             user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                avatarUrl: user.avatarUrl,
+                id: updatedUser.id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                avatarUrl: updatedUser.avatarUrl,
             },
         }
     },
