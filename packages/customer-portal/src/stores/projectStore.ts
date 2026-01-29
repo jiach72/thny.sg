@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { portalApi } from '@/api'
+import { projectApi, portalApi } from '@/api'
 
 export const useProjectStore = defineStore('project', () => {
     const projects = ref<any[]>([])
