@@ -1,2 +1,2 @@
-export * from './env'
-export { default as prisma } from './database'
+export * from './env.js'
+export { default as prisma } from './database.js'
