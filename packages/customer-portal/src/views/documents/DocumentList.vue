@@ -81,7 +81,7 @@ const activeTab = ref('all')
 const showUploadDialog = ref(false)
 
 const documentStore = useDocumentStore()
-const { documents: rawDocuments, isLoading } = storeToRefs(documentStore)
+const { documents: rawDocuments } = storeToRefs(documentStore)
 
 onMounted(() => {
   documentStore.fetchMyDocuments()

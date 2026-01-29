@@ -169,7 +169,7 @@ import {
 import { CanvasRenderer } from 'echarts/renderers'
 import { 
   Download, Filter, TrendCharts, PieChart as PieChartIcon, Trophy, List, 
-  Wallet, User, DataLine, Checked, TopRight, BottomRight, Search
+  Wallet, User, DataLine, Checked, Search
 } from '@element-plus/icons-vue'
 
 echarts.use([

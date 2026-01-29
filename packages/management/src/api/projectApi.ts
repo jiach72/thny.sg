@@ -1,5 +1,5 @@
 import apiClient from './apiClient'
-import type { PaginatedResponse } from '@/types'
+import type { PaginatedResponse } from '@tonghai/shared/types'
 
 // 项目类型定义 (补充到 types/index.ts 中)
 export interface Project {

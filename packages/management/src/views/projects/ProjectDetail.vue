@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/projectStore'
 import { storeToRefs } from 'pinia'
-import { ArrowLeft, Edit, Delete } from '@element-plus/icons-vue'
+import { Edit, Delete } from '@element-plus/icons-vue'
 import ProjectForm from '@/components/projects/ProjectForm.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -108,7 +108,7 @@ const statusMap: Record<string, string> = {
                <el-card header="关键信息">
                  <el-descriptions :column="2" border>
                    <el-descriptions-item label="预算">{{ currentProject.currency }} {{ currentProject.budget?.toLocaleString() }}</el-descriptions-item>
-                   <el-descriptions-item label="开始日期">{{ new Date(currentProject.projectId || currentProject.createdAt).toLocaleDateString() }}</el-descriptions-item>
+                   <el-descriptions-item label="开始日期">{{ new Date(currentProject.id || currentProject.createdAt).toLocaleDateString() }}</el-descriptions-item>
                    <el-descriptions-item label="预计结束">{{ currentProject.estimatedEndDate ? new Date(currentProject.estimatedEndDate).toLocaleDateString() : '-' }}</el-descriptions-item>
                    <el-descriptions-item label="负责人">尚未指派</el-descriptions-item>
                  </el-descriptions>

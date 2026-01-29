@@ -89,13 +89,12 @@
 
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ArrowLeft, Calendar, Timer, ChatDotRound, Document } from '@element-plus/icons-vue'
 import { useProjectStore } from '@/stores/projectStore'
 
 const route = useRoute()
-const router = useRouter()
 const projectStore = useProjectStore()
 const { currentProject: project, isLoading } = storeToRefs(projectStore)
 

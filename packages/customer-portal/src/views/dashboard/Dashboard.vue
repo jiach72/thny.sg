@@ -100,7 +100,7 @@ const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 
 const projectStore = useProjectStore()
-const { projects, isLoading } = storeToRefs(projectStore)
+const { projects } = storeToRefs(projectStore)
 
 const todos = ref<any[]>([])
 const messages = ref<any[]>([])

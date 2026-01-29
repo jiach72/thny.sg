@@ -25,7 +25,7 @@
             group="tasks"
             item-key="id"
             class="draggable-list"
-            @change="(e) => handleDragChange(e, status)"
+            @change="(e: any) => handleDragChange(e, status)"
             :data-status="status"
           >
             <template #item="{ element: task }">

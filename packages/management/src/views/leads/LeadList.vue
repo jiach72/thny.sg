@@ -315,7 +315,7 @@ function restoreColumnWidths() {
 }
 
 // 保存列宽
-function handleColumnResize(newWidth: number, oldWidth: number, column: any) {
+function handleColumnResize(newWidth: number, _oldWidth: number, column: any) {
   const saved = localStorage.getItem(COLUMN_WIDTH_KEY)
   const widths = saved ? JSON.parse(saved) : {}
   widths[column.label] = newWidth

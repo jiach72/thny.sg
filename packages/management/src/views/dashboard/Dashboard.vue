@@ -255,10 +255,10 @@ const fetchWeather = async () => {
 
 const getWeatherIcon = (code: number) => {
     // Open-Meteo codes: 0=Clear, 1-3=Cloudy, 45-48=Fog, 51+=Rain
-    if (code === 0) return 'Sunny'
-    if (code >= 1 && code <= 3) return 'Cloudy'
-    if (code >= 51) return 'Pouring'
-    return 'Cloudy'
+    if (code === 0) return Sunny
+    if (code >= 1 && code <= 3) return Cloudy
+    if (code >= 51) return Pouring
+    return Cloudy
 }
 
 const getWeatherLabel = (code: number) => {
@@ -355,8 +355,8 @@ const initChart = () => {
         if (funnelChart) funnelChart.dispose()
         funnelChart = echarts.init(funnelChartRef.value)
         
-        const statusData = leadStats.value?.byStatus || {}
-        const total = leadStats.value?.total || 100
+        // const statusData = leadStats.value?.byStatus || {}
+        // const total = leadStats.value?.total || 100
         
         // 模拟更真实的漏斗比例
         const data = [
@@ -481,7 +481,7 @@ onMounted(async () => {
     await Promise.all([
         fetchWeather(),
         leadStore.fetchStats(),
-        leadStore.fetchLeads({ limit: 5 }), // 获取最新5条
+        leadStore.fetchLeads({}, { limit: 5 }), // 获取最新5条
         taskStore.fetchTasks(),
         taskStore.fetchStats(),
         inquiryStore.fetchInquiries({ limit: 5 }),

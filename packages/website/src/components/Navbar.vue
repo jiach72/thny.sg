@@ -48,7 +48,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ref } from 'vue'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 
 const mobileMenuOpen = ref(false)

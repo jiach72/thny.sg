@@ -2,8 +2,18 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { appointmentApi } from '@/api'
 
+interface Appointment {
+    id: string
+    title: string
+    startTime: string
+    endTime: string
+    location?: string
+    type?: string
+    [key: string]: any
+}
+
 export const useAppointmentStore = defineStore('appointment', () => {
-    const appointments = ref([])
+    const appointments = ref<Appointment[]>([])
     const loading = ref(false)
 
     async function fetchAppointments(params: any = {}) {

@@ -135,7 +135,7 @@ const handleCreateSuccess = () => {
 
     <!-- 列表视图 -->
     <div v-else class="list-container" v-loading="isLoading">
-      <el-table :data="projects" style="width: 100%" @row-click="(row) => handleView(row.id)">
+      <el-table :data="projects" style="width: 100%" @row-click="(row: any) => handleView(row.id)">
         <el-table-column prop="title" label="项目名称" min-width="200" />
         <el-table-column prop="customer.lead.contactName" label="客户" width="150" />
         <el-table-column prop="projectType" label="类型" width="150" />
