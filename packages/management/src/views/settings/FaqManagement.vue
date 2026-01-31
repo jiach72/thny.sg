@@ -62,6 +62,18 @@
       </el-col>
     </el-row>
 
+    <!-- 调试信息（临时）-->
+    <el-alert
+      v-if="true"
+      type="warning"
+      :closable="false"
+      style="margin-bottom: 20px"
+    >
+      <template #title>
+        调试信息: Categories={{ categories ? categories.length : 0 }}, Items={{ items ? items.length : 0 }}, Filtered={{ filteredItems ? filteredItems.length : 0 }}, Loading={{ loading }}
+      </template>
+    </el-alert>
+
     <!-- 标签页 -->
     <el-tabs v-model="activeTab" class="content-tabs">
       <!-- FAQ 条目管理 -->
@@ -434,8 +446,10 @@ async function fetchStats() {
 async function fetchCategories() {
   try {
     const response = await apiClient.get(`/faq-admin/categories`)
+    console.log('Categories response:', response.data)
     if (response.data.success) {
       categories.value = response.data.data
+      console.log('Categories updated, length:', categories.value.length)
     }
   } catch (error) {
     console.error('Error fetching categories:', error)
@@ -446,8 +460,10 @@ async function fetchItems() {
   loading.value = true
   try {
     const response = await apiClient.get(`/faq-admin/items`)
+    console.log('Items response:', response.data)
     if (response.data.success) {
       items.value = response.data.data
+      console.log('Items updated, length:', items.value.length)
     }
   } catch (error) {
     console.error('Error fetching items:', error)
