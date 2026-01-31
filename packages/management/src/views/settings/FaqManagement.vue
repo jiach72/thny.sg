@@ -7,6 +7,10 @@
         <p class="subtitle">管理聊天机器人的问答知识库</p>
       </div>
       <div class="header-right">
+        <el-button @click="showImportDialog = true">
+          <el-icon><Upload /></el-icon>
+          导入及导出
+        </el-button>
         <el-button type="primary" @click="showCreateCategory = true">
           <el-icon><FolderAdd /></el-icon>
           新增分类
@@ -279,6 +283,35 @@
       </template>
     </el-dialog>
 
+    <!-- 导入 FAQ 对话框 -->
+    <el-dialog v-model="showImportDialog" title="批量导入 FAQ" width="500px">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <el-alert title="请使用 Excel 模板上传，支持 .xlsx 格式" type="info" :closable="false" style="margin-bottom: 15px" />
+        <el-button type="primary" link @click="downloadTemplate">
+          <el-icon><Download /></el-icon> 点击下载导入模板
+        </el-button>
+      </div>
+      
+      <el-upload
+        class="upload-demo"
+        drag
+        action="#"
+        :http-request="handleImport"
+        :show-file-list="false"
+        accept=".xlsx,.xls,.csv"
+      >
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">
+            拖拽文件到此处或 <em>点击上传</em>
+        </div>
+        <template #tip>
+          <div class="el-upload__tip">
+            文件大小不超过 5MB
+          </div>
+        </template>
+      </el-upload>
+    </el-dialog>
+
     <!-- 会话详情抽屉 -->
     <el-drawer v-model="showSessionDetail" title="对话详情" size="500px">
       <template v-if="selectedSession">
@@ -311,7 +344,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   FolderAdd, Plus, Search, ChatDotRound, Comment, 
-  ChatLineRound, QuestionFilled 
+  ChatLineRound, QuestionFilled, Upload, UploadFilled, Download
 } from '@element-plus/icons-vue'
 import apiClient from '@/api/apiClient'
 
@@ -355,6 +388,7 @@ const itemForm = ref({
 })
 const filterCategoryId = ref('')
 const searchKeyword = ref('')
+const showImportDialog = ref(false)
 
 // 会话
 const sessions = ref<any[]>([])
@@ -602,6 +636,51 @@ async function ignoreQuestion(question: any) {
     await fetchUnrecognized()
   } catch (error) {
     ElMessage.error('操作失败')
+  }
+}
+
+// 导入操作
+async function downloadTemplate() {
+  const token = localStorage.getItem('token')
+  const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+  // 原生 fetch 下载，带上 Token (虽然下载模板其实不需要鉴权，但为了统一)
+  // 为了简单，直接打开链接。如果接口需要鉴权，建议 window.open 同时也带 query param token
+  const downloadUrl = `${apiBase}/faq-admin/import/template?token=${token}`
+  window.open(downloadUrl, '_blank')
+}
+
+async function handleImport(options: any) {
+  const formData = new FormData()
+  formData.append('file', options.file)
+  
+  const loadingInstance = ElMessage.success({
+    message: '正在上传处理中...',
+    duration: 0
+  })
+  
+  try {
+    const response = await apiClient.post('/faq-admin/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    
+    loadingInstance.close()
+    
+    if (response.data.success) {
+      ElMessageBox.alert(response.data.message, '导入结果', {
+        confirmButtonText: '确定',
+        type: 'success'
+      })
+      showImportDialog.value = false
+      // 刷新数据
+      await Promise.all([
+        fetchItems(),
+        fetchStats(),
+        fetchCategories()
+      ])
+    }
+  } catch (error: any) {
+    loadingInstance.close()
+    ElMessage.error(error.response?.data?.message || '导入失败')
   }
 }
 

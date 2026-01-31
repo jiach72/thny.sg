@@ -177,6 +177,7 @@ router.put('/items/:id', async (req: Request, res: Response) => {
     }
 })
 
+
 /**
  * 删除（禁用）FAQ 条目
  * DELETE /api/v1/faq-admin/items/:id
@@ -188,6 +189,61 @@ router.delete('/items/:id', async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error deleting FAQ item:', error)
         res.status(500).json({ success: false, message: '删除条目失败' })
+    }
+})
+
+// ==================== 批量导入 ====================
+
+import multer from 'multer'
+const upload = multer({ storage: multer.memoryStorage() })
+
+/**
+ * 下载导入模板
+ * GET /api/v1/faq-admin/import/template
+ */
+router.get('/import/template', async (req: Request, res: Response) => {
+    try {
+        const XLSX = await import('xlsx')
+
+        // 准备数据头和示例行
+        const headers = ['Category', 'Question', 'Answer', 'QuestionEn', 'AnswerEn', 'Keywords']
+        const sample = ['Example Category', 'What is specific question?', 'This is the answer.', 'Optional English Question', 'Optional English Answer', 'keyword1, keyword2']
+
+        const ws = XLSX.utils.aoa_to_sheet([headers, sample])
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Template')
+
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', 'attachment; filename=faq_template.xlsx')
+        res.send(buffer)
+    } catch (error) {
+        console.error('Template gen error:', error)
+        res.status(500).send('Error generating template')
+    }
+})
+
+/**
+ * 导入 FAQ 数据
+ * POST /api/v1/faq-admin/import
+ */
+router.post('/import', upload.single('file'), async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: '请上传文件' })
+        }
+
+        const result = await faqService.importFromBuffer(req.file.buffer)
+
+        res.json({
+            success: true,
+            data: result,
+            message: `导入完成: 成功 ${result.success} 条，失败 ${result.failed} 条`
+        })
+    } catch (error) {
+        console.error('Import error:', error)
+        res.status(500).json({ success: false, message: '导入失败: ' + (error as Error).message })
     }
 })
 
