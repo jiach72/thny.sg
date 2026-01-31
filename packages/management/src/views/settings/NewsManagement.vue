@@ -282,7 +282,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, Search, Document, CircleCheck, Edit, View, Connection, Download
 } from '@element-plus/icons-vue'
-import axios from 'axios'
+import apiClient from '@/api/apiClient'
 
 // 状态
 const loading = ref(false)
@@ -339,8 +339,6 @@ const articleForm = ref({
 })
 
 // API 基础路径
-const apiBase = import.meta.env.VITE_API_BASE_URL || ''
-
 // 获取文章列表
 async function fetchArticles() {
   loading.value = true
@@ -354,7 +352,7 @@ async function fetchArticles() {
     if (filters.source) params.source = filters.source
     if (filters.search) params.search = filters.search
 
-    const response = await axios.get(`${apiBase}/api/v1/news-admin/articles`, { params })
+    const response = await apiClient.get(`/news-admin/articles`, { params })
     if (response.data.success) {
       articles.value = response.data.data.articles
       pagination.value = { ...pagination.value, ...response.data.data.pagination }
@@ -369,7 +367,7 @@ async function fetchArticles() {
 // 获取统计数据
 async function fetchStats() {
   try {
-    const response = await axios.get(`${apiBase}/api/v1/news-admin/stats`)
+    const response = await apiClient.get(`/news-admin/stats`)
     if (response.data.success) {
       stats.value = response.data.data
     }
@@ -413,9 +411,9 @@ async function saveArticle(status: string) {
     }
 
     if (editingArticle.value) {
-      await axios.put(`${apiBase}/api/v1/news-admin/articles/${editingArticle.value.id}`, data)
+      await apiClient.put(`/news-admin/articles/${editingArticle.value.id}`, data)
     } else {
-      await axios.post(`${apiBase}/api/v1/news-admin/articles`, data)
+      await apiClient.post(`/news-admin/articles`, data)
     }
 
     ElMessage.success(status === 'PUBLISHED' ? '文章已发布' : '草稿已保存')
@@ -434,10 +432,10 @@ async function saveArticle(status: string) {
 async function togglePublish(article: any) {
   try {
     if (article.status === 'PUBLISHED') {
-      await axios.post(`${apiBase}/api/v1/news-admin/articles/${article.id}/unpublish`)
+      await apiClient.post(`/news-admin/articles/${article.id}/unpublish`)
       ElMessage.success('已撤回')
     } else {
-      await axios.post(`${apiBase}/api/v1/news-admin/articles/${article.id}/publish`)
+      await apiClient.post(`/news-admin/articles/${article.id}/publish`)
       ElMessage.success('已发布')
     }
     await fetchArticles()
@@ -450,7 +448,7 @@ async function togglePublish(article: any) {
 // 切换置顶
 async function toggleTop(article: any) {
   try {
-    await axios.post(`${apiBase}/api/v1/news-admin/articles/${article.id}/toggle-top`)
+    await apiClient.post(`/news-admin/articles/${article.id}/toggle-top`)
     ElMessage.success(article.isTop ? '已取消置顶' : '已置顶')
     await fetchArticles()
   } catch (error) {
@@ -465,7 +463,7 @@ async function batchDelete() {
   })
 
   try {
-    await axios.post(`${apiBase}/api/v1/news-admin/articles/batch-delete`, {
+    await apiClient.post(`/news-admin/articles/batch-delete`, {
       ids: selectedIds.value,
     })
     ElMessage.success('删除成功')
@@ -491,7 +489,7 @@ async function importWechatArticle() {
   
   importing.value = true
   try {
-    const response = await axios.post(`${apiBase}/api/v1/news-admin/articles/import-wechat`, {
+    const response = await apiClient.post(`/news-admin/articles/import-wechat`, {
       url: importForm.value.url,
       type: importForm.value.type
     })

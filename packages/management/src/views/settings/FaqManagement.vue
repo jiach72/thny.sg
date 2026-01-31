@@ -313,7 +313,7 @@ import {
   FolderAdd, Plus, Search, ChatDotRound, Comment, 
   ChatLineRound, QuestionFilled 
 } from '@element-plus/icons-vue'
-import axios from 'axios'
+import apiClient from '@/api/apiClient'
 
 // 状态
 const loading = ref(false)
@@ -386,11 +386,9 @@ const filteredItems = computed(() => {
 })
 
 // API 调用
-const apiBase = import.meta.env.VITE_API_BASE_URL || ''
-
 async function fetchStats() {
   try {
-    const response = await axios.get(`${apiBase}/api/v1/faq-admin/stats`)
+    const response = await apiClient.get(`/faq-admin/stats`)
     if (response.data.success) {
       stats.value = response.data.data
     }
@@ -401,7 +399,7 @@ async function fetchStats() {
 
 async function fetchCategories() {
   try {
-    const response = await axios.get(`${apiBase}/api/v1/faq-admin/categories`)
+    const response = await apiClient.get(`/faq-admin/categories`)
     if (response.data.success) {
       categories.value = response.data.data
     }
@@ -413,7 +411,7 @@ async function fetchCategories() {
 async function fetchItems() {
   loading.value = true
   try {
-    const response = await axios.get(`${apiBase}/api/v1/faq-admin/items`)
+    const response = await apiClient.get(`/faq-admin/items`)
     if (response.data.success) {
       items.value = response.data.data
     }
@@ -435,7 +433,7 @@ async function fetchSessions() {
       params.status = sessionStatus.value
     }
     
-    const response = await axios.get(`${apiBase}/api/v1/faq-admin/sessions`, { params })
+    const response = await apiClient.get(`/faq-admin/sessions`, { params })
     if (response.data.success) {
       sessions.value = response.data.data
       sessionPagination.value = { ...sessionPagination.value, ...response.data.pagination }
@@ -449,7 +447,7 @@ async function fetchSessions() {
 
 async function fetchUnrecognized() {
   try {
-    const response = await axios.get(`${apiBase}/api/v1/faq-admin/unrecognized`)
+    const response = await apiClient.get(`/faq-admin/unrecognized`)
     if (response.data.success) {
       unrecognizedQuestions.value = response.data.data
     }
@@ -479,9 +477,9 @@ async function saveCategory() {
   saving.value = true
   try {
     if (editingCategory.value) {
-      await axios.put(`${apiBase}/api/v1/faq-admin/categories/${editingCategory.value.id}`, categoryForm.value)
+      await apiClient.put(`/faq-admin/categories/${editingCategory.value.id}`, categoryForm.value)
     } else {
-      await axios.post(`${apiBase}/api/v1/faq-admin/categories`, categoryForm.value)
+      await apiClient.post(`/faq-admin/categories`, categoryForm.value)
     }
     ElMessage.success('保存成功')
     showCreateCategory.value = false
@@ -497,7 +495,7 @@ async function saveCategory() {
 
 async function toggleCategoryStatus(category: any) {
   try {
-    await axios.put(`${apiBase}/api/v1/faq-admin/categories/${category.id}`, {
+    await apiClient.put(`/faq-admin/categories/${category.id}`, {
       isActive: !category.isActive
     })
     ElMessage.success(category.isActive ? '已禁用' : '已启用')
@@ -531,9 +529,9 @@ async function saveItem() {
   saving.value = true
   try {
     if (editingItem.value) {
-      await axios.put(`${apiBase}/api/v1/faq-admin/items/${editingItem.value.id}`, itemForm.value)
+      await apiClient.put(`/faq-admin/items/${editingItem.value.id}`, itemForm.value)
     } else {
-      await axios.post(`${apiBase}/api/v1/faq-admin/items`, itemForm.value)
+      await apiClient.post(`/faq-admin/items`, itemForm.value)
     }
     ElMessage.success('保存成功')
     showCreateItem.value = false
@@ -550,7 +548,7 @@ async function saveItem() {
 
 async function toggleItemStatus(item: any) {
   try {
-    await axios.put(`${apiBase}/api/v1/faq-admin/items/${item.id}`, {
+    await apiClient.put(`/faq-admin/items/${item.id}`, {
       isActive: !item.isActive
     })
     ElMessage.success(item.isActive ? '已禁用' : '已启用')
@@ -563,7 +561,7 @@ async function toggleItemStatus(item: any) {
 // 会话操作
 async function viewSession(session: any) {
   try {
-    const response = await axios.get(`${apiBase}/api/v1/faq-admin/sessions/${session.id}`)
+    const response = await apiClient.get(`/faq-admin/sessions/${session.id}`)
     if (response.data.success) {
       selectedSession.value = response.data.data
       showSessionDetail.value = true
@@ -592,14 +590,14 @@ async function addToFaq(question: any) {
   showCreateItem.value = true
   
   // 标记为已添加
-  await axios.put(`${apiBase}/api/v1/faq-admin/unrecognized/${question.id}`, { status: 'added' })
+  await apiClient.put(`/faq-admin/unrecognized/${question.id}`, { status: 'added' })
   await fetchUnrecognized()
 }
 
 async function ignoreQuestion(question: any) {
   await ElMessageBox.confirm('确定要忽略此问题吗？', '提示', { type: 'warning' })
   try {
-    await axios.put(`${apiBase}/api/v1/faq-admin/unrecognized/${question.id}`, { status: 'ignored' })
+    await apiClient.put(`/faq-admin/unrecognized/${question.id}`, { status: 'ignored' })
     ElMessage.success('已忽略')
     await fetchUnrecognized()
   } catch (error) {
