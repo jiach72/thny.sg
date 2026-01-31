@@ -11,6 +11,10 @@
           <el-icon><Upload /></el-icon>
           导入及导出
         </el-button>
+        <el-button @click="refreshData">
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
         <el-button type="primary" @click="showCreateCategory = true">
           <el-icon><FolderAdd /></el-icon>
           新增分类
@@ -62,17 +66,7 @@
       </el-col>
     </el-row>
 
-    <!-- 调试信息（临时）-->
-    <el-alert
-      v-if="true"
-      type="warning"
-      :closable="false"
-      style="margin-bottom: 20px"
-    >
-      <template #title>
-        调试信息: Categories={{ categories ? categories.length : 0 }}, Items={{ items ? items.length : 0 }}, Filtered={{ filteredItems ? filteredItems.length : 0 }}, Loading={{ loading }}
-      </template>
-    </el-alert>
+
 
     <!-- 标签页 -->
     <el-tabs v-model="activeTab" class="content-tabs">
@@ -356,7 +350,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   FolderAdd, Plus, Search, ChatDotRound, Comment, 
-  ChatLineRound, QuestionFilled, Upload, UploadFilled, Download
+  ChatLineRound, QuestionFilled, Upload, UploadFilled, Download, Refresh
 } from '@element-plus/icons-vue'
 import apiClient from '@/api/apiClient'
 
@@ -432,10 +426,26 @@ const filteredItems = computed(() => {
 })
 
 // API 调用
+// 全局数据加载
+async function loadData() {
+  loading.value = true
+  // 并行调用但 catch 错误，防止阻塞
+  fetchStats()
+  fetchCategories()
+  await fetchItems() // 核心数据，等待
+  loading.value = false
+}
+
+function refreshData() {
+  loadData()
+  ElMessage.success('数据已刷新')
+}
+
+// API 调用
 async function fetchStats() {
   try {
     const response = await apiClient.get(`/faq-admin/stats`)
-    if (response.data.success) {
+    if (response.data?.success) {
       stats.value = response.data.data
     }
   } catch (error) {
@@ -446,10 +456,8 @@ async function fetchStats() {
 async function fetchCategories() {
   try {
     const response = await apiClient.get(`/faq-admin/categories`)
-    console.log('Categories response:', response.data)
-    if (response.data.success) {
-      categories.value = response.data.data
-      console.log('Categories updated, length:', categories.value.length)
+    if (response.data?.success) {
+      categories.value = response.data.data || []
     }
   } catch (error) {
     console.error('Error fetching categories:', error)
@@ -457,18 +465,15 @@ async function fetchCategories() {
 }
 
 async function fetchItems() {
-  loading.value = true
   try {
     const response = await apiClient.get(`/faq-admin/items`)
-    console.log('Items response:', response.data)
-    if (response.data.success) {
-      items.value = response.data.data
-      console.log('Items updated, length:', items.value.length)
+    if (response.data?.success) {
+      // 这里的注释很重要：强制 Vue 更新
+      items.value = [...(response.data.data || [])]
     }
   } catch (error) {
     console.error('Error fetching items:', error)
-  } finally {
-    loading.value = false
+    ElMessage.error('获取列表失败')
   }
 }
 
@@ -770,13 +775,11 @@ watch(showCreateItem, (val) => {
 })
 
 // 初始化
-onMounted(async () => {
-  await Promise.all([
-    fetchStats(),
-    fetchCategories(),
-    fetchItems()
-  ])
+onMounted(() => {
+  loadData()
 })
+
+
 </script>
 
 <style scoped>
