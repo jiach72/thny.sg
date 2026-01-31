@@ -6,13 +6,15 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# 安装依赖
-RUN npm install
+# 安装依赖（使用 --legacy-peer-deps 避免 peer deps 冲突）
+RUN npm install --legacy-peer-deps
+
+# 生成 Prisma Client
+RUN npx prisma generate
 
 # 复制源码并构建
 COPY . .
 RUN npm run build
-RUN npx prisma generate
 
 # ========== 生产镜像 ==========
 FROM node:20-alpine AS runner
