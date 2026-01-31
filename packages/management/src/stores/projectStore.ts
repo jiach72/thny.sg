@@ -72,8 +72,6 @@ export const useProjectStore = defineStore('project', () => {
             const newProject = await projectApi.create(data)
             projects.value.unshift(newProject)
             return newProject
-        } catch (err: any) {
-            throw err
         } finally {
             isSubmitting.value = false
         }
@@ -94,8 +92,6 @@ export const useProjectStore = defineStore('project', () => {
                 currentProject.value = { ...currentProject.value, ...updated }
             }
             return updated
-        } catch (err: any) {
-            throw err
         } finally {
             isSubmitting.value = false
         }

@@ -202,7 +202,7 @@ export const portalService = {
         const consultant = project.customer?.lead?.assignedTo || null
 
         // 移除敏感关联信息并返回
-        const { customer, ...rest } = project
+        const { customer: _customer, ...rest } = project
         return {
             ...rest,
             consultant

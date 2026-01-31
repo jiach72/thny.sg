@@ -259,7 +259,7 @@ function initSmoothScroll() {
 // ==================== Scroll Navbar Effect ====================
 function initScrollNavbar() {
   const navbar = document.getElementById('navbar');
-  let lastScroll = 0;
+  let _lastScroll = 0;
 
   window.addEventListener('scroll', () => {
     const currentScroll = window.pageYOffset;
@@ -270,7 +270,7 @@ function initScrollNavbar() {
       navbar?.classList.remove('shadow-xl');
     }
 
-    lastScroll = currentScroll;
+    _lastScroll = currentScroll;
   });
 }
 

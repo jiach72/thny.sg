@@ -5,7 +5,7 @@ import { faqService } from './faqService.js'
 // OpenAI 客户端（延迟初始化）
 let openaiClient: OpenAI | null = null
 
-function getOpenAIClient(): OpenAI {
+function _getOpenAIClient(): OpenAI {
     if (!openaiClient) {
         const apiKey = process.env.OPENAI_API_KEY
         if (!apiKey) {
@@ -167,7 +167,7 @@ export const chatService = {
             }, {} as Record<string, string>)
 
             const apiKey = config['AI_API_KEY'] || process.env.OPENAI_API_KEY
-            const modelName = config['AI_MODEL_NAME'] || 'gpt-4o-mini'
+            const _modelName = config['AI_MODEL_NAME'] || 'gpt-4o-mini'
             const baseUrl = config['AI_BASE_URL']
 
             if (!apiKey) {
