@@ -199,6 +199,7 @@ const zhTW = {
         industries: '產業解決方案',
         about: '關於我們',
         team: '團隊',
+        news: '新聞動態',
         contact: '聯絡我們',
         clientPortal: '登錄',
         staffPortal: '員工入口',
@@ -211,6 +212,11 @@ const zhTW = {
             description: '為華語企業家與高淨值家庭提供新加坡市場准入、身分取得、稅務優化、資產配置的全方位專業服務',
             btn1: '探索服務方案',
             btn2: '安排第一次診斷會'
+        },
+        news: {
+            title: '新聞動態',
+            viewAll: '查看全部',
+            empty: '暫無新聞'
         },
         whatWeDo: {
             title: '我們提供什麼',
@@ -508,8 +514,46 @@ const zhTW = {
                 '長期陪跑，承諾服務'
             ]
         }
+    },
+    chat: {
+        title: '智能助手',
+        open: '打開聊天',
+        close: '關閉聊天',
+        online: '在線',
+        welcome: '您好！我是通海南洋的智能助手，有什麼可以幫助您的嗎？',
+        inputPlaceholder: '輸入您的問題...',
+        errorMessage: '抱歉，系統出現問題，請稍後再試。',
+        helpful: '有幫助',
+        notHelpful: '沒幫助',
+        relatedQuestions: '相關問題：',
+        contactHuman: '聯繫真人顧問',
+        quickActions: {
+            services: '你們提供哪些服務？',
+            ep: '如何申請新加坡EP？',
+            company: '新加坡公司註冊條件？',
+            contact: '如何預約諮詢？'
+        }
+    },
+
+    news: {
+        title: '新聞資訊',
+        subtitle: '掌握行業動態，把握商機脈搏',
+        all: '全部',
+        company: '公司動態',
+        industry: '行業新聞',
+        top: '置頂',
+        popular: '熱門文章',
+        empty: '暫無新聞',
+        views: '瀏覽',
+        source: '原文鏈接',
+        share: '分享',
+        linkCopied: '鏈接已複製',
+        backToList: '返回列表',
+        notFound: '文章不存在',
+        needHelp: '需要專業諮詢？',
+        helpDesc: '我們的顧問團隊隨時為您提供一對一服務',
+        contactUs: '聯繫我們'
     }
 }
 
-export type MessageSchema = typeof zhTW
 export default zhTW

@@ -1,5 +1,5 @@
 
-import { PrismaClient, ProjectStatus, TaskStatus, TaskPriority, AppointmentStatus, AppointmentType, MessageType } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()

@@ -1,4 +1,4 @@
-import type { MessageSchema } from './zh-TW'
+import type { MessageSchema } from './types'
 
 const zhCN: MessageSchema = {
     services: {
@@ -201,6 +201,7 @@ const zhCN: MessageSchema = {
         industries: '产业解决方案',
         about: '关于我们',
         team: '团队',
+        news: '新闻动态',
         contact: '联络我们',
         clientPortal: '登录',
         staffPortal: '员工入口',
@@ -213,6 +214,11 @@ const zhCN: MessageSchema = {
             description: '为华语企业家与高净值家庭提供新加坡市场准入、身份取得、税务优化、资产配置的全方位专业服务',
             btn1: '探索服务方案',
             btn2: '安排第一次诊断会'
+        },
+        news: {
+            title: '新闻动态',
+            viewAll: '查看全部',
+            empty: '暂无新闻'
         },
         whatWeDo: {
             title: '我们提供什么',
@@ -510,6 +516,45 @@ const zhCN: MessageSchema = {
                 '长期陪跑，承诺服务'
             ]
         }
+    },
+    chat: {
+        title: '智能助手',
+        open: '打开聊天',
+        close: '关闭聊天',
+        online: '在线',
+        welcome: '您好！我是通海南洋的智能助手，有什么可以帮助您的吗？',
+        inputPlaceholder: '输入您的问题...',
+        errorMessage: '抱歉，系统出现问题，请稍后再试。',
+        helpful: '有帮助',
+        notHelpful: '没帮助',
+        relatedQuestions: '相关问题：',
+        contactHuman: '联系真人顾问',
+        quickActions: {
+            services: '你们提供哪些服务？',
+            ep: '如何申请新加坡EP？',
+            company: '新加坡公司注册条件？',
+            contact: '如何预约咨询？'
+        }
+    },
+
+    news: {
+        title: '新闻资讯',
+        subtitle: '掌握行业动态，把握商机脉搏',
+        all: '全部',
+        company: '公司动态',
+        industry: '行业新闻',
+        top: '置顶',
+        popular: '热门文章',
+        empty: '暂无新闻',
+        views: '浏览',
+        source: '原文链接',
+        share: '分享',
+        linkCopied: '链接已复制',
+        backToList: '返回列表',
+        notFound: '文章不存在',
+        needHelp: '需要专业咨询？',
+        helpDesc: '我们的顾问团队随时为您提供一对一服务',
+        contactUs: '联系我们'
     }
 }
 

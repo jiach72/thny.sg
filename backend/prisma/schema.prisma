@@ -146,6 +146,10 @@ model User {
   customer         Customer?  @relation("UserCustomer")
   sentMessages     Message[]  @relation("SentMessages")
   receivedMessages Message[]  @relation("ReceivedMessages")
+  createdTemplates EmailTemplate[] @relation("TemplateCreator")
+  sentEmails       EmailLog[]    @relation("EmailSender")
+  invoicesCreated  Invoice[]  @relation("InvoiceCreator")
+  paymentsRecorded Payment[]  @relation("PaymentRecorder")
 
   @@index([roleId])
   @@map("users")
@@ -166,6 +170,8 @@ model Lead {
   status          LeadStatus @default(NEW)
   tags            String[]
   score           Int        @default(0)
+  scoreBreakdown  Json?      @map("score_breakdown")  // 评分明细
+  scoreUpdatedAt  DateTime?  @map("score_updated_at") // 评分更新时间
   assignedTo      User?      @relation("AssignedLeads", fields: [assignedToId], references: [id])
   assignedToId    String?    @map("assigned_to_id")
   lastContactedAt DateTime?  @map("last_contacted_at")
@@ -232,6 +238,7 @@ model Project {
   tasks     Task[]
   documents Document[]
   messages  Message[]
+  invoices  Invoice[]
 
   @@index([customerId])
   @@index([status])
@@ -413,3 +420,313 @@ model Inquiry {
 
   @@map("inquiries")
 }
+
+// ==================== 聊天机器人模块 ====================
+
+// FAQ 分类
+model FaqCategory {
+  id          String    @id @default(cuid())
+  name        String    // 分类名称
+  nameEn      String?   @map("name_en") // 英文名称
+  description String?   // 分类描述
+  sortOrder   Int       @default(0) @map("sort_order") // 排序
+  isActive    Boolean   @default(true) @map("is_active")
+  
+  items       FaqItem[]
+  
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("faq_categories")
+}
+
+// FAQ 条目
+model FaqItem {
+  id          String      @id @default(cuid())
+  question    String      // 问题
+  questionEn  String?     @map("question_en") // 英文问题
+  answer      String      @db.Text // 答案
+  answerEn    String?     @map("answer_en") @db.Text // 英文答案
+  keywords    String[]    // 关键词（用于匹配）
+  sortOrder   Int         @default(0) @map("sort_order")
+  isActive    Boolean     @default(true) @map("is_active")
+  viewCount   Int         @default(0) @map("view_count") // 查看次数
+  helpfulCount Int        @default(0) @map("helpful_count") // 有帮助次数
+  
+  category    FaqCategory @relation(fields: [categoryId], references: [id])
+  categoryId  String      @map("category_id")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("faq_items")
+}
+
+// 聊天会话
+model ChatSession {
+  id          String        @id @default(cuid())
+  visitorId   String?       @map("visitor_id") // 访客标识（可选）
+  visitorName String?       @map("visitor_name")
+  visitorEmail String?      @map("visitor_email")
+  source      String        @default("website") // website, portal
+  status      String        @default("active") // active, closed, archived
+  metadata    Json?         // 额外信息（浏览器、IP等）
+  
+  messages    ChatMessage[]
+  
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  closedAt    DateTime?     @map("closed_at")
+
+  @@index([visitorId])
+  @@index([status])
+  @@map("chat_sessions")
+}
+
+// 聊天消息
+model ChatMessage {
+  id          String      @id @default(cuid())
+  content     String      @db.Text // 消息内容
+  role        String      // user, assistant, system
+  
+  // AI 相关
+  promptTokens  Int?      @map("prompt_tokens")
+  completionTokens Int?   @map("completion_tokens")
+  model       String?     // 使用的模型
+  
+  // 反馈
+  isHelpful   Boolean?    @map("is_helpful")
+  
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId   String      @map("session_id")
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+// 未识别问题（用于改进知识库）
+model UnrecognizedQuestion {
+  id          String   @id @default(cuid())
+  question    String   @db.Text
+  sessionId   String?  @map("session_id")
+  frequency   Int      @default(1) // 出现次数
+  status      String   @default("pending") // pending, added, ignored
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("unrecognized_questions")
+}
+
+// ==================== 新闻板块 ====================
+
+// RSS 订阅源
+model RssFeed {
+  id          String   @id @default(cuid())
+  name        String   // 源名称
+  url         String   @unique // RSS URL
+  category    String   // industry, policy, company, etc.
+  language    String   @default("zh") // zh, en
+  isActive    Boolean  @default(true) @map("is_active")
+  fetchInterval Int    @default(60) @map("fetch_interval") // 抓取间隔（分钟）
+  lastFetchAt DateTime? @map("last_fetch_at")
+  lastError   String?  @map("last_error")
+  
+  articles    NewsArticle[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("rss_feeds")
+}
+
+// 新闻文章
+model NewsArticle {
+  id          String   @id @default(cuid())
+  title       String   // 标题
+  titleEn     String?  @map("title_en") // 英文标题
+  content     String   @db.Text // 正文内容
+  contentEn   String?  @map("content_en") @db.Text // 英文内容
+  summary     String?  @db.Text // 摘要
+  summaryEn   String?  @map("summary_en") @db.Text // 英文摘要
+  coverImage  String?  @map("cover_image") // 封面图
+  
+  // 来源信息
+  source      String   // wechat, rss, manual
+  sourceUrl   String?  @map("source_url") // 原文链接
+  sourceId    String?  @map("source_id") // 原文ID（用于去重）
+  author      String?  // 作者
+  
+  // 分类和类型
+  type        String   @default("COMPANY") // COMPANY（公司动态）, INDUSTRY（行业新闻）
+  category    String?  // policy, finance, immigration, etc.
+  tags        String[] // 标签
+  
+  // 状态
+  status      String   @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  isTop       Boolean  @default(false) @map("is_top") // 置顶
+  viewCount   Int      @default(0) @map("view_count")
+  
+  // 关联 RSS 源（可选）
+  rssFeed     RssFeed? @relation(fields: [rssFeedId], references: [id])
+  rssFeedId   String?  @map("rss_feed_id")
+  
+  // 时间
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([source, sourceId]) // 防止重复导入
+  @@index([status, publishedAt])
+  @@index([type, status])
+  @@index([rssFeedId])
+  @@map("news_articles")
+}
+
+// 系统设置
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @db.Text
+  category    String   @default("GENERAL") // "AI", "SYSTEM"
+  description String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("system_settings")
+}
+
+// 线索评分规则
+model ScoringRule {
+  id          String   @id @default(cuid())
+  name        String   // 规则名称，如 "有邮箱"
+  description String?  // 规则说明
+  field       String   // 对应 Lead 字段，如 "email", "budgetRange"
+  operator    String   // 操作符: exists, eq, gt, lt, gte, lte, contains, in
+  value       String?  // 比较值 (JSON 格式存储)
+  score       Int      // 得分
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("scoring_rules")
+}
+
+// 邮件模板
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   // 模板名称
+  subject     String   // 邮件主题（支持变量）
+  body        String   @db.Text // 邮件内容（HTML，支持变量）
+  category    String   @default("GENERAL") // GENERAL, LEAD, CUSTOMER, PROJECT
+  description String?  // 模板说明
+  variables   String[] // 可用变量列表 ["{{name}}", "{{company}}"]
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   User?    @relation("TemplateCreator", fields: [createdById], references: [id])
+  createdById String?  @map("created_by_id")
+
+  emailLogs   EmailLog[]
+
+  @@map("email_templates")
+}
+
+// 邮件发送记录
+model EmailLog {
+  id          String   @id @default(cuid())
+  template    EmailTemplate? @relation(fields: [templateId], references: [id])
+  templateId  String?  @map("template_id")
+  recipient   String   // 收件人邮箱
+  subject     String   // 实际发送的主题
+  body        String   @db.Text // 实际发送的内容
+  status      String   @default("PENDING") // PENDING, SENT, FAILED
+  errorMsg    String?  @map("error_msg") // 发送失败错误信息
+  sentAt      DateTime? @map("sent_at")
+  
+  leadId      String?  @map("lead_id")
+  customerId  String?  @map("customer_id")
+  sentBy      User?    @relation("EmailSender", fields: [sentById], references: [id])
+  sentById    String?  @map("sent_by_id")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([templateId])
+  @@index([leadId])
+  @@index([customerId])
+  @@map("email_logs")
+}
+
+// 发票
+model Invoice {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique @map("invoice_number") // 发票号
+  projectId       String   @map("project_id")
+  project         Project  @relation(fields: [projectId], references: [id])
+  customerId      String   @map("customer_id")
+  
+  title           String   // 发票标题/描述
+  items           Json     // 发票明细 [{description, quantity, unitPrice, amount}]
+  subtotal        Decimal  @db.Decimal(15, 2) // 小计
+  taxRate         Decimal  @default(0) @db.Decimal(5, 4) // 税率
+  taxAmount       Decimal  @default(0) @db.Decimal(15, 2) // 税额
+  totalAmount     Decimal  @db.Decimal(15, 2) // 总金额
+  currency        String   @default("SGD") // 货币: SGD, USD, RMB, MYR
+  
+  status          String   @default("DRAFT") // DRAFT, SENT, PARTIAL, PAID, CANCELLED, OVERDUE
+  paidAmount      Decimal  @default(0) @db.Decimal(15, 2) // 已付金额
+  
+  issueDate       DateTime @map("issue_date") // 开票日期
+  dueDate         DateTime @map("due_date") // 到期日
+  
+  notes           String?  @db.Text // 备注
+  terms           String?  @db.Text // 付款条款
+  
+  createdBy       User?    @relation("InvoiceCreator", fields: [createdById], references: [id])
+  createdById     String?  @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  payments        Payment[]
+
+  @@index([projectId])
+  @@index([customerId])
+  @@index([status])
+  @@map("invoices")
+}
+
+// 收款记录
+model Payment {
+  id              String   @id @default(cuid())
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  invoiceId       String   @map("invoice_id")
+  
+  amount          Decimal  @db.Decimal(15, 2) // 收款金额
+  currency        String   @default("SGD")
+  exchangeRate    Decimal  @default(1) @db.Decimal(10, 6) // 汇率（当收款货币与发票货币不同时）
+  amountInInvoiceCurrency Decimal @db.Decimal(15, 2) @map("amount_in_invoice_currency")
+  
+  paymentMethod   String   @map("payment_method") // BANK_TRANSFER, CREDIT_CARD, PAYNOW, CASH, CHECK
+  paymentDate     DateTime @map("payment_date") // 收款日期
+  reference       String?  // 参考号/银行流水号
+  
+  notes           String?  @db.Text // 备注
+  attachmentUrl   String?  @map("attachment_url") // 付款凭证
+  
+  recordedBy      User?    @relation("PaymentRecorder", fields: [recordedById], references: [id])
+  recordedById    String?  @map("recorded_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@map("payments")
+}
+

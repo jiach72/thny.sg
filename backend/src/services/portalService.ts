@@ -1,6 +1,6 @@
 import { prisma } from '../config/index.js'
 import bcrypt from 'bcryptjs'
-import { NotFoundError, UnauthorizedError, ConflictError } from '../middlewares/index.js'
+import { NotFoundError, UnauthorizedError } from '../middlewares/index.js'
 
 interface UpdateProfileInput {
     name?: string
@@ -148,6 +148,65 @@ export const portalService = {
         }
 
         return customer.projects
+    },
+
+    /**
+     * 获取客户的项目详情
+     */
+    async getProjectDetail(userId: string, projectId: string) {
+        const project = await prisma.project.findFirst({
+            where: {
+                id: projectId,
+                customer: { userId }
+            },
+            include: {
+                customer: {
+                    include: {
+                        lead: {
+                            include: {
+                                assignedTo: {
+                                    select: { id: true, name: true, email: true, avatarUrl: true }
+                                }
+                            }
+                        }
+                    }
+                },
+                tasks: {
+                    orderBy: { dueDate: 'asc' },
+                    select: {
+                        id: true,
+                        title: true,
+                        status: true,
+                        priority: true,
+                        dueDate: true,
+                        description: true
+                    }
+                },
+                documents: {
+                    where: {
+                        accessLevel: { in: ['PUBLIC', 'TEAM'] }
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        uploadedBy: { select: { name: true } }
+                    }
+                }
+            }
+        })
+
+        if (!project) {
+            throw new NotFoundError('项目不存在或无权访问')
+        }
+
+        // 扁平化顾问信息
+        const consultant = project.customer?.lead?.assignedTo || null
+
+        // 移除敏感关联信息并返回
+        const { customer, ...rest } = project
+        return {
+            ...rest,
+            consultant
+        }
     },
 
     /**

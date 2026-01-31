@@ -24,7 +24,17 @@ apiClient.interceptors.request.use(
 
 // 响应拦截器 - 处理错误和 Token 刷新
 apiClient.interceptors.response.use(
-    (response) => response.data,
+    (response) => {
+        const res = response.data
+        // 智能解包 (Smart Unwrap)
+        if (res && typeof res === 'object' && 'code' in res) {
+            if (res.code === 200) {
+                return res.data
+            }
+            return Promise.reject(new Error(res.message || 'Error'))
+        }
+        return res
+    },
     async (error: AxiosError) => {
         const authStore = useAuthStore()
 

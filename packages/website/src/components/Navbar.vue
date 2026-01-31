@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
   { path: '/industries', label: 'nav.industries' },
   { path: '/about', label: 'nav.about' },
   { path: '/team', label: 'nav.team' },
+  { path: '/news', label: 'nav.news' },
   { path: '/contact', label: 'nav.contact' }
 ]
 

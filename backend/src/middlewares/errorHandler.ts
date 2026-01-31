@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { error } from '../utils/responseHelper'
 
 // 自定义错误类
 export class AppError extends Error {
@@ -57,25 +58,28 @@ export function errorHandler(
     console.error('Error:', err)
 
     if (err instanceof AppError) {
-        return res.status(err.statusCode).json({
-            code: err.code,
-            message: err.message,
-        })
+        return res.status(err.statusCode).json(error(err.message, err.statusCode, err.code))
     }
 
     // Prisma 错误处理
     if (err.name === 'PrismaClientKnownRequestError') {
-        return res.status(400).json({
-            code: 'DATABASE_ERROR',
-            message: '数据库操作失败',
-        })
+        const prismaError = err as any
+        const errorCode = prismaError.code
+
+        // P2002: Unique constraint failed
+        if (errorCode === 'P2002') {
+            return res.status(409).json(error('资源冲突：该记录已存在', 409, 'CONFLICT'))
+        }
+
+        // P2025: Record not found
+        if (errorCode === 'P2025') {
+            return res.status(404).json(error('未找到记录', 404, 'NOT_FOUND'))
+        }
+
+        return res.status(400).json(error('数据库操作失败', 400, 'DATABASE_ERROR'))
     }
 
     // 默认错误
-    res.status(500).json({
-        code: 'INTERNAL_ERROR',
-        message: process.env.NODE_ENV === 'development'
-            ? err.message
-            : '服务器内部错误',
-    })
+    const msg = process.env.NODE_ENV === 'development' ? err.message : '服务器内部错误'
+    res.status(500).json(error(msg, 500, 'INTERNAL_ERROR'))
 }

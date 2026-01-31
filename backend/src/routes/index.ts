@@ -11,6 +11,16 @@ import appointmentRoutes from './appointments.js'
 import inquiryRoutes from './inquiries.js'
 import rbacRoutes from './rbac.js'
 import usersRoutes from './users.js'
+import chatRoutes from './chat.js'
+import faqAdminRoutes from './faqAdmin.js'
+import newsRoutes from './news.js'
+import newsAdminRoutes from './newsAdmin.js'
+import settingsRoutes from './settings.js'
+import scoringRoutes from './scoring.js'
+import emailTemplateRoutes from './emailTemplates.js'
+import invoiceRoutes from './invoices.js'
+import workflowRoutes from './workflow.js'
+import schedulerRoutes from './scheduler.js'
 
 const router = Router()
 
@@ -35,6 +45,11 @@ router.get('/', (req, res) => {
             portal: '/api/v1/portal (客户专用)',
             rbac: '/api/v1/rbac (权限管理)',
             users: '/api/v1/users (用户管理)',
+            scoring: '/api/v1/scoring (线索评分)',
+            emailTemplates: '/api/v1/email-templates (邮件模板)',
+            invoices: '/api/v1/invoices (发票管理)',
+            workflow: '/api/v1/workflow (工作流)',
+            scheduler: '/api/v1/scheduler (定时任务)',
         },
     })
 })
@@ -51,8 +66,26 @@ router.use('/appointments', appointmentRoutes)
 router.use('/inquiries', inquiryRoutes)
 router.use('/rbac', rbacRoutes)
 router.use('/users', usersRoutes)
+router.use('/scoring', scoringRoutes)
+router.use('/email-templates', emailTemplateRoutes)
+router.use('/invoices', invoiceRoutes)
+router.use('/workflow', workflowRoutes)
+router.use('/scheduler', schedulerRoutes)
 
 // 客户门户专用路由
 router.use('/portal', portalRoutes)
 
+// 聊天机器人 API（官网公开接口）
+router.use('/chat', chatRoutes)
+
+// FAQ 管理后台 API（需认证）
+router.use('/faq-admin', faqAdminRoutes)
+
+// 新闻 API
+router.use('/news', newsRoutes)
+router.use('/news-admin', newsAdminRoutes)
+router.use('/settings', settingsRoutes)
+
 export default router
+
+

@@ -87,6 +87,14 @@ export const leadApi = {
     }> {
         return apiClient.post(`/leads/${id}/convert`)
     },
+
+    importLeads(formData: FormData) {
+        return apiClient.post('/leads/import', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+    },
 }
 
 export default leadApi

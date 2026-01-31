@@ -62,8 +62,8 @@
             <div class="card-header">
               <span class="title"><el-icon><TrendCharts /></el-icon> 线索增长趋势</span>
               <el-radio-group v-model="trendPeriod" size="small">
-                <el-radio-button label="week">周</el-radio-button>
-                <el-radio-button label="month">月</el-radio-button>
+                <el-radio-button value="week">周</el-radio-button>
+                <el-radio-button value="month">月</el-radio-button>
               </el-radio-group>
             </div>
           </template>

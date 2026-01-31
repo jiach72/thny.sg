@@ -54,18 +54,35 @@
 
     <!-- 上传对话框 -->
     <el-dialog v-model="showUploadDialog" title="上传文档" width="500px">
-      <el-upload
-        drag
-        action="/api/v1/documents/upload"
-        :on-success="handleUploadSuccess"
-        :on-error="handleUploadError"
-      >
-        <el-icon size="48"><UploadFilled /></el-icon>
-        <div>将文件拖到此处，或<em>点击上传</em></div>
-        <template #tip>
-          <div class="upload-tip">支持 PDF、Word、Excel、图片等格式，单个文件不超过 20MB</div>
-        </template>
-      </el-upload>
+      <el-form label-position="top">
+        <el-form-item label="所属项目" required>
+          <el-select v-model="selectedProjectId" placeholder="请选择项目" style="width: 100%">
+            <el-option
+              v-for="proj in projects"
+              :key="proj.id"
+              :label="proj.title"
+              :value="proj.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="文件上传" required>
+          <el-upload
+            drag
+            action="/api/v1/documents/upload"
+            :headers="uploadHeaders"
+            :data="{ projectId: selectedProjectId }"
+            :on-success="handleUploadSuccess"
+            :on-error="handleUploadError"
+            :disabled="!selectedProjectId"
+          >
+            <el-icon size="48"><UploadFilled /></el-icon>
+            <div>将文件拖到此处，或<em>点击上传</em></div>
+            <template #tip>
+              <div class="upload-tip">请先选择项目，再上传文件</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+      </el-form>
     </el-dialog>
   </div>
 </template>
@@ -76,15 +93,27 @@ import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
 import { Upload, Document, UploadFilled } from '@element-plus/icons-vue'
 import { useDocumentStore } from '@/stores/documentStore'
+import { useProjectStore } from '@/stores/projectStore'
+import { useAuthStore } from '@/stores/authStore'
+import { documentApi } from '@/api'
 
 const activeTab = ref('all')
 const showUploadDialog = ref(false)
+const selectedProjectId = ref('')
 
 const documentStore = useDocumentStore()
+const projectStore = useProjectStore()
+const authStore = useAuthStore()
 const { documents: rawDocuments } = storeToRefs(documentStore)
+const { projects } = storeToRefs(projectStore)
+
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${authStore.accessToken}`
+}))
 
 onMounted(() => {
   documentStore.fetchMyDocuments()
+  projectStore.fetchMyProjects() // 获取项目列表供上传选择
 })
 
 const documents = computed(() => {
@@ -95,10 +124,12 @@ const documents = computed(() => {
     type: doc.fileType,
     project: doc.project?.title || '通用',
     size: formatSize(doc.fileSize),
-    status: 'uploaded', // 暂时写死，后续可根据业务逻辑扩展
+    status: 'uploaded', 
     uploadedAt: doc.createdAt
   }))
 })
+
+// ... token helpers ...
 
 function getFileIconColor(type: string | undefined): string {
   if (!type) return '#666'
@@ -142,8 +173,24 @@ function formatSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-function handleDownload(doc: any) {
-  ElMessage.success(`开始下载: ${doc.name}`)
+async function handleDownload(doc: any) {
+  try {
+    ElMessage.info('开始下载...')
+    const response = await documentApi.downloadDocument(doc.id)
+    
+    // 创建 Blob URL 并触发下载
+    const url = window.URL.createObjectURL(new Blob([response as any]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', doc.name)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    ElMessage.error('下载失败')
+    console.error(error)
+  }
 }
 
 function handleDelete(doc: any) {
@@ -153,6 +200,7 @@ function handleDelete(doc: any) {
 function handleUploadSuccess() {
   ElMessage.success('上传成功')
   showUploadDialog.value = false
+  selectedProjectId.value = '' // Reset
   documentStore.fetchMyDocuments()
 }
 

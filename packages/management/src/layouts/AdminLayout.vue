@@ -21,6 +21,11 @@
           <template #title>仪表板</template>
         </el-menu-item>
         
+        <el-menu-item index="/workbench">
+          <el-icon><Monitor /></el-icon>
+          <template #title>工作台</template>
+        </el-menu-item>
+        
         <el-menu-item index="/leads">
           <el-icon><User /></el-icon>
           <template #title>线索管理</template>
@@ -41,12 +46,17 @@
           <template #title>消息发送</template>
         </el-menu-item>
 
+        <el-menu-item index="/settings/invoices">
+          <el-icon><Wallet /></el-icon>
+          <template #title>发票管理</template>
+        </el-menu-item>
+
         <el-menu-item index="/reports">
           <el-icon><DataAnalysis /></el-icon>
           <template #title>报表中心</template>
         </el-menu-item>
         
-        <el-sub-menu index="/settings">
+        <el-sub-menu index="settings-root">
           <template #title>
             <el-icon><Setting /></el-icon>
             <span>系统设置</span>
@@ -62,6 +72,30 @@
           <el-menu-item index="/settings/roles">
             <el-icon><Key /></el-icon>
             <span>角色权限</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/scoring">
+            <el-icon><Trophy /></el-icon>
+            <span>评分规则</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/email-templates">
+            <el-icon><Message /></el-icon>
+            <span>邮件模板</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/scheduler">
+            <el-icon><Timer /></el-icon>
+            <span>定时任务</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/faq">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>FAQ 知识库</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/news">
+            <el-icon><Document /></el-icon>
+            <span>新闻管理</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/ai">
+            <el-icon><Cpu /></el-icon>
+            <span>AI 设置</span>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>
@@ -129,6 +163,13 @@ import {
   Tools,
   UserFilled,
   Key,
+  Document,
+  Cpu,
+  Monitor,
+  Wallet,
+  Trophy,
+  Message,
+  Timer,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

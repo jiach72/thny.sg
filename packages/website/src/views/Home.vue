@@ -135,6 +135,9 @@
       </div>
     </section>
 
+    <!-- News Section -->
+    <HomeNews />
+
     <!-- CTA Section -->
     <section class="section cta-section gradient-bg">
       <div class="container">
@@ -167,6 +170,7 @@ import {
   Message
 } from '@element-plus/icons-vue'
 import type { Component } from 'vue'
+import HomeNews from '@/components/HomeNews.vue'
 
 const router = useRouter()
 

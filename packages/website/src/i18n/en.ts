@@ -1,4 +1,4 @@
-import type { MessageSchema } from './zh-TW'
+import type { MessageSchema } from './types'
 
 const en: MessageSchema = {
     services: {
@@ -201,6 +201,7 @@ const en: MessageSchema = {
         industries: 'Industries',
         about: 'About',
         team: 'Team',
+        news: 'News',
         contact: 'Contact',
         clientPortal: 'Login',
         staffPortal: 'Staff Portal',
@@ -213,6 +214,11 @@ const en: MessageSchema = {
             description: 'Comprehensive professional services for Chinese-speaking entrepreneurs and HNWIs seeking Singapore market access, residency, tax optimization, and asset allocation',
             btn1: 'Explore Services',
             btn2: 'Schedule a Discovery Call'
+        },
+        news: {
+            title: 'Latest News',
+            viewAll: 'View All',
+            empty: 'No articles yet'
         },
         whatWeDo: {
             title: 'What We Do',
@@ -510,6 +516,45 @@ const en: MessageSchema = {
                 'Long-Term Commitment'
             ]
         }
+    },
+    chat: {
+        title: 'AI Assistant',
+        open: 'Open Chat',
+        close: 'Close Chat',
+        online: 'Online',
+        welcome: 'Hello! I\'m the TongHai Nanyang AI assistant. How can I help you today?',
+        inputPlaceholder: 'Type your question...',
+        errorMessage: 'Sorry, something went wrong. Please try again later.',
+        helpful: 'Helpful',
+        notHelpful: 'Not Helpful',
+        relatedQuestions: 'Related questions:',
+        contactHuman: 'Contact a real consultant',
+        quickActions: {
+            services: 'What services do you offer?',
+            ep: 'How to apply for Singapore EP?',
+            company: 'Requirements for Singapore company registration?',
+            contact: 'How to book a consultation?'
+        }
+    },
+
+    news: {
+        title: 'News & Insights',
+        subtitle: 'Stay updated with industry trends and business opportunities',
+        all: 'All',
+        company: 'Company News',
+        industry: 'Industry News',
+        top: 'Featured',
+        popular: 'Popular Articles',
+        empty: 'No articles found',
+        views: 'views',
+        source: 'Original Source',
+        share: 'Share',
+        linkCopied: 'Link copied!',
+        backToList: 'Back to List',
+        notFound: 'Article not found',
+        needHelp: 'Need Professional Advice?',
+        helpDesc: 'Our consultant team is ready to provide one-on-one service',
+        contactUs: 'Contact Us'
     }
 }
 

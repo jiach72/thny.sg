@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express'
+import multer from 'multer'
 import { body, param, query } from 'express-validator'
 import { leadService } from '../services/index.js'
 import { validate, authMiddleware, optionalAuth } from '../middlewares/index.js'
@@ -197,6 +198,28 @@ router.post(
                 req.body.reason
             )
             res.json(lead)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+const upload = multer({ storage: multer.memoryStorage() })
+
+/**
+ * POST /leads/import - 批量导入线索
+ */
+router.post(
+    '/import',
+    authMiddleware,
+    upload.single('file'),
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            if (!req.file) {
+                throw new Error('请上传 CSV 文件')
+            }
+            const result = await leadService.importLeads(req.file.buffer, req.user!.id)
+            res.json(result)
         } catch (error) {
             next(error)
         }

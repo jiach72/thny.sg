@@ -113,6 +113,13 @@ export const messageApi = {
     getUnreadCount() {
         return apiClient.get('/messages/unread-count')
     },
+
+    /**
+     * 发送消息 (联系顾问)
+     */
+    sendMessage(data: { projectId: string; recipientId: string; title: string; content: string }) {
+        return apiClient.post('/messages/contact', data)
+    },
 }
 
 /**
@@ -159,6 +166,13 @@ export const portalApi = {
      */
     getMyProjects() {
         return apiClient.get('/portal/projects')
+    },
+
+    /**
+     * 获取项目详情
+     */
+    getProjectById(id: string) {
+        return apiClient.get(`/portal/projects/${id}`)
     },
 
     // ==================== 站内消息接口 ====================

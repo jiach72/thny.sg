@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { projectApi, portalApi } from '@/api'
+import { portalApi } from '@/api'
 
 export const useProjectStore = defineStore('project', () => {
     const projects = ref<any[]>([])
@@ -22,7 +22,7 @@ export const useProjectStore = defineStore('project', () => {
     async function fetchProject(id: string) {
         isLoading.value = true
         try {
-            const data = await projectApi.getProjectById(id) as any
+            const data = await portalApi.getProjectById(id) as any
             currentProject.value = data || null
         } catch (error) {
             console.error('Failed to fetch project details:', error)

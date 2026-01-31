@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express'
-import { body, param } from 'express-validator'
+import { body } from 'express-validator'
 import { customerAuth, validate } from '../middlewares/index.js'
 import portalService from '../services/portalService.js'
 
@@ -67,6 +67,18 @@ router.get('/projects', customerAuth, async (req: Request, res: Response, next: 
     try {
         const projects = await portalService.getMyProjects(req.user!.id)
         res.json(projects)
+    } catch (error) {
+        next(error)
+    }
+})
+
+/**
+ * GET /portal/projects/:id - 获取项目详情
+ */
+router.get('/projects/:id', customerAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const project = await portalService.getProjectDetail(req.user!.id, req.params.id)
+        res.json(project)
     } catch (error) {
         next(error)
     }

@@ -12,6 +12,10 @@
           <el-icon><Plus /></el-icon>
           新建线索
         </el-button>
+        <el-button @click="handleImport">
+          <el-icon><Upload /></el-icon>
+            导入
+        </el-button>
       </div>
     </div>
 
@@ -239,6 +243,7 @@
       :lead="editingLead"
       @success="handleSuccess"
     />
+    <LeadImportDialog ref="importDialogRef" @success="handleSuccess" />
   </div>
 </template>
 
@@ -249,11 +254,12 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, Search, List, Edit, Delete, UserFilled, Message, Phone,
-  Document, Star, Clock, CircleCheck, WarningFilled, Grid
+  Document, Star, Clock, CircleCheck, WarningFilled, Grid, Upload
 } from '@element-plus/icons-vue'
 import { useLeadStore } from '@/stores'
 import type { Lead } from '@tonghai/shared/types'
 import LeadFormDialog from './components/LeadFormDialog.vue'
+import LeadImportDialog from '@/components/LeadImportDialog.vue'
 
 const router = useRouter()
 const leadStore = useLeadStore()
@@ -264,6 +270,7 @@ const editingLead = ref<Lead | null>(null)
 const viewMode = ref<'table' | 'card'>('table')
 const assignees = ref<{ id: string; name: string }[]>([])
 const leadTableRef = ref()
+const importDialogRef = ref()
 
 // 列宽持久化存储键
 const COLUMN_WIDTH_KEY = 'lead-table-column-widths'
@@ -339,6 +346,10 @@ function handleSearch() {
 function handleCreate() {
   editingLead.value = null
   showCreateDialog.value = true
+}
+
+function handleImport() {
+  importDialogRef.value?.show()
 }
 
 function handlePageChange(newPage: number) {

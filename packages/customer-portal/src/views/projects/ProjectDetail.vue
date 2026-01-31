@@ -59,7 +59,7 @@
                 <div class="title">通海高级顾问</div>
               </div>
             </div>
-            <el-button type="primary" style="width: 100%; margin-top: 16px;">
+            <el-button type="primary" style="width: 100%; margin-top: 16px;" @click="handleContactConsultant">
               <el-icon><ChatDotRound /></el-icon> 联系顾问
             </el-button>
           </el-card>
@@ -84,26 +84,87 @@
       </el-row>
     </div>
     <el-empty v-else-if="!isLoading" description="未找到项目详情" />
+    <el-dialog v-model="showContactDialog" title="联系顾问" width="500px">
+      <el-form :model="contactForm" label-position="top">
+        <el-form-item label="标题">
+          <el-input v-model="contactForm.title" placeholder="请输入标题" />
+        </el-form-item>
+        <el-form-item label="内容">
+          <el-input
+            v-model="contactForm.content"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入您想咨询的内容..."
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showContactDialog = false">取消</el-button>
+          <el-button type="primary" :loading="sending" @click="submitContact">
+            发送
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref, reactive } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { ElMessage } from 'element-plus'
 import { ArrowLeft, Calendar, Timer, ChatDotRound, Document } from '@element-plus/icons-vue'
 import { useProjectStore } from '@/stores/projectStore'
+import { messageApi } from '@/api'
 
 const route = useRoute()
 const projectStore = useProjectStore()
 const { currentProject: project, isLoading } = storeToRefs(projectStore)
 
 const projectId = route.params.id as string
+const showContactDialog = ref(false)
+const sending = ref(false)
+const contactForm = reactive({
+  title: '',
+  content: ''
+})
 
 onMounted(() => {
   projectStore.fetchProject(projectId)
 })
 
+function handleContactConsultant() {
+  contactForm.title = `关于项目：${project.value?.title || ''}`
+  contactForm.content = ''
+  showContactDialog.value = true
+}
+
+async function submitContact() {
+  if (!contactForm.title || !contactForm.content) {
+    ElMessage.warning('请填写标题和内容')
+    return
+  }
+  
+  sending.value = true
+  try {
+    await messageApi.sendMessage({
+      projectId: project.value.id,
+      recipientId: project.value.consultant?.id, // 后端会校验或回退
+      title: contactForm.title,
+      content: contactForm.content
+    })
+    ElMessage.success('消息发送成功')
+    showContactDialog.value = false
+  } catch (error) {
+    ElMessage.error('发送失败，请稍后重试')
+  } finally {
+    sending.value = false
+  }
+}
+
+// ... existing helpers ...
 const steps = computed(() => {
   if (!project.value?.tasks) return []
   return project.value.tasks.map((task: any) => ({

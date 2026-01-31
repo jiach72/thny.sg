@@ -4,6 +4,7 @@ import { authService } from '../services/index.js'
 import { rbacService } from '../services/rbacService.js'
 import { validate } from '../middlewares/index.js'
 import { authMiddleware } from '../middlewares/index.js'
+import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -21,7 +22,7 @@ router.post(
         try {
             const { email, password } = req.body
             const result = await authService.login({ email, password })
-            res.json(result)
+            sendSuccess(res, result, '登录成功')
         } catch (error) {
             next(error)
         }
@@ -45,7 +46,7 @@ router.post(
         try {
             const { email, password, name } = req.body
             const result = await authService.register({ email, password, name })
-            res.status(201).json(result)
+            res.status(201).json(success(result, '注册成功'))
         } catch (error) {
             next(error)
         }
@@ -63,7 +64,7 @@ router.post(
         try {
             const { refreshToken } = req.body
             const result = await authService.refreshToken(refreshToken)
-            res.json(result)
+            sendSuccess(res, result, '刷新成功')
         } catch (error) {
             next(error)
         }
@@ -76,7 +77,7 @@ router.post(
 router.get('/me', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const user = await authService.getCurrentUser(req.user!.id)
-        res.json(user)
+        sendSuccess(res, user)
     } catch (error) {
         next(error)
     }
@@ -88,7 +89,16 @@ router.get('/me', authMiddleware, async (req: Request, res: Response, next: Next
 router.get('/me/permissions', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const permissions = await rbacService.getUserPermissions(req.user!.id)
-        res.json({ data: permissions })
+        // 注意：原接口返回 { data: permissions }，现在 sendSuccess 会包裹为 { code, data: permissions }
+        // 前端拦截器会解包为 permissions 数组。
+        // 但前端逻辑是否期待 { data: ... } 结构？
+        // 原逻辑: res.json({ data: permissions }) -> 前端得到 { data: [...] }
+        // 新逻辑: sendSuccess(res, permissions) -> { code: 200, data: [...] } -> 拦截器必须解包 return res.data
+        // 解包后前端得到 [...] (数组)
+        // 如果前端代码写的是 response.data (即 permissions 数组)，则兼容。
+        // 如果前端代码写的是 response.data.data (原 axios response.data.data)，则不兼容？
+        // 让我们假设前端通过拦截器得到的是最终数据。
+        sendSuccess(res, permissions)
     } catch (error) {
         next(error)
     }
@@ -100,7 +110,7 @@ router.get('/me/permissions', authMiddleware, async (req: Request, res: Response
 router.post('/logout', authMiddleware, async (req: Request, res: Response) => {
     // 客户端需要删除本地存储的 Token
     // 服务端可以选择加入 Token 黑名单 (需要 Redis)
-    res.json({ success: true, message: '已成功登出' })
+    sendSuccess(res, null, '已成功登出')
 })
 
 /**
@@ -109,7 +119,7 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response) => {
 router.get('/setup-password/:token', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await authService.validateSetupToken(req.params.token)
-        res.json(result)
+        sendSuccess(res, result)
     } catch (error) {
         next(error)
     }
@@ -129,7 +139,7 @@ router.post(
         try {
             const { token, password } = req.body
             const result = await authService.setupPassword(token, password)
-            res.json(result)
+            sendSuccess(res, result, '密码设置成功')
         } catch (error) {
             next(error)
         }

@@ -44,20 +44,20 @@
 
                 <el-form-item :label="t('contact.form.services.label')" prop="services">
                   <el-checkbox-group v-model="contactForm.services">
-                    <el-checkbox label="corporate">{{ t('contact.form.services.corporate') }}</el-checkbox>
-                    <el-checkbox label="identity">{{ t('contact.form.services.identity') }}</el-checkbox>
-                    <el-checkbox label="asset">{{ t('contact.form.services.asset') }}</el-checkbox>
-                    <el-checkbox label="education">{{ t('contact.form.services.education') }}</el-checkbox>
-                    <el-checkbox label="other">{{ t('contact.form.services.other') }}</el-checkbox>
+                    <el-checkbox value="corporate">{{ t('contact.form.services.corporate') }}</el-checkbox>
+                    <el-checkbox value="identity">{{ t('contact.form.services.identity') }}</el-checkbox>
+                    <el-checkbox value="asset">{{ t('contact.form.services.asset') }}</el-checkbox>
+                    <el-checkbox value="education">{{ t('contact.form.services.education') }}</el-checkbox>
+                    <el-checkbox value="other">{{ t('contact.form.services.other') }}</el-checkbox>
                   </el-checkbox-group>
                 </el-form-item>
 
                 <el-form-item :label="t('contact.form.timeline.label')" prop="timeline">
                   <el-radio-group v-model="contactForm.timeline">
-                    <el-radio label="1month">{{ t('contact.form.timeline.1month') }}</el-radio>
-                    <el-radio label="3months">{{ t('contact.form.timeline.3months') }}</el-radio>
-                    <el-radio label="6months">{{ t('contact.form.timeline.6months') }}</el-radio>
-                    <el-radio label="exploring">{{ t('contact.form.timeline.exploring') }}</el-radio>
+                    <el-radio value="1month">{{ t('contact.form.timeline.1month') }}</el-radio>
+                    <el-radio value="3months">{{ t('contact.form.timeline.3months') }}</el-radio>
+                    <el-radio value="6months">{{ t('contact.form.timeline.6months') }}</el-radio>
+                    <el-radio value="exploring">{{ t('contact.form.timeline.exploring') }}</el-radio>
                   </el-radio-group>
                 </el-form-item>
 
@@ -146,7 +146,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Location, Message, Clock, Check } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 
-import axios from 'axios'
+import apiClient from '../api/apiClient'
 
 const { t, tm } = useI18n()
 
@@ -205,13 +205,15 @@ const handleSubmit = async (): Promise<void> => {
           message: `[期望时间: ${contactForm.timeline}] ${contactForm.message}`
         }
 
-        const response = await axios.post('/api/v1/leads/webhook', payload)
+        const response = (await apiClient.post('/leads/webhook', payload)) as any
         
-        if (response.data.success) {
+        // apiClient 返回 Body
+        // Body: { success: true/false, message: ... }
+        if (response.success) {
           ElMessage.success(t('contact.form.successMessage'))
           contactFormRef.value?.resetFields()
         } else {
-          throw new Error(response.data.message)
+          throw new Error(response.message || 'Error')
         }
       } catch (error: any) {
         console.error('Submission error:', error)

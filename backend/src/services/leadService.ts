@@ -46,6 +46,14 @@ interface PaginationOptions {
     sortOrder?: 'asc' | 'desc'
 }
 
+interface CsvRecord {
+    contactName?: string
+    companyName?: string
+    email?: string
+    phone?: string
+    [key: string]: string | undefined
+}
+
 export const leadService = {
     /**
      * 获取线索列表 (分页)
@@ -476,6 +484,75 @@ export const leadService = {
             userId: result.user.id,
             setupToken: result.setupToken,
             setupUrl: `/setup-password?token=${result.setupToken}`,
+        }
+    },
+
+    /**
+     * 批量导入线索
+     */
+    async importLeads(fileBuffer: Buffer, operatorId: string) {
+        const { parse } = await import('csv-parse/sync')
+
+        const records: CsvRecord[] = parse(fileBuffer, {
+            columns: true,
+            skip_empty_lines: true,
+            trim: true,
+        })
+
+        const successful: any[] = []
+        const failed: Array<CsvRecord & { reason: string }> = []
+
+        for (const record of records) {
+            try {
+                // Simple validation
+                if (!record.contactName) throw new Error('缺少联系人姓名 (contactName)')
+
+                // Map fields (adjust based on CSV headers)
+                const leadData = {
+                    contactName: record.contactName,
+                    companyName: record.companyName || null,
+                    email: record.email || null,
+                    phone: record.phone || null,
+                    sourceChannel: 'import',
+                    serviceTypes: [] as string[],
+                    tags: [] as string[],
+                }
+
+                // Check duplicates by email
+                if (leadData.email) {
+                    const existing = await prisma.lead.findFirst({ where: { email: leadData.email } })
+                    if (existing) throw new Error(`邮箱 ${leadData.email} 已存在`)
+                }
+
+                const lead = await prisma.lead.create({
+                    data: leadData
+                })
+                successful.push(lead)
+            } catch (error: any) {
+                failed.push({ ...record, reason: error.message })
+            }
+        }
+
+        // Log activity
+        if (successful.length > 0) {
+            await prisma.activity.create({
+                data: {
+                    actorId: operatorId,
+                    actionType: 'CREATED',
+                    entityType: 'LEAD',
+                    entityId: successful[0].id,
+                    leadId: successful[0].id,
+                    description: `批量导入了 ${successful.length} 条线索 (失败: ${failed.length} 条)`,
+                    changes: { importCount: successful.length, failCount: failed.length }
+                }
+            })
+        }
+
+        return {
+            total: records.length,
+            successCount: successful.length,
+            failedCount: failed.length,
+            failedDetails: failed,
         }
     },
 }

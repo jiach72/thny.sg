@@ -1,9 +1,43 @@
 import { Router, Request, Response, NextFunction } from 'express'
-import { body, query, param } from 'express-validator'
+import { body } from 'express-validator'
 import { authMiddleware, adminAuth, validate } from '../middlewares/index.js'
 import messageService from '../services/messageService.js'
 
 const router = Router()
+
+/**
+ * GET /messages/unread-count - 获取未读消息数量
+ */
+router.get(
+    '/unread-count',
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await messageService.getUnreadCount(req.user!.id)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * GET /messages/mine - 获取我的消息列表
+ */
+router.get(
+    '/mine',
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const page = parseInt(req.query.page as string) || 1
+            const limit = parseInt(req.query.limit as string) || 20
+            const result = await messageService.getMessages(req.user!.id, {}, page, limit)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
 
 /**
  * POST /messages/send - 发送站内消息（管理端使用）
@@ -92,6 +126,37 @@ router.get(
         try {
             const customers = await messageService.getCustomerUsers()
             res.json(customers)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /messages/contact - 客户联系顾问
+ */
+router.post(
+    '/contact',
+    authMiddleware,
+    [
+        body('projectId').notEmpty().withMessage('项目ID不能为空'),
+        body('title').notEmpty().withMessage('请输入标题'),
+        body('content').notEmpty().withMessage('请输入内容'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { projectId, title, content, recipientId } = req.body
+
+            const message = await messageService.send({
+                senderId: req.user!.id,
+                recipientId: recipientId,
+                title,
+                content,
+                type: 'PROJECT',
+                projectId
+            })
+            res.status(201).json(message)
         } catch (error) {
             next(error)
         }

@@ -1,0 +1,569 @@
+import { prisma } from '../config/index.js'
+
+interface AssignmentStats {
+    userId: string
+    userName: string
+    activeLeads: number
+    activeTasks: number
+    workload: number
+}
+
+interface FollowUpItem {
+    id: string
+    type: 'LEAD' | 'TASK' | 'APPOINTMENT'
+    title: string
+    description: string | null
+    priority: string
+    dueDate: Date | null
+    status: string
+    assignedTo: {
+        id: string
+        name: string
+    } | null
+    relatedEntity?: {
+        type: string
+        id: string
+        name: string
+    }
+}
+
+interface AssignmentRule {
+    name: string
+    field: string
+    value: string
+    assignToUserId?: string
+    assignToRole?: string
+}
+
+export const workflowService = {
+    // ==================== 智能线索分配 ====================
+
+    /**
+     * 获取销售团队成员的工作负载统计
+     */
+    async getTeamWorkload(): Promise<AssignmentStats[]> {
+        // 获取销售角色的用户
+        const salesUsers = await prisma.user.findMany({
+            where: {
+                status: 'ACTIVE',
+                role: {
+                    name: { in: ['sales', 'admin', 'manager'] }
+                }
+            },
+            select: {
+                id: true,
+                name: true
+            }
+        })
+
+        // 分别查询每个用户的线索和任务数量
+        const stats: AssignmentStats[] = []
+        for (const user of salesUsers) {
+            const [activeLeads, activeTasks] = await Promise.all([
+                prisma.lead.count({
+                    where: {
+                        assignedToId: user.id,
+                        status: { notIn: ['CONVERTED', 'LOST'] }
+                    }
+                }),
+                prisma.task.count({
+                    where: {
+                        assignedToId: user.id,
+                        status: { notIn: ['DONE', 'CANCELLED'] }
+                    }
+                })
+            ])
+
+            stats.push({
+                userId: user.id,
+                userName: user.name,
+                activeLeads,
+                activeTasks,
+                workload: activeLeads * 2 + activeTasks
+            })
+        }
+
+        return stats
+    },
+
+    /**
+     * 获取最佳分配人选（负载最低）
+     */
+    async getBestAssignee(excludeUserIds: string[] = []): Promise<string | null> {
+        const workload = await this.getTeamWorkload()
+
+        const available = workload.filter(w => !excludeUserIds.includes(w.userId))
+        if (available.length === 0) return null
+
+        // 返回负载最低的用户
+        available.sort((a, b) => a.workload - b.workload)
+        return available[0].userId
+    },
+
+    /**
+     * 智能分配单个线索
+     */
+    async autoAssignLead(leadId: string): Promise<any> {
+        const lead = await prisma.lead.findUnique({
+            where: { id: leadId },
+            include: { assignedTo: true }
+        })
+
+        if (!lead) {
+            throw new Error('线索不存在')
+        }
+
+        if (lead.assignedToId) {
+            throw new Error('线索已分配')
+        }
+
+        // 1. 检查是否有匹配的分配规则
+        const matchedUserId = await this.matchAssignmentRule(lead)
+
+        // 2. 如果没有匹配规则，使用负载均衡
+        const assignToId = matchedUserId || await this.getBestAssignee()
+
+        if (!assignToId) {
+            throw new Error('没有可用的销售人员')
+        }
+
+        // 3. 执行分配
+        const updatedLead = await prisma.lead.update({
+            where: { id: leadId },
+            data: { assignedToId: assignToId },
+            include: {
+                assignedTo: { select: { id: true, name: true, email: true } }
+            }
+        })
+
+        // 4. 创建活动记录
+        await prisma.activity.create({
+            data: {
+                actionType: 'ASSIGNED',
+                entityType: 'LEAD',
+                entityId: leadId,
+                description: `线索已自动分配给 ${updatedLead.assignedTo?.name}`,
+                leadId: leadId,
+                actorId: assignToId
+            }
+        })
+
+        // 5. 创建首次跟进任务
+        await this.createFollowUpTask(leadId, assignToId)
+
+        return updatedLead
+    },
+
+    /**
+     * 批量智能分配未分配的线索
+     */
+    async batchAutoAssign(): Promise<{ assigned: number; failed: number }> {
+        const unassignedLeads = await prisma.lead.findMany({
+            where: {
+                assignedToId: null,
+                status: { notIn: ['CONVERTED', 'LOST'] }
+            },
+            orderBy: { score: 'desc' } // 优先分配高分线索
+        })
+
+        let assigned = 0
+        let failed = 0
+
+        for (const lead of unassignedLeads) {
+            try {
+                await this.autoAssignLead(lead.id)
+                assigned++
+            } catch {
+                failed++
+            }
+        }
+
+        return { assigned, failed }
+    },
+
+    /**
+     * 匹配分配规则
+     */
+    async matchAssignmentRule(lead: any): Promise<string | null> {
+        // 获取系统设置中的分配规则
+        const rulesSetting = await prisma.systemSetting.findUnique({
+            where: { key: 'ASSIGNMENT_RULES' }
+        })
+
+        if (!rulesSetting?.value) return null
+
+        try {
+            const rules: AssignmentRule[] = JSON.parse(rulesSetting.value)
+
+            for (const rule of rules) {
+                const fieldValue = lead[rule.field]
+
+                // 简单匹配
+                if (fieldValue === rule.value ||
+                    (Array.isArray(fieldValue) && fieldValue.includes(rule.value))) {
+
+                    if (rule.assignToUserId) {
+                        return rule.assignToUserId
+                    }
+
+                    // 如果指定角色，从该角色用户中选择负载最低的
+                    if (rule.assignToRole) {
+                        const users = await prisma.user.findMany({
+                            where: {
+                                status: 'ACTIVE',
+                                role: { name: rule.assignToRole }
+                            },
+                            select: { id: true }
+                        })
+
+                        if (users.length > 0) {
+                            const userIds = users.map(u => u.id)
+                            const workload = await this.getTeamWorkload()
+                            const filtered = workload.filter(w => userIds.includes(w.userId))
+                            if (filtered.length > 0) {
+                                filtered.sort((a, b) => a.workload - b.workload)
+                                return filtered[0].userId
+                            }
+                        }
+                    }
+                }
+            }
+        } catch {
+            // 规则解析失败，跳过
+        }
+
+        return null
+    },
+
+    /**
+     * 创建首次跟进任务
+     */
+    async createFollowUpTask(leadId: string, assigneeId: string): Promise<any> {
+        const lead = await prisma.lead.findUnique({
+            where: { id: leadId },
+            select: { contactName: true, companyName: true, score: true }
+        })
+
+        // 根据评分决定跟进紧急度
+        const priority = (lead?.score || 0) >= 50 ? 'HIGH' :
+            (lead?.score || 0) >= 30 ? 'MEDIUM' : 'LOW'
+
+        // 根据优先级设置到期时间
+        const hoursMap = { HIGH: 2, MEDIUM: 24, LOW: 48 }
+        const dueDate = new Date()
+        dueDate.setHours(dueDate.getHours() + hoursMap[priority])
+
+        return prisma.task.create({
+            data: {
+                title: `首次跟进: ${lead?.contactName || '新线索'}`,
+                description: `请及时联系 ${lead?.contactName}${lead?.companyName ? ` (${lead?.companyName})` : ''}，了解其需求。`,
+                leadId: leadId,
+                assignedToId: assigneeId,
+                priority: priority,
+                dueDate: dueDate,
+                slaHours: hoursMap[priority],
+                tags: ['首次跟进', '自动创建']
+            }
+        })
+    },
+
+    // ==================== 跟进待办清单 ====================
+
+    /**
+     * 获取用户的跟进待办清单
+     */
+    async getFollowUpList(userId: string, filters?: {
+        type?: 'LEAD' | 'TASK' | 'ALL'
+        priority?: string
+        overdue?: boolean
+    }): Promise<FollowUpItem[]> {
+        const now = new Date()
+        const items: FollowUpItem[] = []
+
+        // 获取需要跟进的线索
+        if (!filters?.type || filters.type === 'LEAD' || filters.type === 'ALL') {
+            const leads = await prisma.lead.findMany({
+                where: {
+                    assignedToId: userId,
+                    status: { notIn: ['CONVERTED', 'LOST'] },
+                    OR: [
+                        { lastContactedAt: null },
+                        { lastContactedAt: { lt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } } // 7天未联系
+                    ]
+                },
+                select: {
+                    id: true,
+                    contactName: true,
+                    companyName: true,
+                    status: true,
+                    score: true,
+                    lastContactedAt: true
+                },
+                orderBy: { score: 'desc' }
+            })
+
+            for (const lead of leads) {
+                const priority = (lead.score || 0) >= 50 ? 'HIGH' :
+                    (lead.score || 0) >= 30 ? 'MEDIUM' : 'LOW'
+
+                items.push({
+                    id: lead.id,
+                    type: 'LEAD',
+                    title: `跟进: ${lead.contactName}`,
+                    description: lead.companyName,
+                    priority: priority,
+                    dueDate: lead.lastContactedAt ? new Date(lead.lastContactedAt.getTime() + 7 * 24 * 60 * 60 * 1000) : null,
+                    status: lead.status,
+                    assignedTo: null
+                })
+            }
+        }
+
+        // 获取待完成任务
+        if (!filters?.type || filters.type === 'TASK' || filters.type === 'ALL') {
+            const whereClause: any = {
+                assignedToId: userId,
+                status: { notIn: ['DONE', 'CANCELLED'] }
+            }
+
+            if (filters?.overdue) {
+                whereClause.dueDate = { lt: now }
+            }
+
+            if (filters?.priority) {
+                whereClause.priority = filters.priority
+            }
+
+            const tasks = await prisma.task.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    priority: true,
+                    dueDate: true,
+                    status: true,
+                    lead: { select: { id: true, contactName: true } },
+                    project: { select: { id: true, title: true } }
+                },
+                orderBy: [
+                    { dueDate: 'asc' },
+                    { priority: 'desc' }
+                ]
+            })
+
+            for (const task of tasks) {
+                const item: FollowUpItem = {
+                    id: task.id,
+                    type: 'TASK',
+                    title: task.title,
+                    description: task.description,
+                    priority: task.priority,
+                    dueDate: task.dueDate,
+                    status: task.status,
+                    assignedTo: null
+                }
+
+                if (task.lead) {
+                    item.relatedEntity = {
+                        type: 'LEAD',
+                        id: task.lead.id,
+                        name: task.lead.contactName
+                    }
+                } else if (task.project) {
+                    item.relatedEntity = {
+                        type: 'PROJECT',
+                        id: task.project.id,
+                        name: task.project.title
+                    }
+                }
+
+                items.push(item)
+            }
+        }
+
+        // 获取即将到来的预约
+        const appointments = await prisma.appointment.findMany({
+            where: {
+                userId: userId,
+                startTime: { gte: now },
+                status: { in: ['SCHEDULED'] }
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                startTime: true,
+                status: true,
+                lead: { select: { id: true, contactName: true } }
+            },
+            orderBy: { startTime: 'asc' },
+            take: 10
+        })
+
+        for (const apt of appointments) {
+            const item: FollowUpItem = {
+                id: apt.id,
+                type: 'APPOINTMENT',
+                title: apt.title,
+                description: apt.description,
+                priority: 'HIGH',
+                dueDate: apt.startTime,
+                status: apt.status,
+                assignedTo: null
+            }
+
+            if (apt.lead) {
+                item.relatedEntity = {
+                    type: 'LEAD',
+                    id: apt.lead.id,
+                    name: apt.lead.contactName
+                }
+            }
+
+            items.push(item)
+        }
+
+        // 按优先级和时间排序
+        const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+        items.sort((a, b) => {
+            const pA = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 3
+            const pB = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 3
+            if (pA !== pB) return pA - pB
+
+            if (a.dueDate && b.dueDate) {
+                return a.dueDate.getTime() - b.dueDate.getTime()
+            }
+            return a.dueDate ? -1 : 1
+        })
+
+        return items
+    },
+
+    /**
+     * 获取逾期任务统计
+     */
+    async getOverdueStats(userId?: string): Promise<{
+        overdueTasks: number
+        overdueLeads: number
+        upcomingToday: number
+    }> {
+        const now = new Date()
+        const endOfDay = new Date(now)
+        endOfDay.setHours(23, 59, 59, 999)
+
+        const where: any = {}
+        if (userId) where.assignedToId = userId
+
+        const [overdueTasks, overdueLeads, upcomingToday] = await Promise.all([
+            prisma.task.count({
+                where: {
+                    ...where,
+                    status: { notIn: ['DONE', 'CANCELLED'] },
+                    dueDate: { lt: now }
+                }
+            }),
+            prisma.lead.count({
+                where: {
+                    ...where,
+                    status: { notIn: ['CONVERTED', 'LOST'] },
+                    lastContactedAt: { lt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) } // 14天未联系
+                }
+            }),
+            prisma.task.count({
+                where: {
+                    ...where,
+                    status: { notIn: ['DONE', 'CANCELLED'] },
+                    dueDate: {
+                        gte: now,
+                        lte: endOfDay
+                    }
+                }
+            })
+        ])
+
+        return { overdueTasks, overdueLeads, upcomingToday }
+    },
+
+    // ==================== SOP 模板 ====================
+
+    /**
+     * 根据线索类型获取推荐的 SOP 步骤
+     */
+    async getSopSteps(serviceType: string): Promise<string[]> {
+        // 默认 SOP 步骤
+        const defaultSteps = [
+            '1. 首次电话/邮件联系，确认需求',
+            '2. 发送公司介绍资料',
+            '3. 预约详细咨询会议',
+            '4. 提供报价方案',
+            '5. 跟进确认意向',
+            '6. 签约与收款',
+            '7. 项目启动'
+        ]
+
+        // 根据服务类型定制
+        const sopByService: Record<string, string[]> = {
+            company_registration: [
+                '1. 确认注册需求（公司类型、股东结构）',
+                '2. 收集股东身份证件',
+                '3. 确认公司名称并预留',
+                '4. 准备注册文件',
+                '5. 提交 ACRA 申请',
+                '6. 获取注册证书',
+                '7. 开设银行账户'
+            ],
+            family_office: [
+                '1. 初步需求评估会议',
+                '2. 家族资产状况分析',
+                '3. 提供架构设计方案',
+                '4. 法律合规审查',
+                '5. MAS 申请准备',
+                '6. 提交牌照申请',
+                '7. 后续合规支持'
+            ],
+            accounting: [
+                '1. 了解公司财务状况',
+                '2. 确认服务范围',
+                '3. 提供报价',
+                '4. 签订服务协议',
+                '5. 收集历史财务资料',
+                '6. 开始月度记账',
+                '7. 定期财务报告'
+            ]
+        }
+
+        return sopByService[serviceType] || defaultSteps
+    },
+
+    /**
+     * 为线索创建 SOP 任务序列
+     */
+    async createSopTasks(leadId: string, assigneeId: string, serviceType: string): Promise<any[]> {
+        const steps = await this.getSopSteps(serviceType)
+        const tasks = []
+
+        const baseDate = new Date()
+
+        for (let i = 0; i < steps.length; i++) {
+            const dueDate = new Date(baseDate)
+            dueDate.setDate(dueDate.getDate() + (i + 1) * 3) // 每步间隔3天
+
+            const task = await prisma.task.create({
+                data: {
+                    title: steps[i],
+                    leadId: leadId,
+                    assignedToId: assigneeId,
+                    priority: i === 0 ? 'HIGH' : 'MEDIUM',
+                    dueDate: dueDate,
+                    tags: ['SOP', serviceType]
+                }
+            })
+            tasks.push(task)
+        }
+
+        return tasks
+    }
+}
+
+export default workflowService

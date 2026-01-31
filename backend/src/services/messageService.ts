@@ -165,7 +165,7 @@ export const messageService = {
             where: { recipientId: userId, isRead: false },
         })
 
-        return { unreadCount: count }
+        return { count }
     },
 
     /**

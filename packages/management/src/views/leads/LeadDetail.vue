@@ -140,6 +140,13 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 分配负责人弹窗 -->
+    <AssigneeDialog
+      v-model:visible="showAssignDialog"
+      :current-assignee-id="lead?.assignedTo?.id"
+      @confirm="handleAssignConfirm"
+    />
   </div>
 </template>
 
@@ -150,6 +157,7 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, ArrowDown } from '@element-plus/icons-vue'
 import { useLeadStore } from '@/stores'
+import AssigneeDialog from '@/components/AssigneeDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -158,13 +166,27 @@ const leadStore = useLeadStore()
 const { currentLead: lead, loading } = storeToRefs(leadStore)
 const showEditDialog = ref(false)
 
+const showAssignDialog = ref(false)
+
 onMounted(() => {
   const id = route.params.id as string
   leadStore.fetchLeadById(id)
 })
 
 function handleAssign() {
-  ElMessage.info('分配功能开发中')
+  showAssignDialog.value = true
+}
+
+async function handleAssignConfirm(payload: { userId: string; reason: string }) {
+  if (!lead.value) return
+  
+  try {
+    await leadStore.assignLead(lead.value.id, payload.userId, payload.reason)
+    ElMessage.success('分配成功')
+    showAssignDialog.value = false
+  } catch (error: any) {
+    ElMessage.error(error.message || '分配失败')
+  }
 }
 
 async function handleConvert() {

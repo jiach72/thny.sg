@@ -17,10 +17,21 @@
     "build:portal": "npm run build -w @tonghai/customer-portal",
     "build:all": "npm run build:website && npm run build:management && npm run build:portal",
     "docker:up": "docker-compose -f docker/docker-compose.yml up -d",
-    "docker:down": "docker-compose -f docker/docker-compose.yml down"
+    "docker:down": "docker-compose -f docker/docker-compose.yml down",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx --fix",
+    "format": "prettier --write ."
   },
   "devDependencies": {
+    "@rushstack/eslint-patch": "^1.7.2",
     "@types/node": "^20.11.5",
+    "@vue/eslint-config-prettier": "^8.0.0",
+    "@vue/eslint-config-typescript": "^12.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "eslint-plugin-unused-imports": "^3.0.0",
+    "eslint-plugin-vue": "^9.21.1",
+    "prettier": "^3.2.5",
     "typescript": "^5.3.3"
   }
 }
