@@ -13,6 +13,7 @@
         "db:seed": "tsx prisma/seed.ts",
         "db:seed:sdq": "tsx prisma/seed-sdq.ts",
         "db:seed:faq": "tsx prisma/seed-faq.ts",
+        "db:reset-faq": "tsx scripts/reset-faq.ts",
         "db:studio": "prisma studio",
         "test": "vitest",
         "lint": "eslint src --ext .ts"

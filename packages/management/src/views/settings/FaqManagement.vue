@@ -69,18 +69,7 @@
 
 
 
-    <!-- 诊断信息 (Debug) -->
-    <div style="background: #fff3cd; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #ffeeba; color: #856404;">
-      <h3>🔧 诊断面板</h3>
-      <p><strong>Status:</strong> Stats={{ JSON.stringify(stats) }}</p>
-      <p><strong>List Count:</strong> {{ items ? items.length : 'null' }}</p>
-      <p><strong>Filtered Count:</strong> {{ filteredItems ? filteredItems.length : 'null' }}</p>
-      <p><strong>Current Filter:</strong> {{ filterCategoryId || 'None' }}</p>
-      <div v-if="items && items.length > 0">
-        <p><strong>First Item:</strong> {{ items[0].question }}</p>
-        <p><strong>Category:</strong> {{ items[0].category ? items[0].category.name : 'No Category' }}</p>
-      </div>
-    </div>
+
 
     <!-- 标签页 -->
     <el-tabs v-model="activeTab" class="content-tabs">
@@ -458,53 +447,56 @@ function refreshData() {
 // API 调用
 async function fetchStats() {
   try {
-    const response = await apiClient.get(`/faq-admin/stats`)
-    if (response.data?.success) {
-      stats.value = response.data.data
+    const response: any = await apiClient.get(`/faq-admin/stats`)
+    
+    // Normalize response: output is either response.data (if wrapped) or response itself
+    const data = response.data || response
+    // Basic check: stats should have totalFaqs
+    if (data && typeof data.totalFaqs === 'number') {
+         stats.value = data
+    } else if (response?.success) {
+         stats.value = response.data
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching stats:', error)
   }
 }
 
 async function fetchCategories() {
   try {
-    const response = await apiClient.get(`/faq-admin/categories`)
-    if (response.data?.success) {
-      categories.value = response.data.data || []
-    }
-  } catch (error) {
+    const response: any = await apiClient.get(`/faq-admin/categories`)
+    // Handle both {success:true, data:[]} and []
+    const data = Array.isArray(response) ? response : (response.data || [])
+    categories.value = data
+  } catch (error: any) {
     console.error('Error fetching categories:', error)
   }
 }
 
 async function fetchItems() {
   try {
-    const response = await apiClient.get(`/faq-admin/items`)
-    if (response.data?.success) {
-      const data = response.data.data || []
-      console.log('API returned items:', data)
-      
-      if (data.length === 0) {
-        // 如果数据为空，插入一条测试数据
-        items.value = [{
-          id: 'test-item',
-          question: '⚠️ 这是一个测试问题 (说明后端返回了空数组)',
-          answer: '如果您看到这条，说明前端表格正常，但后端数据库为空。',
-          isActive: true,
-          viewCount: 0,
-          helpfulCount: 0,
-          category: { name: '测试分类' },
-          categoryId: 'test-cat'
-        }]
-        ElMessage.warning('后端返回空数据，已加载测试数据')
-      } else {
-        items.value = [...data]
-      }
+    const response: any = await apiClient.get(`/faq-admin/items`)
+    
+    // Normalize data: raw array OR wrapped data
+    let data: any[] = []
+    if (Array.isArray(response)) {
+        data = response
+    } else if (Array.isArray(response.data)) {
+        data = response.data
     }
-  } catch (error) {
+    
+    console.log('API returned items:', data)
+      
+    if (data.length === 0) {
+        // Data is empty, do nothing (show empty state in UI)
+        items.value = []
+    } else {
+        items.value = [...data]
+    }
+  } catch (error: any) {
     console.error('Error fetching items:', error)
-    ElMessage.error('获取列表失败')
+    console.dir(error) 
+    ElMessage.error(`获取列表失败: ${error.message || error}`)
   }
 }
 
@@ -519,10 +511,16 @@ async function fetchSessions() {
       params.status = sessionStatus.value
     }
     
-    const response = await apiClient.get(`/faq-admin/sessions`, { params })
-    if (response.data.success) {
-      sessions.value = response.data.data
-      sessionPagination.value = { ...sessionPagination.value, ...response.data.pagination }
+    const response: any = await apiClient.get(`/faq-admin/sessions`, { params })
+    // Handle both wrapped and unwrapped (though pagination usually implies wrapped)
+    // If raw array, assume no pagination or simplified structure
+    if (response.success && response.data) {
+       sessions.value = response.data
+       sessionPagination.value = { ...sessionPagination.value, ...response.pagination }
+    } else if (Array.isArray(response)) {
+         sessions.value = response
+    } else if (response.data && Array.isArray(response.data)) {
+         sessions.value = response.data
     }
   } catch (error) {
     console.error('Error fetching sessions:', error)
@@ -533,10 +531,9 @@ async function fetchSessions() {
 
 async function fetchUnrecognized() {
   try {
-    const response = await apiClient.get(`/faq-admin/unrecognized`)
-    if (response.data.success) {
-      unrecognizedQuestions.value = response.data.data
-    }
+    const response: any = await apiClient.get(`/faq-admin/unrecognized`)
+    const data = Array.isArray(response) ? response : (response.data || [])
+    unrecognizedQuestions.value = data
   } catch (error) {
     console.error('Error fetching unrecognized:', error)
   }
@@ -647,9 +644,10 @@ async function toggleItemStatus(item: any) {
 // 会话操作
 async function viewSession(session: any) {
   try {
-    const response = await apiClient.get(`/faq-admin/sessions/${session.id}`)
-    if (response.data.success) {
-      selectedSession.value = response.data.data
+    const response: any = await apiClient.get(`/faq-admin/sessions/${session.id}`)
+    const data = response.data || response
+    if (data) {
+      selectedSession.value = data
       showSessionDetail.value = true
     }
   } catch (error) {
@@ -704,15 +702,16 @@ async function handleImport(options: any) {
   loading.value = true
   
   try {
-    const response = await apiClient.post('/faq-admin/import', formData, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response: any = await apiClient.post('/faq-admin/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     
     loading.value = false
-    console.log('Import response:', response.data)
+    console.log('Import response:', response)
     
-    if (response.data.success) {
-      const result = response.data.data
+    if (response.success) {
+      const result = response.data
       if (result) {
         const msg = `导入完成！成功 ${result.success} 条，失败 ${result.failed} 条`
         
@@ -726,7 +725,7 @@ async function handleImport(options: any) {
           ElMessage.success(msg)
         }
       } else {
-        ElMessage.success(response.data.message || '导入完成')
+        ElMessage.success(response.message || '导入完成')
       }
       
       showImportDialog.value = false
@@ -736,7 +735,7 @@ async function handleImport(options: any) {
         fetchCategories()
       ])
     } else {
-      ElMessage.error(response.data.message || '导入失败')
+      ElMessage.error(response.message || '导入失败')
     }
   } catch (error: any) {
     loading.value = false
