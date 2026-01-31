@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { error } from '../utils/responseHelper'
+import { error } from '../utils/responseHelper.js'
 
 // 自定义错误类
 export class AppError extends Error {
