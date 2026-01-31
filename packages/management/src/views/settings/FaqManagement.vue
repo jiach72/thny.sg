@@ -649,7 +649,6 @@ async function handleImport(options: any) {
   const formData = new FormData()
   formData.append('file', options.file)
   
-  // 显示 loading
   loading.value = true
   
   try {
@@ -658,23 +657,27 @@ async function handleImport(options: any) {
     })
     
     loading.value = false
+    console.log('Import response:', response.data)
     
     if (response.data.success) {
       const result = response.data.data
-      const msg = `导入完成！成功 ${result.success} 条，失败 ${result.failed} 条`
-      
-      if (result.errors && result.errors.length > 0) {
-        ElMessageBox.alert(
-          `${msg}\n\n错误详情：\n${result.errors.join('\n')}`,
-          '导入结果',
-          { confirmButtonText: '确定', type: result.failed > 0 ? 'warning' : 'success' }
-        )
+      if (result) {
+        const msg = `导入完成！成功 ${result.success} 条，失败 ${result.failed} 条`
+        
+        if (result.errors && result.errors.length > 0) {
+          ElMessageBox.alert(
+            `${msg}\n\n错误详情：\n${result.errors.slice(0, 10).join('\n')}`,
+            '导入结果',
+            { confirmButtonText: '确定', type: result.failed > 0 ? 'warning' : 'success' }
+          )
+        } else {
+          ElMessage.success(msg)
+        }
       } else {
-        ElMessage.success(msg)
+        ElMessage.success(response.data.message || '导入完成')
       }
       
       showImportDialog.value = false
-      // 刷新数据
       await Promise.all([
         fetchItems(),
         fetchStats(),
@@ -686,7 +689,8 @@ async function handleImport(options: any) {
   } catch (error: any) {
     loading.value = false
     console.error('Import error:', error)
-    ElMessage.error(error.response?.data?.message || '导入失败，请检查文件格式')
+    const errMsg = error.response?.data?.message || error.message || '导入失败，请检查文件格式'
+    ElMessage.error(errMsg)
   }
 }
 
