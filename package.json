@@ -12,6 +12,7 @@
     "dev:management": "npm run dev -w @tonghai/management",
     "dev:portal": "npm run dev -w @tonghai/customer-portal",
     "dev:backend": "npm run dev -w @tonghai/backend",
+    "db:reset-faq:backend": "npm run db:reset-faq -w @tonghai/backend",
     "build:website": "npm run build -w @tonghai/website",
     "build:management": "npm run build -w @tonghai/management",
     "build:portal": "npm run build -w @tonghai/customer-portal",
