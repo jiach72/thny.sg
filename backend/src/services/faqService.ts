@@ -122,7 +122,7 @@ export const faqService = {
             where.categoryId = categoryId
         }
 
-        return prisma.faqItem.findMany({
+        const items = await prisma.faqItem.findMany({
             where,
             include: {
                 category: {
@@ -134,6 +134,8 @@ export const faqService = {
                 { sortOrder: 'asc' }
             ]
         })
+        console.log(`[FAQ Service] getItems found ${items.length} items. Filter: ${JSON.stringify(where)}`)
+        return items
     },
 
     /**
@@ -259,7 +261,10 @@ export const faqService = {
      * 从 Excel/CSV Buffer 导入数据
      */
     async importFromBuffer(buffer: Buffer) {
-        const XLSX = await import('xlsx')
+        const XLSX_MODULE = await import('xlsx')
+        // @ts-ignore
+        const XLSX = XLSX_MODULE.default || XLSX_MODULE
+
         const workbook = XLSX.read(buffer, { type: 'buffer' })
 
         // 读取第一个 sheet
@@ -292,17 +297,18 @@ export const faqService = {
                 if (!row['Question'] && !row['问题']) throw new Error('缺少问题')
                 if (!row['Answer'] && !row['答案']) throw new Error('缺少答案')
 
-                const catName = (row['Category'] || row['分类']).trim()
-                const question = (row['Question'] || row['问题']).trim()
-                const answer = (row['Answer'] || row['答案']).trim()
-                const questionEn = (row['QuestionEn'] || row['英文问题'] || '').trim()
-                const answerEn = (row['AnswerEn'] || row['英文答案'] || '').trim()
+                const catName = String(row['Category'] || row['分类']).trim()
+                const question = String(row['Question'] || row['问题']).trim()
+                const answer = String(row['Answer'] || row['答案']).trim()
+                const questionEn = String(row['QuestionEn'] || row['英文问题'] || '').trim()
+                const answerEn = String(row['AnswerEn'] || row['英文答案'] || '').trim()
                 const keywordsData = (row['Keywords'] || row['关键词'] || '')
 
                 // 处理 keywords (支持逗号、中文逗号、空格分隔)
-                const keywords = typeof keywordsData === 'string'
-                    ? keywordsData.split(/[,\uFF0C\s]+/).filter((k: string) => k.trim())
-                    : []
+                const keywords = String(keywordsData)
+                    .split(/[,\uFF0C\s]+/)
+                    .map(k => k.trim())
+                    .filter(k => k.length > 0)
 
                 // 获取或创建分类
                 let catId = categoryMap.get(catName)
@@ -318,9 +324,9 @@ export const faqService = {
                 await prisma.faqItem.create({
                     data: {
                         question,
-                        questionEn,
+                        questionEn: questionEn || null,
                         answer,
-                        answerEn,
+                        answerEn: answerEn || null,
                         keywords,
                         categoryId: catId,
                         sortOrder: 100 // 默认排序

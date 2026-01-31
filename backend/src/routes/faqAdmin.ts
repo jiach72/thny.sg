@@ -14,7 +14,9 @@ const router = Router()
  */
 router.get('/import/template', async (req: Request, res: Response) => {
     try {
-        const XLSX = await import('xlsx')
+        const XLSX_MODULE = await import('xlsx')
+        // @ts-ignore
+        const XLSX = XLSX_MODULE.default || XLSX_MODULE
 
         // 准备数据头和示例行
         const headers = ['Category', 'Question', 'Answer', 'QuestionEn', 'AnswerEn', 'Keywords']
