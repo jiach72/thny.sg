@@ -68,6 +68,20 @@
 
 
 
+
+    <!-- 诊断信息 (Debug) -->
+    <div style="background: #fff3cd; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #ffeeba; color: #856404;">
+      <h3>🔧 诊断面板</h3>
+      <p><strong>Status:</strong> Stats={{ JSON.stringify(stats) }}</p>
+      <p><strong>List Count:</strong> {{ items ? items.length : 'null' }}</p>
+      <p><strong>Filtered Count:</strong> {{ filteredItems ? filteredItems.length : 'null' }}</p>
+      <p><strong>Current Filter:</strong> {{ filterCategoryId || 'None' }}</p>
+      <div v-if="items && items.length > 0">
+        <p><strong>First Item:</strong> {{ items[0].question }}</p>
+        <p><strong>Category:</strong> {{ items[0].category ? items[0].category.name : 'No Category' }}</p>
+      </div>
+    </div>
+
     <!-- 标签页 -->
     <el-tabs v-model="activeTab" class="content-tabs">
       <!-- FAQ 条目管理 -->
@@ -468,8 +482,25 @@ async function fetchItems() {
   try {
     const response = await apiClient.get(`/faq-admin/items`)
     if (response.data?.success) {
-      // 这里的注释很重要：强制 Vue 更新
-      items.value = [...(response.data.data || [])]
+      const data = response.data.data || []
+      console.log('API returned items:', data)
+      
+      if (data.length === 0) {
+        // 如果数据为空，插入一条测试数据
+        items.value = [{
+          id: 'test-item',
+          question: '⚠️ 这是一个测试问题 (说明后端返回了空数组)',
+          answer: '如果您看到这条，说明前端表格正常，但后端数据库为空。',
+          isActive: true,
+          viewCount: 0,
+          helpfulCount: 0,
+          category: { name: '测试分类' },
+          categoryId: 'test-cat'
+        }]
+        ElMessage.warning('后端返回空数据，已加载测试数据')
+      } else {
+        items.value = [...data]
+      }
     }
   } catch (error) {
     console.error('Error fetching items:', error)
