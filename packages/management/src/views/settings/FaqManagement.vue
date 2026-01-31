@@ -649,23 +649,30 @@ async function handleImport(options: any) {
   const formData = new FormData()
   formData.append('file', options.file)
   
-  const loadingInstance = ElMessage.success({
-    message: '正在上传处理中...',
-    duration: 0
-  })
+  // 显示 loading
+  loading.value = true
   
   try {
     const response = await apiClient.post('/faq-admin/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     
-    loadingInstance.close()
+    loading.value = false
     
     if (response.data.success) {
-      ElMessageBox.alert(response.data.message, '导入结果', {
-        confirmButtonText: '确定',
-        type: 'success'
-      })
+      const result = response.data.data
+      const msg = `导入完成！成功 ${result.success} 条，失败 ${result.failed} 条`
+      
+      if (result.errors && result.errors.length > 0) {
+        ElMessageBox.alert(
+          `${msg}\n\n错误详情：\n${result.errors.join('\n')}`,
+          '导入结果',
+          { confirmButtonText: '确定', type: result.failed > 0 ? 'warning' : 'success' }
+        )
+      } else {
+        ElMessage.success(msg)
+      }
+      
       showImportDialog.value = false
       // 刷新数据
       await Promise.all([
@@ -673,10 +680,13 @@ async function handleImport(options: any) {
         fetchStats(),
         fetchCategories()
       ])
+    } else {
+      ElMessage.error(response.data.message || '导入失败')
     }
   } catch (error: any) {
-    loadingInstance.close()
-    ElMessage.error(error.response?.data?.message || '导入失败')
+    loading.value = false
+    console.error('Import error:', error)
+    ElMessage.error(error.response?.data?.message || '导入失败，请检查文件格式')
   }
 }
 
