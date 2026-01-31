@@ -641,12 +641,8 @@ async function ignoreQuestion(question: any) {
 
 // 导入操作
 async function downloadTemplate() {
-  const token = localStorage.getItem('token')
   const apiBase = import.meta.env.VITE_API_BASE_URL || '/api/v1'
-  // 原生 fetch 下载，带上 Token (虽然下载模板其实不需要鉴权，但为了统一)
-  // 为了简单，直接打开链接。如果接口需要鉴权，建议 window.open 同时也带 query param token
-  const downloadUrl = `${apiBase}/faq-admin/import/template?token=${token}`
-  window.open(downloadUrl, '_blank')
+  window.open(`${apiBase}/faq-admin/import/template`, '_blank')
 }
 
 async function handleImport(options: any) {

@@ -6,7 +6,36 @@ import { chatService } from '../services/chatService.js'
 
 const router = Router()
 
-// 所有路由需要认证
+// ==================== 无需认证的路由 ====================
+
+/**
+ * 下载导入模板（无需认证，模板是空白文件）
+ * GET /api/v1/faq-admin/import/template
+ */
+router.get('/import/template', async (req: Request, res: Response) => {
+    try {
+        const XLSX = await import('xlsx')
+
+        // 准备数据头和示例行
+        const headers = ['Category', 'Question', 'Answer', 'QuestionEn', 'AnswerEn', 'Keywords']
+        const sample = ['移民服务', '申请EP需要什么条件？', '申请EP需要月薪至少5000新币...', 'What are the requirements for EP?', 'EP requires minimum salary of SGD 5000...', 'EP, 工作准证, 薪资']
+
+        const ws = XLSX.utils.aoa_to_sheet([headers, sample])
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'FAQ导入模板')
+
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', 'attachment; filename=faq_template.xlsx')
+        res.send(buffer)
+    } catch (error) {
+        console.error('Template gen error:', error)
+        res.status(500).send('Error generating template')
+    }
+})
+
+// ==================== 需要认证的路由 ====================
 router.use(authMiddleware)
 
 // ==================== FAQ 分类管理 ====================
@@ -196,33 +225,6 @@ router.delete('/items/:id', async (req: Request, res: Response) => {
 
 import multer from 'multer'
 const upload = multer({ storage: multer.memoryStorage() })
-
-/**
- * 下载导入模板
- * GET /api/v1/faq-admin/import/template
- */
-router.get('/import/template', async (req: Request, res: Response) => {
-    try {
-        const XLSX = await import('xlsx')
-
-        // 准备数据头和示例行
-        const headers = ['Category', 'Question', 'Answer', 'QuestionEn', 'AnswerEn', 'Keywords']
-        const sample = ['Example Category', 'What is specific question?', 'This is the answer.', 'Optional English Question', 'Optional English Answer', 'keyword1, keyword2']
-
-        const ws = XLSX.utils.aoa_to_sheet([headers, sample])
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, 'Template')
-
-        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        res.setHeader('Content-Disposition', 'attachment; filename=faq_template.xlsx')
-        res.send(buffer)
-    } catch (error) {
-        console.error('Template gen error:', error)
-        res.status(500).send('Error generating template')
-    }
-})
 
 /**
  * 导入 FAQ 数据
