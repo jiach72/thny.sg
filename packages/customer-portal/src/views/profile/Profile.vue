@@ -262,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElAvatar, ElSwitch, ElSelect, ElOption, ElCheckbox } from 'element-plus'
 import { User, Shield, Bell, Users, Camera, Trash2 } from 'lucide-vue-next'

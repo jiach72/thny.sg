@@ -113,9 +113,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { storeToRefs } from 'pinia'
-import { useAuthStore } from '@/stores'
 import { messageApi } from '@/api'
 import { 
   LayoutGrid, // Dashboard
@@ -125,13 +122,9 @@ import {
   Settings,
   Bell,
   User,
-  Languages,
-  LogOut
+  Languages
 } from 'lucide-vue-next'
 
-const router = useRouter()
-const authStore = useAuthStore()
-const { user } = storeToRefs(authStore)
 const unreadCount = ref(0)
 
 // More "App-like" naming
@@ -151,14 +144,7 @@ onMounted(async () => {
   }
 })
 
-function handleCommand(command: string) {
-  if (command === 'logout') {
-    authStore.logout()
-    router.push('/login')
-  } else if (command === 'profile') {
-    router.push('/profile')
-  }
-}
+
 </script>
 
 <style scoped>

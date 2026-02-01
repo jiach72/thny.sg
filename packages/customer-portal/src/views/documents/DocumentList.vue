@@ -201,7 +201,6 @@ const showUploadDialog = ref(false)
 const uploading = ref(false)
 const uploadProgress = ref(0)
 const uploadFileName = ref('')
-const uploadRef = ref()
 
 const tabs = [
   { id: 'all', label: '全部文档' },
@@ -283,7 +282,7 @@ function handleUploadProgress(event: UploadProgressEvent) {
   uploadProgress.value = Math.round(event.percent || 0)
 }
 
-function handleUploadSuccess(response: any, file: UploadFile) {
+function handleUploadSuccess(_response: any, file: UploadFile) {
   uploading.value = false
   uploadProgress.value = 100
   ElMessage.success(`${file.name} 上传成功`)

@@ -89,8 +89,7 @@ import {
   Stamp, 
   FileText, 
   FolderOpen, // Default 
-  Calendar,
-  Briefcase
+  Calendar
 } from 'lucide-vue-next'
 import { useProjectStore } from '@/stores/projectStore'
 
