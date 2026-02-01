@@ -188,4 +188,100 @@ router.delete('/messages/:id', customerAuth, async (req: Request, res: Response,
     }
 })
 
+// ==================== 服务咨询接口 ====================
+
+/**
+ * POST /portal/inquiries - 创建服务咨询
+ */
+router.post(
+    '/inquiries',
+    customerAuth,
+    [
+        body('serviceType').notEmpty().withMessage('请选择服务类型'),
+        body('message').notEmpty().withMessage('请填写咨询内容'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.createInquiry(req.user!.id, req.body)
+            res.status(201).json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+// ==================== 家庭成员接口 ====================
+
+/**
+ * POST /portal/family-members - 添加家庭成员
+ */
+router.post(
+    '/family-members',
+    customerAuth,
+    [
+        body('name').notEmpty().withMessage('请填写成员姓名'),
+        body('relationship').notEmpty().withMessage('请选择关系'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.addFamilyMember(req.user!.id, req.body)
+            res.status(201).json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * PUT /portal/family-members/:id - 编辑家庭成员
+ */
+router.put(
+    '/family-members/:id',
+    customerAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.updateFamilyMember(req.user!.id, req.params.id, req.body)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * DELETE /portal/family-members/:id - 删除家庭成员
+ */
+router.delete(
+    '/family-members/:id',
+    customerAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.deleteFamilyMember(req.user!.id, req.params.id)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+// ==================== 通知偏好接口 ====================
+
+/**
+ * PUT /portal/preferences - 保存通知偏好
+ */
+router.put(
+    '/preferences',
+    customerAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.updatePreferences(req.user!.id, req.body)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
 export default router

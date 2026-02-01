@@ -166,6 +166,7 @@ async function main() {
     console.log('👤 创建管理员用户...')
     const passwordHash = await bcrypt.hash('password123', 12)
     const adminRoleId = roleMap.get('ADMIN')!
+    const customerRoleId = roleMap.get('CUSTOMER')!
 
     // 管理员
     await prisma.user.upsert({
@@ -180,6 +181,240 @@ async function main() {
         },
     })
     console.log('  ✅ admin@thny.sg (管理员)')
+
+    // 5. 创建演示客户数据 (client@example.com)
+    console.log('👤 创建演示客户数据...')
+
+    // 5.1 创建 User
+    const demoClient = await prisma.user.upsert({
+        where: { email: 'client@example.com' },
+        update: { roleId: customerRoleId },
+        create: {
+            email: 'client@example.com',
+            name: '陈大文',
+            passwordHash, // 使用相同的密码 password123
+            roleId: customerRoleId,
+            avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+        },
+    })
+    console.log('  ✅ client@example.com (演示客户)')
+
+    // 5.2 创建 Lead & Customer (如果是新用户)
+    // 检查是否有关联客户，没有则创建
+    let customer = await prisma.customer.findUnique({
+        where: { userId: demoClient.id },
+    })
+
+    if (!customer) {
+        console.log('  ✨ 初始化客户档案...')
+        // 先创建 Lead
+        const lead = await prisma.lead.create({
+            data: {
+                contactName: '陈大文',
+                email: 'client@example.com',
+                phone: '+65 9123 4567',
+                status: 'CONVERTED',
+                sourceChannel: 'REFERRAL',
+                serviceTypes: ['IMMIGRATION', 'TRUST'],
+            }
+        })
+
+        // 创建 Customer
+        customer = await prisma.customer.create({
+            data: {
+                userId: demoClient.id,
+                leadId: lead.id,
+                contactName: '陈大文',
+                email: 'client@example.com',
+                kycStatus: 'APPROVED',
+                riskGrade: 'LOW',
+                familyMembers: {
+                    spouse: { name: '李梅', relation: 'Spouse' },
+                    children: [
+                        { name: '陈小明', relation: 'Son', age: 10 },
+                        { name: '陈小红', relation: 'Daughter', age: 8 }
+                    ]
+                }
+            }
+        })
+    }
+
+    // 5.3 创建项目 (Global Family Trust Setup)
+    const projectTitle = 'Global Family Trust Setup'
+    let project = await prisma.project.findFirst({
+        where: {
+            customerId: customer.id,
+            title: projectTitle
+        }
+    })
+
+    if (!project) {
+        console.log('  🏗️ 创建演示项目: Global Family Trust Setup...')
+        project = await prisma.project.create({
+            data: {
+                customerId: customer.id,
+                title: projectTitle,
+                description: '设立新加坡家族信托以进行资产保护与传承规划。',
+                status: 'ACTIVE',
+                projectType: 'TRUST',
+                completionPercentage: 35,
+                startDate: new Date('2024-01-15'),
+                estimatedEndDate: new Date('2024-06-30'),
+                budget: 25000,
+            }
+        })
+    }
+
+    // 5.4 创建任务 (Action Center Items)
+    const pendingTaskTitle = '签署信托契约草案'
+    const taskExists = await prisma.task.findFirst({
+        where: { projectId: project.id, title: pendingTaskTitle }
+    })
+
+    if (!taskExists) {
+        console.log('  ⚡ 创建演示任务...')
+
+        // 任务 1: 待签署 (高优)
+        await prisma.task.create({
+            data: {
+                projectId: project.id,
+                title: pendingTaskTitle,
+                description: '请复核并签署信托契约草案 v1。',
+                status: 'NOT_STARTED',
+                priority: 'CRITICAL',
+                dueDate: new Date(new Date().getTime() + 86400000 * 2), // +2 days
+                slaHours: 48,
+            }
+        })
+
+        // 任务 2: 补充 KYC (中优)
+        await prisma.task.create({
+            data: {
+                projectId: project.id,
+                title: '提交补充 KYC 材料',
+                description: '需要提供配偶的护照复印件。',
+                status: 'IN_PROGRESS',
+                priority: 'HIGH',
+                dueDate: new Date(new Date().getTime() + 86400000 * 5),
+            }
+        })
+
+        // 任务 3: 初始咨询 (已完成)
+        await prisma.task.create({
+            data: {
+                projectId: project.id,
+                title: '初始架构咨询会议',
+                status: 'DONE',
+                priority: 'MEDIUM',
+                completedAt: new Date('2024-01-20'),
+            }
+        })
+    }
+
+    // 5.5 创建文档
+    const docName = 'Trust_Deed_Draft_v1.pdf'
+    const docExists = await prisma.document.findFirst({
+        where: { projectId: project.id, fileName: docName }
+    })
+
+    if (!docExists) {
+        console.log('  📄 创建演示文档...')
+
+        const adminUser = await prisma.user.findUnique({ where: { email: 'admin@thny.sg' } })
+        if (!adminUser) throw new Error('Admin user not found')
+
+        // 文档 1: 待办
+        await prisma.document.create({
+            data: {
+                projectId: project.id,
+                fileName: docName,
+                filePath: '/uploads/demo/trust_deed.pdf', // 虚拟路径
+                fileSize: 2450000,
+                fileType: 'application/pdf',
+                documentType: 'CONTRACT',
+                uploadedById: adminUser.id
+            }
+        })
+    } else {
+        // 如果文档已存在，不做任何事，或者更新
+    }
+
+    // ==========================================
+    // 5.6 扩展演示数据 (更多项目与文档)
+    // ==========================================
+
+    const adminUser = await prisma.user.findUnique({ where: { email: 'admin@thny.sg' } })
+
+    // Project A: Singapore EP Application (已完成)
+    const epProjectTitle = 'Singapore EP Application'
+    let epProject = await prisma.project.findFirst({
+        where: { customerId: customer.id, title: epProjectTitle }
+    })
+    if (!epProject) {
+        console.log('  🏗️ 创建额外项目: Singapore EP Application...')
+        epProject = await prisma.project.create({
+            data: {
+                customerId: customer.id,
+                title: epProjectTitle,
+                description: '为家庭成员申请新加坡长期居留准证(LTVP)及就业准证(EP)。',
+                status: 'COMPLETED',
+                projectType: 'EP Application',
+                completionPercentage: 100,
+                startDate: new Date('2023-09-01'),
+                actualEndDate: new Date('2023-12-15'),
+                budget: 12000,
+            }
+        })
+        // 文档 for EP
+        if (adminUser) {
+            await prisma.document.create({
+                data: {
+                    projectId: epProject.id,
+                    fileName: 'EP_Approval_Letter_Tan.pdf',
+                    filePath: '/uploads/demo/ep_approval.pdf',
+                    fileSize: 156000,
+                    fileType: 'application/pdf',
+                    documentType: 'GOVERNMENT_LETTER',
+                    uploadedById: adminUser.id,
+                    createdAt: new Date('2023-12-10')
+                }
+            })
+        }
+    }
+
+    // Project B: Corporate Tax Planning 2024 (规划中)
+    const taxProjectTitle = 'Corporate Tax Planning 2024'
+    let taxProject = await prisma.project.findFirst({
+        where: { customerId: customer.id, title: taxProjectTitle }
+    })
+    if (!taxProject) {
+        console.log('  🏗️ 创建额外项目: Corporate Tax Planning 2024...')
+        taxProject = await prisma.project.create({
+            data: {
+                customerId: customer.id,
+                title: taxProjectTitle,
+                description: '2024财年企业税务架构优化及合规申报服务。',
+                status: 'PLANNING',
+                projectType: 'Tax Planning',
+                completionPercentage: 15,
+                startDate: new Date('2024-02-01'),
+                estimatedEndDate: new Date('2024-11-30'),
+                budget: 8000,
+            }
+        })
+
+        // 任务 for Tax
+        await prisma.task.create({
+            data: {
+                projectId: taxProject.id,
+                title: '提交 2023 财务报表',
+                status: 'NOT_STARTED',
+                priority: 'HIGH',
+                dueDate: new Date('2024-03-31'),
+                description: '请上传上一财年的经审计财务报表。'
+            }
+        })
+    }
 
     console.log('\n🎉 RBAC 数据初始化完成!')
     console.log('\n📋 管理员账号:')

@@ -1,4 +1,6 @@
-const zhTW = {
+import type { MessageSchema } from './types'
+
+const zhTW: MessageSchema = {
     services: {
         pageTitle: '服務方案',
         pageSubtitle: '為台湾企業家與高淨值家族提供全方位跨境解決方案',

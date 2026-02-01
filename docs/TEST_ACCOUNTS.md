@@ -20,3 +20,10 @@
 - 所有密码统一为 `password123`
 - CRM 管理端账号: 使用 `@thny.sg` 域名
 - 客户门户账号: 使用客户原有邮箱
+
+
+# 如果您配置了自动构建镜像：
+docker compose pull backend
+docker compose up -d backend
+# 或者，如果您是在服务器上构建：
+# docker compose build backend && docker compose up -d backend

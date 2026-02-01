@@ -1,77 +1,93 @@
 <template>
-  <div class="login-page">
-    <div class="login-container">
-      <div class="login-left">
-        <div class="brand">
-          <h1>通海南洋</h1>
-          <p>您的专属服务门户</p>
-        </div>
-        <div class="features">
-          <div class="feature-item">
-            <el-icon size="24"><Check /></el-icon>
-            <span>实时追踪项目进度</span>
-          </div>
-          <div class="feature-item">
-            <el-icon size="24"><Check /></el-icon>
-            <span>安全便捷的文档管理</span>
-          </div>
-          <div class="feature-item">
-            <el-icon size="24"><Check /></el-icon>
-            <span>与顾问团队即时沟通</span>
-          </div>
+  <div class="min-h-screen flex bg-obsidian font-sans selection-wealth">
+    <!-- Left: Artistic/Brand Section (Hidden on mobile) -->
+    <div class="hidden lg:flex w-1/2 relative overflow-hidden items-center justify-center bg-black">
+      <!-- Background Abstract Art -->
+      <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-transparent to-obsidian"></div>
+      
+      <div class="relative z-10 p-12 max-w-lg">
+        <h1 class="font-serif text-5xl text-white mb-6 leading-tight">
+          Legacy & <br/>
+          <span class="text-wealth italic">Prosperity</span>
+        </h1>
+        <p class="text-text-muted text-lg font-light leading-relaxed">
+          Experience the art of wealth management. Secure, transparent, and tailored for your family's future.
+        </p>
+      </div>
+    </div>
+
+    <!-- Right: Login Form -->
+    <div class="flex-1 flex items-center justify-center p-8 lg:p-24 relative">
+      <!-- Decoration -->
+      <div class="absolute top-0 right-0 p-8">
+        <div class="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center">
+            <span class="font-serif font-bold text-wealth">T</span>
         </div>
       </div>
 
-      <div class="login-right">
-        <div class="login-box">
-          <h2>欢迎回来</h2>
-          <p class="subtitle">登录您的客户账户</p>
+      <div class="w-full max-w-md space-y-8 animate-fade-in-up">
+        <div class="text-center lg:text-left">
+          <h2 class="font-serif text-3xl text-text mb-2">Welcome Back</h2>
+          <p class="text-text-muted text-sm">Sign in to your private vault.</p>
+        </div>
 
-          <el-form
-            ref="formRef"
-            :model="form"
-            :rules="rules"
-            class="login-form"
-            @submit.prevent="handleLogin"
-          >
-            <el-form-item prop="email">
+        <el-form
+          ref="formRef"
+          :model="form"
+          :rules="rules"
+          class="space-y-6"
+          @submit.prevent="handleLogin"
+        >
+          <div class="space-y-4">
+            <div class="group relative">
+              <label class="block text-xs uppercase tracking-wider text-text-muted mb-1 ml-1 group-focus-within:text-wealth transition-colors">Email</label>
               <el-input
                 v-model="form.email"
-                placeholder="邮箱地址"
+                placeholder="name@family.office"
                 size="large"
-                :prefix-icon="Message"
-              />
-            </el-form-item>
+                class="!h-12 login-input"
+              >
+                <template #prefix>
+                   <Mail class="w-4 h-4 text-text-muted group-hover:text-text transition-colors" />
+                </template>
+              </el-input>
+            </div>
 
-            <el-form-item prop="password">
+            <div class="group relative">
+               <label class="block text-xs uppercase tracking-wider text-text-muted mb-1 ml-1 group-focus-within:text-wealth transition-colors">Password</label>
               <el-input
                 v-model="form.password"
                 type="password"
-                placeholder="密码"
+                placeholder="••••••••"
                 size="large"
-                :prefix-icon="Lock"
                 show-password
+                class="!h-12 login-input"
                 @keyup.enter="handleLogin"
-              />
-            </el-form-item>
-
-            <el-form-item>
-              <el-button
-                type="primary"
-                size="large"
-                :loading="loading"
-                class="login-button"
-                @click="handleLogin"
               >
-                登录
-              </el-button>
-            </el-form-item>
-          </el-form>
-
-          <div class="login-footer">
-            <p>需要帮助？请联系您的客户顾问</p>
+                <template #prefix>
+                   <Lock class="w-4 h-4 text-text-muted group-hover:text-text transition-colors" />
+                </template>
+              </el-input>
+            </div>
           </div>
-        </div>
+
+          <button
+            type="button"
+            class="w-full h-12 bg-wealth hover:bg-[#B49248] text-obsidian font-bold uppercase tracking-wider text-sm rounded transition-all duration-300 transform active:scale-[0.98] focus:ring-2 focus:ring-wealth/50 focus:outline-none flex items-center justify-center gap-2"
+            :disabled="loading"
+            @click="handleLogin"
+          >
+            <span v-if="loading">Decrypting...</span>
+            <span v-else>Access Vault</span>
+            <ArrowRight v-if="!loading" class="w-4 h-4" />
+          </button>
+        </el-form>
+
+        <p class="text-center text-xs text-text-muted/50 mt-8">
+          Protected by Tonghai Nanyang Security. <br/>
+          By accessing, you agree to our strict confidentiality terms.
+        </p>
       </div>
     </div>
   </div>
@@ -81,7 +97,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Message, Lock, Check } from '@element-plus/icons-vue'
+import { Mail, Lock, ArrowRight } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores'
 
 const router = useRouter()
@@ -98,12 +114,12 @@ const form = reactive({
 
 const rules: FormRules = {
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' },
+    { required: true, message: 'Required', trigger: 'blur' },
+    { type: 'email', message: 'Invalid format', trigger: 'blur' },
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码至少6个字符', trigger: 'blur' },
+    { required: true, message: 'Required', trigger: 'blur' },
+    { min: 6, message: 'Min 6 chars', trigger: 'blur' },
   ],
 }
 
@@ -120,13 +136,11 @@ async function handleLogin() {
         password: form.password,
       })
       
-      ElMessage.success('登录成功，欢迎回来')
-      
-      // 跳转到目标页面
+      ElMessage.success('Welcome back.') // Minimalist success message
       const redirect = route.query.redirect as string
       router.push(redirect || '/dashboard')
     } catch (error: any) {
-      ElMessage.error(error.message || '登录失败，请检查邮箱和密码')
+      ElMessage.error(error.message || 'Authentication failed')
     } finally {
       loading.value = false
     }
@@ -134,151 +148,19 @@ async function handleLogin() {
 }
 </script>
 
-<style scoped>
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #F8FAFC;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(8, 145, 178, 0.03) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(34, 197, 94, 0.03) 0px, transparent 50%);
+<style>
+/* Override Element Input Styles for Dark Theme */
+.login-input {
+  --el-input-bg-color: rgba(255, 255, 255, 0.03) !important;
+  --el-input-border-color: rgba(255, 255, 255, 0.1) !important;
+  --el-input-text-color: #F8FAFC !important;
+  --el-input-placeholder-color: #64748B !important;
+  --el-input-hover-border-color: rgba(214, 181, 110, 0.5) !important;
+  --el-input-focus-border-color: #D6B56E !important;
 }
 
-.login-container {
-  display: flex;
-  width: 900px;
-  min-height: 550px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-}
-
-.login-left {
-  flex: 1;
-  background: #FFF;
-  padding: 48px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  border-right: 1px solid var(--color-border);
-}
-
-.brand h1 {
-  font-family: 'Lexend', sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin: 0 0 12px;
-  letter-spacing: -0.02em;
-}
-
-.brand p {
-  font-size: 16px;
-  color: var(--color-text-muted);
-  margin: 0 0 48px;
-  font-family: 'Source Sans 3', sans-serif;
-}
-
-.features {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--color-text);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: 'Source Sans 3', sans-serif;
-}
-
-.feature-item .el-icon {
-  color: var(--color-cta);
-  background: rgba(5, 150, 105, 0.1);
-  padding: 6px;
-  border-radius: 6px;
-  border: none;
-}
-
-.login-right {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px;
-  background: #F8FAFC;
-}
-
-.login-box {
-  width: 100%;
-  max-width: 320px;
-}
-
-.login-box h2 {
-  font-family: 'Lexend', sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0 0 6px;
-}
-
-.subtitle {
-  color: var(--color-text-muted);
-  font-size: 14px;
-  margin: 0 0 32px;
-  font-family: 'Source Sans 3', sans-serif;
-}
-
-:deep(.el-input__wrapper) {
-  background-color: #FFF !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius-sm) !important;
-  padding: 8px 16px;
-}
-
-:deep(.el-input__wrapper.is-focus) {
-  border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.1) !important;
-}
-
-:deep(.el-input__inner) {
-  color: var(--color-text) !important;
-  height: 48px;
-  font-family: 'Source Sans 3', sans-serif;
-}
-
-.login-button {
-  width: 100%;
-  height: 48px;
-  font-size: 15px;
-  font-weight: 600;
-  margin-top: 12px;
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  border-radius: var(--radius-sm);
-}
-
-.login-button:hover {
-  background-color: var(--color-secondary);
-  border-color: var(--color-secondary);
-}
-
-.login-footer {
-  text-align: center;
-  margin-top: 24px;
-}
-
-.login-footer p {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  font-family: 'Source Sans 3', sans-serif;
+.login-input .el-input__wrapper {
+  box-shadow: none !important;
+  border-radius: 2px !important; /* Sharp corners */
 }
 </style>

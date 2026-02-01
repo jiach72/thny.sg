@@ -1,341 +1,285 @@
 <template>
-  <div class="dashboard">
-    <!-- 欢迎区域 -->
-    <div class="welcome-section">
-      <div class="welcome-content">
-        <h1>欢迎回来，{{ user?.name }} 👋</h1>
-        <p>这里是您的服务进度概览</p>
+  <div class="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
+    <!-- 欢迎头部 -->
+    <div class="flex items-end justify-between">
+      <div>
+        <h1 class="font-serif text-3xl text-text mb-2">
+          <span class="text-wealth">{{ timeGreeting }}</span>，{{ userName }}
+        </h1>
+        <p class="text-sm text-text-muted">这是您的资产管理概览</p>
       </div>
-      <div class="quick-actions">
-        <el-button type="primary" @click="$router.push('/projects')">
-          <el-icon><Folder /></el-icon> 查看项目
-        </el-button>
-        <el-button @click="$router.push('/documents')">
-          <el-icon><Upload /></el-icon> 上传文档
-        </el-button>
+      
+      <!-- 统计卡片 (桌面端) -->
+      <div class="hidden md:flex gap-4">
+        <div class="px-6 py-3 rounded-lg bg-glass/20 border border-white/5 text-center min-w-[120px]">
+          <div v-if="!statsLoading" class="text-2xl font-serif text-text">{{ stats.activeProjects }}</div>
+          <div v-else class="h-8 w-12 mx-auto bg-white/10 rounded animate-pulse"></div>
+          <div class="text-[10px] uppercase tracking-wider text-text-muted">进行中项目</div>
+        </div>
+        <div class="px-6 py-3 rounded-lg bg-glass/20 border border-white/5 text-center min-w-[120px]">
+          <div v-if="!statsLoading" class="text-2xl font-serif text-text">{{ stats.pendingDocuments }}</div>
+          <div v-else class="h-8 w-12 mx-auto bg-white/10 rounded animate-pulse"></div>
+          <div class="text-[10px] uppercase tracking-wider text-text-muted">待处理文档</div>
+        </div>
       </div>
     </div>
 
-    <!-- 项目进度卡片 -->
-    <div class="section-title">我的项目进度</div>
-    <el-row :gutter="24">
-      <el-col :span="8" v-for="project in (projects || [])" :key="project.id" :xs="24" :sm="12" :md="8">
-        <el-card class="project-card" shadow="hover" @click="$router.push(`/projects/${project.id}`)">
-          <div class="project-header">
-            <span class="project-name">{{ project.title || '无标题' }}</span>
-            <el-tag :type="getStatusType(project.status)" size="small">
-              {{ getStatusLabel(project.status) }}
-            </el-tag>
-          </div>
-          <div class="project-progress">
-            <el-progress 
-              :percentage="project.completionPercentage || 0" 
-              :stroke-width="10"
-              :color="getProgressColor(project.completionPercentage || 0)"
-            />
-          </div>
-          <div class="project-meta">
-            <span>
-              <el-icon><Calendar /></el-icon>
-              预计完成: {{ formatDate(project.estimatedEndDate) }}
-            </span>
-          </div>
-        </el-card>
-      </el-col>
+    <!-- 主内容网格 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       
-      <el-col :span="24" v-if="!projects || (Array.isArray(projects) && projects.length === 0)">
-        <el-empty description="暂无进行中的项目" />
-      </el-col>
-    </el-row>
-
-    <!-- 待办事项 -->
-    <div class="section-title">待办事项</div>
-    <el-card class="todo-card">
-      <div v-if="todos.length > 0" class="todo-list">
-        <div v-for="todo in todos" :key="todo.id" class="todo-item">
-          <div class="todo-icon" :class="todo.type">
-            <el-icon v-if="todo.type === 'document'"><Upload /></el-icon>
-            <el-icon v-else-if="todo.type === 'payment'"><CreditCard /></el-icon>
-            <el-icon v-else><Bell /></el-icon>
-          </div>
-          <div class="todo-content">
-            <div class="todo-title">{{ todo.title }}</div>
-            <div class="todo-desc">{{ todo.description }}</div>
-          </div>
-          <el-button type="primary" size="small">处理</el-button>
+      <!-- 左侧 (主内容) -->
+      <div class="lg:col-span-2 space-y-8">
+        
+        <!-- 行动中心 (移动端优先) -->
+        <div class="block lg:hidden">
+          <ActionCenter :items="todos" @action="handleActionClick" />
         </div>
-      </div>
-      <el-empty v-else description="暂无待办事项" :image-size="80" />
-    </el-card>
 
-    <!-- 最近消息 -->
-    <div class="section-title">最近消息</div>
-    <el-card class="message-card">
-      <div v-if="messages.length > 0" class="message-list">
-        <div v-for="msg in messages" :key="msg.id" class="message-item">
-          <el-avatar :size="40">{{ msg.senderName?.[0] }}</el-avatar>
-          <div class="message-content">
-            <div class="message-header">
-              <span class="sender">{{ msg.senderName }}</span>
-              <span class="time">{{ formatDate(msg.createdAt) }}</span>
+        <!-- 项目区域 -->
+        <div>
+           <div class="flex items-center justify-between mb-4">
+             <h3 class="text-sm uppercase tracking-wider text-text-muted font-bold">进行中的项目</h3>
+             <button @click="$router.push('/projects')" class="bg-transparent text-xs font-medium text-wealth hover:text-white transition-colors border-b border-wealth/30 hover:border-wealth pb-0.5">
+               查看全部
+             </button>
+           </div>
+           
+           <div v-if="projects && projects.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div 
+               v-for="project in projects" 
+               :key="project.id"
+               class="group relative p-6 rounded-xl bg-glass/20 border border-white/5 hover:bg-glass/30 hover:border-wealth/30 transition-all duration-300 cursor-pointer overflow-hidden"
+               @click="$router.push(`/projects/${project.id}`)"
+             >
+                <!-- 悬停光效 -->
+                <div class="absolute inset-0 bg-gradient-to-br from-wealth/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div class="relative z-10">
+                  <div class="flex justify-between items-start mb-4">
+                    <div class="p-2 rounded bg-white/5 text-wealth">
+                      <component :is="Folder" class="w-5 h-5" />
+                    </div>
+                    <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider" 
+                      :class="project.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-white/5 text-text-muted'">
+                      {{ getStatusLabel(project.status) }}
+                    </span>
+                  </div>
+                  
+                  <h4 class="font-serif text-lg text-text mb-1 truncate">{{ project.title }}</h4>
+                  <p class="text-xs text-text-muted mb-4">开始于 {{ formatDate(project.createdAt) }}</p>
+
+                  <!-- 进度条 -->
+                  <div class="space-y-1">
+                    <div class="flex justify-between text-[10px] text-text-muted">
+                      <span>进度</span>
+                      <span>{{ project.completionPercentage || 0 }}%</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        class="h-full bg-wealth transition-all duration-1000 ease-out"
+                        :style="{ width: `${project.completionPercentage || 0}%` }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+             </div>
+           </div>
+           
+           <!-- 空状态 -->
+           <div v-else class="p-8 rounded-xl bg-glass/10 border border-white/5 text-center border-dashed border-white/10 hover:border-wealth/30 transition-colors">
+             <p class="text-text-muted mb-4">暂无进行中的项目</p>
+             <button 
+               @click="openServiceInquiry('business')"
+               class="px-6 py-2 bg-gradient-to-r from-wealth to-[#B49248] hover:from-[#B49248] hover:to-wealth text-obsidian font-bold rounded shadow-lg shadow-wealth/20 transition-all active:scale-95"
+             >
+               开始新咨询
+             </button>
+           </div>
+        </div>
+
+        <!-- 服务目录 -->
+        <div>
+          <h3 class="text-sm uppercase tracking-wider text-text-muted font-bold mb-4 ml-1">专业服务</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            
+            <!-- 移民服务 -->
+            <div 
+              @click="openServiceInquiry('immigration')"
+              class="p-4 rounded-xl bg-glass/20 border border-white/5 flex flex-col items-center justify-center gap-3 hover:bg-glass/30 transition-all cursor-pointer group hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 active:scale-95 duration-300"
+            >
+               <div class="p-3 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
+                 <component :is="Globe" class="w-6 h-6 text-white" />
+               </div>
+               <span class="text-xs font-bold text-text tracking-wide group-hover:text-emerald-400 transition-colors">移民服务</span>
             </div>
-            <div class="message-text">{{ msg.content }}</div>
+
+            <!-- 教育咨询 -->
+            <div 
+              @click="openServiceInquiry('education')"
+              class="p-4 rounded-xl bg-glass/20 border border-white/5 flex flex-col items-center justify-center gap-3 hover:bg-glass/30 transition-all cursor-pointer group hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10 active:scale-95 duration-300"
+            >
+               <div class="p-3 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-300">
+                 <component :is="GraduationCap" class="w-6 h-6 text-white" />
+               </div>
+               <span class="text-xs font-bold text-text tracking-wide group-hover:text-blue-400 transition-colors">教育咨询</span>
+            </div>
+
+            <!-- 商业服务 -->
+            <div 
+              @click="openServiceInquiry('business')"
+              class="p-4 rounded-xl bg-glass/20 border border-white/5 flex flex-col items-center justify-center gap-3 hover:bg-glass/30 transition-all cursor-pointer group hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/10 active:scale-95 duration-300"
+            >
+               <div class="p-3 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform duration-300">
+                 <component :is="Briefcase" class="w-6 h-6 text-white" />
+               </div>
+               <span class="text-xs font-bold text-text tracking-wide group-hover:text-amber-400 transition-colors">商业服务</span>
+            </div>
+
+            <!-- 房产投资 -->
+            <div 
+              @click="openServiceInquiry('realestate')"
+              class="p-4 rounded-xl bg-glass/20 border border-white/5 flex flex-col items-center justify-center gap-3 hover:bg-glass/30 transition-all cursor-pointer group hover:-translate-y-1 hover:shadow-lg hover:shadow-rose-500/10 active:scale-95 duration-300"
+            >
+               <div class="p-3 rounded-full bg-gradient-to-br from-rose-400 to-rose-600 shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-transform duration-300">
+                 <component :is="Landmark" class="w-6 h-6 text-white" />
+               </div>
+               <span class="text-xs font-bold text-text tracking-wide group-hover:text-rose-400 transition-colors">房产投资</span>
+            </div>
           </div>
         </div>
       </div>
-      <el-empty v-else description="暂无消息" :image-size="80" />
-    </el-card>
+
+      <!-- 右侧 (侧边栏) -->
+      <div class="space-y-8">
+        <!-- 行动中心 -->
+        <div class="hidden lg:block">
+           <ActionCenter :items="todos" @action="handleActionClick" />
+        </div>
+
+        <!-- 顾问卡片 -->
+        <ConsultantCard 
+          :consultant="consultant"
+          role-label="您的专属顾问"
+          @schedule-meeting="handleScheduleMeeting"
+        />
+      </div>
+
+    </div>
+
+    <!-- 服务咨询对话框 -->
+    <ServiceInquiryDialog
+      v-model="showServiceDialog"
+      :service-type="selectedServiceType"
+      :user-name="user?.name || ''"
+      :user-phone="user?.phone || ''"
+      :user-email="user?.email || ''"
+      @success="handleInquirySuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import { portalApi } from '@/api'
-import { Folder, Upload, Calendar, CreditCard, Bell } from '@element-plus/icons-vue'
+import { Folder, Globe, GraduationCap, Briefcase, Landmark } from 'lucide-vue-next'
+import ActionCenter from '@/components/ui/ActionCenter.vue'
+import ConsultantCard from '@/components/ui/ConsultantCard.vue'
+import ServiceInquiryDialog from '@/components/ui/ServiceInquiryDialog.vue'
+
+type ServiceType = 'immigration' | 'education' | 'business' | 'realestate'
 
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
-
 const projectStore = useProjectStore()
 const { projects } = storeToRefs(projectStore)
 
 const todos = ref<any[]>([])
-const messages = ref<any[]>([])
+const stats = ref({
+  activeProjects: 0,
+  pendingDocuments: 0
+})
+const statsLoading = ref(true)
+const consultant = ref<any>(null)
 
-onMounted(async () => {
-  projectStore.fetchMyProjects()
-  
-  // 加载待办事项/通知
-  try {
-    const notifications = await portalApi.getNotifications() as any
-    todos.value = Array.isArray(notifications) ? notifications : []
-  } catch (err) {
-    console.error('Failed to fetch notifications:', err)
-    todos.value = []
-  }
+// 服务咨询对话框
+const showServiceDialog = ref(false)
+const selectedServiceType = ref<ServiceType>('immigration')
+
+// 计算属性
+const userName = computed(() => {
+  const name = user.value?.name || '用户'
+  return name.split(' ')[0]
 })
 
+const timeGreeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 12) return '早上好'
+  if (hour < 18) return '下午好'
+  return '晚上好'
+})
+
+// 生命周期
+onMounted(async () => {
+  projectStore.fetchMyProjects()
+  loadDashboardData()
+})
+
+// 方法
+async function loadDashboardData() {
+  try {
+    const [notifications, dashboardStats] = await Promise.all([
+      portalApi.getNotifications(),
+      portalApi.getDashboardStats()
+    ]) as any[]
+    
+    todos.value = Array.isArray(notifications) ? notifications : []
+    stats.value = dashboardStats || { activeProjects: 0, pendingDocuments: 0 }
+    
+    // 从第一个项目获取顾问信息（如果有）
+    if (projects.value?.length > 0 && projects.value[0].consultant) {
+      consultant.value = projects.value[0].consultant
+    }
+  } catch (err) {
+    console.error('加载数据失败', err)
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+function openServiceInquiry(type: ServiceType) {
+  selectedServiceType.value = type
+  showServiceDialog.value = true
+}
+
+function handleActionClick(item: any) {
+  // ActionCenter 组件已处理跳转逻辑
+  console.log('Action clicked:', item)
+}
+
+function handleInquirySuccess() {
+  ElMessage.success('咨询已提交')
+}
+
+function handleScheduleMeeting() {
+  ElMessage.info('预约功能即将上线')
+}
+
 function getStatusLabel(status: string): string {
-  if (!status) return '未知'
   const map: Record<string, string> = {
     PLANNING: '规划中',
     ACTIVE: '进行中',
     ON_HOLD: '暂停',
-    COMPLETED: '已完成',
-    ARCHIVED: '归档'
+    COMPLETED: '已完成'
   }
   return map[status] || status
 }
 
-function getStatusType(status: string): 'success' | 'warning' | 'danger' | 'info' {
-  if (!status) return 'info'
-  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
-    PLANNING: 'info',
-    ACTIVE: 'success',
-    ON_HOLD: 'warning',
-    COMPLETED: 'success',
-    ARCHIVED: 'info'
-  }
-  return map[status] || 'info'
-}
-
-function getProgressColor(progress: number): string {
-  if (progress >= 80) return '#52c41a'
-  if (progress >= 50) return '#1890ff'
-  return '#fa8c16'
-}
-
 function formatDate(dateStr: string): string {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN')
+  return new Date(dateStr).toLocaleDateString('zh-CN', { month: 'short', year: 'numeric' })
 }
 </script>
-
-<style scoped>
-.dashboard {
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.welcome-section {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 40px;
-  margin-bottom: 40px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: var(--shadow-sm);
-}
-
-.welcome-content h1 {
-  font-family: 'Lexend', sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0 0 12px;
-  color: var(--color-text);
-  letter-spacing: -0.03em;
-}
-
-.welcome-content p {
-  font-size: 16px;
-  color: var(--color-text-muted);
-  margin: 0;
-  font-family: 'Source Sans 3', sans-serif;
-}
-
-.section-title {
-  font-family: 'Lexend', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-primary);
-  margin: 40px 0 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.section-title::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--color-border);
-}
-
-.project-card {
-  background: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius-sm) !important;
-  cursor: pointer;
-  transition: all 0.2s;
-  padding: 24px;
-}
-
-.project-card:hover {
-  border-color: var(--color-primary) !important;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.project-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.project-name {
-  font-family: 'Lexend', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.project-progress {
-  margin-bottom: 20px;
-}
-
-:deep(.el-progress-bar__outer) {
-  border-radius: 4px;
-  background-color: var(--color-surface-hover) !important;
-}
-
-:deep(.el-progress-bar__inner) {
-  border-radius: 4px;
-}
-
-.project-meta {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.todo-card, .message-card {
-  background: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius-sm) !important;
-  box-shadow: var(--shadow-sm);
-}
-
-.todo-item {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px;
-  border-bottom: 1px solid var(--color-border);
-  transition: background 0.2s;
-}
-
-.todo-item:last-child {
-  border-bottom: none;
-}
-
-.todo-item:hover {
-  background: var(--color-surface-hover);
-}
-
-.todo-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  background: #FFF;
-  border: 1px solid var(--color-border);
-}
-
-.todo-icon.document { color: var(--color-primary); }
-.todo-icon.payment { color: var(--color-secondary); }
-
-.todo-title {
-  font-family: 'Source Sans 3', sans-serif;
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 15px;
-  margin-bottom: 4px;
-}
-
-.todo-desc {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-.message-item {
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.message-item:last-child {
-  border-bottom: none;
-}
-
-.sender {
-  font-family: 'Source Sans 3', sans-serif;
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 14px;
-}
-
-.time {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.message-text {
-  font-size: 14px;
-  color: var(--color-text-muted);
-  line-height: 1.5;
-}
-</style>

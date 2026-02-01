@@ -218,6 +218,59 @@ export const portalApi = {
     deleteMessage(id: string) {
         return apiClient.delete(`/portal/messages/${id}`)
     },
+
+    // ==================== 服务咨询接口 ====================
+
+    /**
+     * 创建服务咨询
+     */
+    createInquiry(data: {
+        serviceType: string
+        name?: string
+        phone?: string
+        email?: string
+        message: string
+        preferredContact?: string
+    }) {
+        return apiClient.post('/portal/inquiries', data)
+    },
+
+    // ==================== 家庭成员接口 ====================
+
+    /**
+     * 添加家庭成员
+     */
+    addFamilyMember(data: { name: string; relationship: string; isBeneficiary?: boolean }) {
+        return apiClient.post('/portal/family-members', data)
+    },
+
+    /**
+     * 更新家庭成员
+     */
+    updateFamilyMember(id: string, data: { name?: string; relationship?: string; isBeneficiary?: boolean }) {
+        return apiClient.put(`/portal/family-members/${id}`, data)
+    },
+
+    /**
+     * 删除家庭成员
+     */
+    deleteFamilyMember(id: string) {
+        return apiClient.delete(`/portal/family-members/${id}`)
+    },
+
+    // ==================== 通知偏好接口 ====================
+
+    /**
+     * 保存通知偏好
+     */
+    updatePreferences(preferences: {
+        email?: boolean
+        sms?: boolean
+        projectUpdate?: boolean
+        documentReminder?: boolean
+    }) {
+        return apiClient.put('/portal/preferences', preferences)
+    },
 }
 
 export { default as apiClient } from './apiClient'

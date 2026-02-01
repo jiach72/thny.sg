@@ -1,99 +1,143 @@
 <template>
-  <div class="message-list">
-    <div class="page-header">
-      <div class="header-content">
-        <h1>消息中心</h1>
-        <p>接收来自顾问团队的通知和提醒</p>
+  <div class="max-w-4xl mx-auto space-y-6 animate-fade-in-up">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="font-serif text-3xl text-text mb-2">消息中心</h1>
+        <p class="text-sm text-text-muted">来自顾问团队的通知消息</p>
       </div>
-      <div class="header-actions">
+      <div class="flex items-center gap-3">
         <el-badge :value="unreadCount" :hidden="unreadCount === 0">
-          <el-button :icon="Bell" circle />
+          <button class="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-text transition-colors">
+            <component :is="Bell" class="w-5 h-5" />
+          </button>
         </el-badge>
-        <el-button @click="markAllRead" :loading="markingAll" :disabled="unreadCount === 0">
-          全部已读
-        </el-button>
+        <button 
+          @click="markAllRead" 
+          :disabled="unreadCount === 0"
+          class="px-4 py-2 text-sm font-medium text-wealth hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          全部标为已读
+        </button>
       </div>
     </div>
 
-    <!-- 筛选标签 -->
-    <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-      <el-tab-pane label="全部消息" name="all" />
-      <el-tab-pane label="未读" name="unread" />
-      <el-tab-pane label="项目相关" name="PROJECT" />
-      <el-tab-pane label="系统通知" name="SYSTEM" />
-    </el-tabs>
+    <!-- 标签页 -->
+    <div class="flex border-b border-white/5">
+      <button 
+        v-for="tab in tabs" 
+        :key="tab.id"
+        @click="handleTabChange(tab.id)"
+        class="bg-transparent px-6 py-3 text-sm font-medium border-b-2 transition-colors relative"
+        :class="activeTab === tab.id ? 'text-wealth border-wealth bg-white/5' : 'text-text-muted border-transparent hover:text-text hover:bg-white/5'"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
 
     <!-- 消息列表 -->
-    <div v-loading="loading">
-      <div v-if="messages && messages.length > 0" class="message-items">
+    <div v-loading="loading" class="min-h-[400px]">
+      <div v-if="messages && messages.length > 0" class="space-y-3">
         <div 
           v-for="msg in (messages || [])" 
           :key="msg.id" 
-          class="message-item"
-          :class="{ unread: !msg.isRead }"
+          class="group p-5 rounded-xl border transition-all duration-200 cursor-pointer"
+          :class="!msg.isRead ? 'bg-glass/30 border-wealth/30' : 'bg-glass/10 border-white/5 hover:bg-glass/20'"
           @click="openMessage(msg)"
         >
-          <div class="message-icon" :class="(msg.type || 'default').toLowerCase()">
-            <el-icon v-if="msg.type === 'SYSTEM'"><Bell /></el-icon>
-            <el-icon v-else-if="msg.type === 'PROJECT'"><Folder /></el-icon>
-            <el-icon v-else-if="msg.type === 'DOCUMENT'"><Document /></el-icon>
-            <el-icon v-else-if="msg.type === 'PAYMENT'"><CreditCard /></el-icon>
-            <el-icon v-else><ChatLineRound /></el-icon>
-          </div>
-          <div class="message-content">
-            <div class="message-header">
-              <span class="message-title">{{ msg.title || '无标题消息' }}</span>
-              <span class="message-time">{{ formatTime(msg.createdAt) }}</span>
+          <div class="flex items-start gap-4">
+            <!-- 图标 -->
+            <div 
+              class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-white/5"
+              :class="getTypeColor(msg.type)"
+            >
+              <component :is="getIcon(msg.type)" class="w-5 h-5" />
             </div>
-            <div class="message-preview">{{ msg.content || '无内容' }}</div>
-            <div class="message-meta" v-if="msg.sender || msg.project">
-              <span class="sender" v-if="msg.sender">来自: {{ msg.sender.name || '系统' }}</span>
-              <el-tag v-if="msg.project" size="small" type="info">{{ msg.project.title || '关联项目' }}</el-tag>
+
+            <!-- 内容 -->
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-start mb-1">
+                <h3 class="font-medium text-text truncate pr-4" :class="{'font-bold': !msg.isRead}">
+                  {{ msg.title || '无标题' }}
+                </h3>
+                <span class="text-xs text-text-muted whitespace-nowrap">{{ formatTime(msg.createdAt) }}</span>
+              </div>
+              
+              <p class="text-sm text-text-muted line-clamp-2 mb-2">{{ msg.content || '无内容' }}</p>
+              
+              <div class="flex items-center gap-3 text-xs">
+                <span v-if="msg.sender" class="text-text-secondary">来自: {{ msg.sender.name || '系统' }}</span>
+                <span v-if="msg.project" class="px-2 py-0.5 rounded bg-white/5 text-text-muted border border-white/10">
+                  {{ msg.project.title }}
+                </span>
+              </div>
             </div>
-          </div>
-          <div class="message-status">
-            <el-tag v-if="!msg.isRead" size="small" type="danger">未读</el-tag>
+
+            <!-- 未读标记 -->
+            <div v-if="!msg.isRead" class="w-2 h-2 rounded-full bg-wealth shrink-0 mt-2"></div>
           </div>
         </div>
       </div>
-      <el-empty v-else description="暂无消息" />
+      
+      <!-- 空状态 -->
+      <div v-else class="py-12 text-center">
+        <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+          <component :is="Bell" class="w-8 h-8 text-text-muted/50" />
+        </div>
+        <p class="text-text-muted">暂无消息</p>
+      </div>
 
       <!-- 分页 -->
-      <div v-if="total > limit" class="pagination">
+      <div v-if="total > limit" class="flex justify-center mt-8">
         <el-pagination
           v-model:current-page="page"
           :page-size="limit"
           :total="total"
           layout="prev, pager, next"
           @current-change="loadMessages"
+          class="!bg-transparent"
         />
       </div>
     </div>
 
-    <!-- 消息详情弹窗 -->
-    <el-dialog v-model="showDetail" :title="selectedMessage?.title" width="600px">
-      <div v-if="selectedMessage" class="message-detail">
-        <div class="detail-meta">
-          <el-avatar :size="40">{{ selectedMessage.sender?.name?.[0] }}</el-avatar>
-          <div class="meta-info">
-            <div class="sender-name">{{ selectedMessage.sender?.name }}</div>
-            <div class="send-time">{{ formatDateTime(selectedMessage.createdAt) }}</div>
+    <!-- 消息详情对话框 -->
+    <el-dialog v-model="showDetail" :title="selectedMessage?.title" width="600px" class="!bg-obsidian !border-white/10 !text-text rounded-xl">
+      <div v-if="selectedMessage" class="space-y-6">
+        <div class="flex items-center gap-4 pb-4 border-b border-white/10">
+          <el-avatar :size="40" class="ring-2 ring-white/10">{{ selectedMessage.sender?.name?.[0] }}</el-avatar>
+          <div class="flex-1">
+            <div class="font-medium text-text">{{ selectedMessage.sender?.name || '系统' }}</div>
+            <div class="text-xs text-text-muted">{{ formatDateTime(selectedMessage.createdAt) }}</div>
           </div>
-          <el-tag :type="getTypeTagType(selectedMessage.type)" size="small">
+          <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider bg-white/5 text-text-muted border border-white/10">
             {{ getTypeLabel(selectedMessage.type) }}
-          </el-tag>
+          </span>
         </div>
-        <el-divider />
-        <div class="detail-content" v-html="formatContent(selectedMessage.content)"></div>
-        <div v-if="selectedMessage.project" class="detail-project">
-          <el-button link type="primary" @click="goToProject(selectedMessage.project.id)">
-            <el-icon><Folder /></el-icon> 查看相关项目: {{ selectedMessage.project.title }}
-          </el-button>
+        
+        <div class="text-sm text-text leading-relaxed whitespace-pre-line">
+          {{ selectedMessage.content }}
+        </div>
+
+        <div v-if="selectedMessage.project" class="pt-4 border-t border-white/10">
+          <button @click="goToProject(selectedMessage.project.id)" class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors">
+            <component :is="Folder" class="w-4 h-4" /> 查看项目: {{ selectedMessage.project.title }}
+          </button>
         </div>
       </div>
       <template #footer>
-        <el-button @click="deleteMessage" type="danger" plain>删除</el-button>
-        <el-button @click="showDetail = false" type="primary">关闭</el-button>
+        <div class="flex justify-end gap-3 pt-4 border-t border-white/5">
+          <button 
+            @click="deleteMessage" 
+            class="px-5 py-2.5 text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors"
+          >
+            删除
+          </button>
+          <button 
+            @click="showDetail = false" 
+            class="px-6 py-2.5 bg-wealth hover:bg-[#B49248] text-obsidian rounded font-bold text-sm transition-all active:scale-95"
+          >
+            关闭
+          </button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -103,13 +147,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Folder, Document, CreditCard, ChatLineRound } from '@element-plus/icons-vue'
+import { Bell, Folder, FileText as Document, CreditCard, MessageSquare as ChatLineRound } from 'lucide-vue-next'
 import { portalApi } from '@/api'
 
 const router = useRouter()
 
 const loading = ref(false)
-const markingAll = ref(false)
 const activeTab = ref('all')
 const messages = ref<any[]>([])
 const page = ref(1)
@@ -120,7 +163,14 @@ const unreadCount = ref(0)
 const showDetail = ref(false)
 const selectedMessage = ref<any>(null)
 
-// 加载消息列表
+const tabs = [
+  { id: 'all', label: '全部消息' },
+  { id: 'unread', label: '未读' },
+  { id: 'PROJECT', label: '项目' },
+  { id: 'SYSTEM', label: '系统' }
+]
+
+// 加载消息
 async function loadMessages() {
   loading.value = true
   try {
@@ -152,18 +202,17 @@ async function loadUnreadCount() {
   }
 }
 
-// 切换标签
-function handleTabChange() {
+function handleTabChange(tabId: string) {
+  activeTab.value = tabId
   page.value = 1
   loadMessages()
 }
 
-// 打开消息详情
+// 打开消息
 async function openMessage(msg: any) {
   selectedMessage.value = msg
   showDetail.value = true
 
-  // 如果未读，标记为已读
   if (!msg.isRead) {
     try {
       await portalApi.markMessageAsRead(msg.id)
@@ -175,18 +224,15 @@ async function openMessage(msg: any) {
   }
 }
 
-// 全部标记为已读
+// 全部标为已读
 async function markAllRead() {
-  markingAll.value = true
   try {
     await portalApi.markAllMessagesAsRead()
     messages.value.forEach(m => m.isRead = true)
     unreadCount.value = 0
-    ElMessage.success('已全部标记为已读')
+    ElMessage.success('已全部标为已读')
   } catch (error: any) {
     ElMessage.error(error.message || '操作失败')
-  } finally {
-    markingAll.value = false
   }
 }
 
@@ -195,7 +241,13 @@ async function deleteMessage() {
   if (!selectedMessage.value) return
 
   try {
-    await ElMessageBox.confirm('确定要删除这条消息吗？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm('确定要删除这条消息吗？', '确认删除', { 
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      confirmButtonClass: '!bg-red-500 !border-red-500',
+      cancelButtonClass: '!text-text-muted hover:!text-text'
+    })
     await portalApi.deleteMessage(selectedMessage.value.id)
     messages.value = messages.value.filter(m => m.id !== selectedMessage.value.id)
     showDetail.value = false
@@ -207,22 +259,20 @@ async function deleteMessage() {
   }
 }
 
-// 跳转到项目
 function goToProject(projectId: string) {
   showDetail.value = false
   router.push(`/projects/${projectId}`)
 }
 
-// 格式化时间
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
   
   if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`
   
   return date.toLocaleDateString('zh-CN')
 }
@@ -231,32 +281,36 @@ function formatDateTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
-function formatContent(content: string): string {
-  return content.replace(/\n/g, '<br>')
-}
-
 function getTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    SYSTEM: '系统通知',
-    PROJECT: '项目相关',
-    DOCUMENT: '文档相关',
-    PAYMENT: '付款相关',
+    SYSTEM: '系统',
+    PROJECT: '项目',
+    DOCUMENT: '文档',
+    PAYMENT: '付款',
     REMINDER: '提醒',
     ANNOUNCEMENT: '公告',
   }
   return map[type] || type
 }
 
-function getTypeTagType(type: string): 'success' | 'warning' | 'danger' | 'info' {
+function getIcon(type: string) {
   const map: Record<string, any> = {
-    SYSTEM: 'info',
-    PROJECT: 'success',
-    DOCUMENT: 'warning',
-    PAYMENT: 'danger',
-    REMINDER: 'warning',
-    ANNOUNCEMENT: 'info',
+    SYSTEM: Bell,
+    PROJECT: Folder,
+    DOCUMENT: Document,
+    PAYMENT: CreditCard,
   }
-  return map[type] || 'info'
+  return map[type] || ChatLineRound
+}
+
+function getTypeColor(type: string) {
+  const map: Record<string, string> = {
+    SYSTEM: 'bg-blue-500/10 text-blue-400',
+    PROJECT: 'bg-green-500/10 text-green-400',
+    DOCUMENT: 'bg-orange-500/10 text-orange-400',
+    PAYMENT: 'bg-red-500/10 text-red-400',
+  }
+  return map[type] || 'bg-white/5 text-text-muted'
 }
 
 onMounted(() => {
@@ -264,163 +318,3 @@ onMounted(() => {
   loadUnreadCount()
 })
 </script>
-
-<style scoped>
-.message-list {
-  max-width: 900px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  font-size: 28px;
-  color: #1a365d;
-  margin: 0 0 8px;
-}
-
-.page-header p {
-  color: #666;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.message-items {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.message-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px 20px;
-  background: white;
-  border: 1px solid #eee;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.message-item:hover {
-  border-color: #1a365d;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.message-item.unread {
-  background: #f8fafc;
-  border-left: 3px solid #1a365d;
-}
-
-.message-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.message-icon.system { background: #e8f4fd; color: #1890ff; }
-.message-icon.project { background: #e6f7e6; color: #52c41a; }
-.message-icon.document { background: #fff7e6; color: #fa8c16; }
-.message-icon.payment { background: #fff1f0; color: #ff4d4f; }
-.message-icon.reminder { background: #f5f0ff; color: #722ed1; }
-.message-icon.announcement { background: #e6fffb; color: #13c2c2; }
-
-.message-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.message-title {
-  font-weight: 600;
-  color: #333;
-  font-size: 15px;
-}
-
-.message-time {
-  font-size: 12px;
-  color: #999;
-}
-
-.message-preview {
-  color: #666;
-  font-size: 13px;
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.message-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #999;
-}
-
-.message-status {
-  flex-shrink: 0;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  margin-top: 24px;
-}
-
-.message-detail .detail-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.meta-info {
-  flex: 1;
-}
-
-.sender-name {
-  font-weight: 600;
-  color: #333;
-}
-
-.send-time {
-  font-size: 12px;
-  color: #999;
-}
-
-.detail-content {
-  line-height: 1.8;
-  color: #333;
-}
-
-.detail-project {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
-}
-</style>

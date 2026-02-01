@@ -1,58 +1,97 @@
 <template>
-  <div class="project-list" v-loading="isLoading">
-    <div class="page-header">
-      <h1>我的项目</h1>
-      <p>查看和追踪您所有服务项目的进度</p>
+  <div class="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
+    <!-- Header -->
+    <div>
+      <h1 class="font-serif text-3xl text-text mb-2 animate-slide-in-left">我的项目</h1>
+      <p class="text-sm text-text-muted animate-slide-in-left delay-100">查看和追踪您所有服务项目的进度</p>
     </div>
 
-    <el-row :gutter="24">
-      <el-col :span="8" v-for="project in (projects || [])" :key="project.id" :xs="24" :sm="12" :md="8">
-        <el-card class="project-card" shadow="hover" @click="$router.push(`/projects/${project.id}`)">
-          <div class="project-type">
-            <el-icon size="32" :color="getTypeColor(project.projectType)">
-              <component :is="getTypeIcon(project.projectType)" />
-            </el-icon>
-          </div>
-          <div class="project-info">
-            <h3>{{ project.title || '无标题项目' }}</h3>
-            <p class="project-desc">{{ project.description || '暂无详细描述' }}</p>
-          </div>
-          <div class="project-status">
-            <el-tag :type="getStatusType(project.status)" size="small">
-              {{ getStatusLabel(project.status) }}
-            </el-tag>
-            <span class="project-date">
-              开始日期: {{ formatDate(project.startDate) }}
-            </span>
-          </div>
-          <div class="project-progress">
-            <div class="progress-label">
-              <span>完成进度</span>
-              <span>{{ project.completionPercentage || 0 }}%</span>
-            </div>
-            <el-progress 
-              :percentage="project.completionPercentage || 0" 
-              :stroke-width="8"
-              :show-text="false"
-              :color="getProgressColor(project.completionPercentage || 0)"
-            />
-          </div>
-          <div class="project-consultant">
-            <el-avatar :size="20">{{ project.consultant?.name?.[0] || '管' }}</el-avatar>
-            <span>项目负责人: {{ project.consultant?.name || '指派中' }}</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- Project Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" v-loading="isLoading">
+      <div 
+        v-for="(project, index) in (projects || [])" 
+        :key="project.id" 
+        class="group relative flex flex-col p-6 rounded-2xl bg-[#0B0F19]/60 backdrop-blur-xl border border-white/5 hover:border-wealth/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] cursor-pointer overflow-hidden"
+        @click="$router.push(`/projects/${project.id}`)"
+        :style="{ animationDelay: `${index * 100}ms` }"
+      >
+        <!-- Hover Gradient Background -->
+        <div class="absolute inset-0 bg-gradient-to-br from-wealth/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
-    <el-empty v-if="!isLoading && (!projects || projects.length === 0)" description="暂无项目" />
+        <!-- Card Header -->
+        <div class="relative z-10 flex items-start justify-between mb-6">
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10 group-hover:bg-wealth/10 group-hover:border-wealth/20 transition-colors duration-300">
+            <component :is="getTypeIcon(project.projectType)" class="w-6 h-6 text-wealth" />
+          </div>
+          <span 
+            class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+            :class="getStatusClasses(project.status)"
+          >
+            {{ getStatusLabel(project.status) }}
+          </span>
+        </div>
+
+        <!-- Project Info -->
+        <div class="relative z-10 flex-1 mb-6">
+          <h3 class="font-serif text-xl text-text mb-2 group-hover:text-wealth transition-colors duration-300 line-clamp-1">{{ project.title || '无标题项目' }}</h3>
+          <p class="text-sm text-text-muted line-clamp-2 h-10">{{ project.description || '暂无详细描述...' }}</p>
+        </div>
+
+        <!-- Date & Progress -->
+        <div class="relative z-10 space-y-4">
+          <div class="flex items-center gap-2 text-xs text-text-muted">
+            <component :is="Calendar" class="w-3.5 h-3.5" />
+            <span>开始日期: {{ formatDate(project.startDate) }}</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="space-y-2">
+            <div class="flex justify-between text-[10px] uppercase font-bold tracking-wider text-text-muted">
+              <span>完成进度</span>
+              <span class="text-wealth">{{ project.completionPercentage || 0 }}%</span>
+            </div>
+            <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div 
+                class="h-full bg-gradient-to-r from-wealth to-[#f59e0b] shadow-[0_0_10px_rgba(214,181,110,0.4)] transition-all duration-1000 ease-out"
+                :style="{ width: `${project.completionPercentage || 0}%` }"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer (Consultant) -->
+        <div class="relative z-10 mt-6 pt-4 border-t border-white/5 flex items-center gap-3">
+          <div class="w-6 h-6 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 ring-1 ring-white/10 flex items-center justify-center text-[10px] font-medium text-text">
+            {{ project.consultant?.name?.[0] || '管' }}
+          </div>
+          <span class="text-xs text-text-muted group-hover:text-text transition-colors">
+            负责人: {{ project.consultant?.name || '指派中' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-if="!isLoading && (!projects || projects.length === 0)" class="flex flex-col items-center justify-center py-20 rounded-3xl bg-glass/10 border border-white/5 border-dashed">
+      <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+        <component :is="FolderOpen" class="w-8 h-8 text-text-muted" />
+      </div>
+      <p class="text-text-muted">暂无相关项目</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { OfficeBuilding, Stamp, Tickets, Document } from '@element-plus/icons-vue'
+import { 
+  Building2, 
+  Stamp, 
+  FileText, 
+  FolderOpen, // Default 
+  Calendar,
+  Briefcase
+} from 'lucide-vue-next'
 import { useProjectStore } from '@/stores/projectStore'
 
 const projectStore = useProjectStore()
@@ -64,21 +103,11 @@ onMounted(() => {
 
 function getTypeIcon(type: string) {
   const map: Record<string, any> = {
-    'Enterprise Setup': OfficeBuilding,
+    'Enterprise Setup': Building2,
     'EP Application': Stamp,
-    'Tax Planning': Tickets,
-    default: Document,
+    'Tax Planning': FileText,
   }
-  return map[type] || map.default
-}
-
-function getTypeColor(type: string): string {
-  const map: Record<string, string> = {
-    'Enterprise Setup': '#1a365d',
-    'EP Application': '#059669',
-    'Tax Planning': '#d97706',
-  }
-  return map[type] || '#666'
+  return map[type] || FolderOpen
 }
 
 function getStatusLabel(status: string): string {
@@ -92,109 +121,23 @@ function getStatusLabel(status: string): string {
   return map[status] || status
 }
 
-function getStatusType(status: string): 'success' | 'warning' | 'danger' | 'info' {
-  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
-    PLANNING: 'info',
-    ACTIVE: 'success',
-    ON_HOLD: 'warning',
-    COMPLETED: 'success',
-    ARCHIVED: 'info'
+function getStatusClasses(status: string): string {
+  const map: Record<string, string> = {
+    PLANNING: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    ACTIVE: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    ON_HOLD: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    COMPLETED: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    ARCHIVED: 'bg-gray-500/10 text-gray-400 border-gray-500/20'
   }
-  return map[status] || 'info'
-}
-
-function getProgressColor(progress: number): string {
-  if (progress >= 80) return '#52c41a'
-  if (progress >= 50) return '#1890ff'
-  if (progress > 0) return '#fa8c16'
-  return '#d9d9d9'
+  return map[status] || 'bg-gray-500/10 text-gray-400 border-gray-500/20'
 }
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN')
+  return new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 </script>
 
 <style scoped>
-.project-list {
-  max-width: 1200px;
-}
-
-.page-header {
-  margin-bottom: 32px;
-}
-
-.page-header h1 {
-  font-size: 28px;
-  color: #1a365d;
-  margin: 0 0 8px;
-}
-
-.page-header p {
-  color: #666;
-  margin: 0;
-}
-
-.project-card {
-  cursor: pointer;
-  border-radius: 16px;
-  transition: all 0.3s;
-  margin-bottom: 24px;
-}
-
-.project-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-}
-
-.project-type {
-  margin-bottom: 16px;
-}
-
-.project-info h3 {
-  font-size: 18px;
-  color: #1a365d;
-  margin: 0 0 8px;
-}
-
-.project-desc {
-  font-size: 14px;
-  color: #666;
-  margin: 0 0 16px;
-}
-
-.project-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.project-date {
-  font-size: 12px;
-  color: #999;
-}
-
-.project-progress {
-  margin-bottom: 16px;
-}
-
-.progress-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.project-consultant {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #666;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
-}
+/* No custom CSS needed, pure Tailwind */
 </style>

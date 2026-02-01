@@ -1,27 +1,25 @@
-:root {
-    /* Core Colors - Professional Rich Theme (Cyan/Teal) */
-    --color-primary: #0891B2;
-    /* Cyan 600 */
-    --color-secondary: #0E7490;
-    /* Cyan 700 */
-    --color-cta: #059669;
-    /* Emerald 600 */
-    --color-accent: #8B5CF6;
-    /* Violet 500 */
+    /* Quiet Luxury Theme (Obsidian & Gold) */
+    --color-primary: #D6B56E;
+    /* Wealth Gold */
+    --color-secondary: #B49248;
+    /* Darker Gold */
+    --color-cta: #D6B56E;
+    /* Primary Action */
+    --color-accent: #FFFFFF;
+    /* White Accents */
 
-    --color-background: #FFFFFF;
-    /* Pure White */
-    --color-surface: #F8FAFC;
+    --color-background: #0B0F19;
+    /* Obsidian */
+    --color-surface: #151E2E;
+    /* Glass Surface */
+    --color-surface-hover: #1E293B;
+
+    --color-text: #F8FAFC;
     /* Slate 50 */
-    --color-surface-hover: #F1F5F9;
-    /* Slate 100 */
-
-    --color-text: #0F172A;
-    /* Slate 900 */
-    --color-text-muted: #64748B;
-    /* Slate 500 */
-    --color-border: #E2E8F0;
-    /* Slate 200 */
+    --color-text-muted: #94A3B8;
+    /* Slate 400 */
+    --color-border: #334155;
+    /* Slate 700 */
 
     /* Spacing */
     --space-xs: 0.25rem;
@@ -31,55 +29,52 @@
     --space-xl: 2rem;
     --space-2xl: 3rem;
 
-    /* Shadows - Layered */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
 
     /* Border Radius */
-    --radius-sm: 0.25rem;
-    /* 4px */
-    --radius-md: 0.5rem;
-    /* 8px */
-    --radius-lg: 0.75rem;
-    /* 12px */
-}
+    --radius-sm: 2px;
+    /* Sharper corners for luxury feel */
+    --radius-md: 4px;
+    --radius-lg: 8px;
 
-/* Typography Overrides */
-h1,
-h2,
-h3,
-.logo-text,
-.statement-heading {
-    font-family: 'Lexend', sans-serif !important;
-}
+    /* Typography Overrides */
+    h1,
+    h2,
+    h3,
+    .logo-text,
+    .statement-heading {
+        font-family: 'Lexend', sans-serif !important;
+    }
 
-body {
-    font-family: 'Source Sans 3', sans-serif !important;
-    font-size: 16px;
-    /* Ensure readability */
-}
+    body {
+        font-family: 'Source Sans 3', sans-serif !important;
+        font-size: 16px;
+        /* Ensure readability */
+    }
 
-/* Statement Text - Adjusted for Professional Look */
-.statement-heading {
-    font-size: clamp(2rem, 4vw, 3.5rem);
-    /* Slightly smaller than exaggerated minimalism */
-    font-weight: 800;
-    line-height: 1.1;
-    color: var(--color-primary);
-    /* Use primary color for impact */
-}
+    /* Statement Text - Adjusted for Professional Look */
+    .statement-heading {
+        font-size: clamp(2rem, 4vw, 3.5rem);
+        /* Slightly smaller than exaggerated minimalism */
+        font-weight: 800;
+        line-height: 1.1;
+        color: var(--color-primary);
+        /* Use primary color for impact */
+    }
 
-.precision-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    transition: all 0.2s ease-in-out;
-}
+    .precision-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease-in-out;
+    }
 
-.precision-card:hover {
-    background: #FFFFFF;
-    border-color: var(--color-primary);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
+    .precision-card:hover {
+        background: #FFFFFF;
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }

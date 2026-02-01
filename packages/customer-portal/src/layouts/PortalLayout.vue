@@ -1,98 +1,153 @@
 <template>
-  <div class="portal-layout">
-    <!-- 顶部导航 -->
-    <header class="portal-header">
-      <div class="header-container">
-        <div class="logo">
-          <span class="logo-text">通海南洋</span>
-          <span class="logo-sub">客户门户</span>
-        </div>
-        
-        <nav class="nav-menu">
-          <router-link to="/dashboard" class="nav-item" active-class="active">
-            <el-icon><HomeFilled /></el-icon>
-            <span>主页</span>
-          </router-link>
-          <router-link to="/projects" class="nav-item" active-class="active">
-            <el-icon><Folder /></el-icon>
-            <span>我的项目</span>
-          </router-link>
-          <router-link to="/documents" class="nav-item" active-class="active">
-            <el-icon><Document /></el-icon>
-            <span>文档中心</span>
-          </router-link>
-          <router-link to="/messages" class="nav-item" active-class="active">
-            <el-badge :value="unreadCount" :hidden="unreadCount === 0">
-              <el-icon><Bell /></el-icon>
-            </el-badge>
-            <span>消息</span>
-          </router-link>
-        </nav>
+  <div class="h-screen w-screen overflow-hidden font-sans text-text relative selection:bg-wealth selection:text-obsidian">
+    
+    <!-- 1. Immersive Wallpaper (Fluid Gradient) -->
+    <!-- Using a high-quality abstract gradient background similar to the reference -->
+    <div class="absolute inset-0 z-0 bg-obsidian">
+      <img 
+        src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" 
+        class="w-full h-full object-cover opacity-80"
+        alt="Wallpaper"
+      />
+      <!-- Overlay to ensure text readability -->
+      <div class="absolute inset-0 bg-obsidian/30"></div>
+    </div>
 
-        <div class="header-right">
-          <el-dropdown trigger="click" @command="handleCommand">
-            <div class="user-info">
-              <el-avatar :size="36" :src="user?.avatarUrl">
-                {{ user?.name?.[0] || 'U' }}
-              </el-avatar>
-              <span class="user-name">{{ user?.name }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">
-                  <el-icon><User /></el-icon>个人资料
-                </el-dropdown-item>
-                <el-dropdown-item divided command="logout">
-                  <el-icon><SwitchButton /></el-icon>退出登录
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+
+
+    <!-- 3. Unified Glass Sidebar (Left) -->
+    <div class="absolute left-6 top-6 bottom-6 w-20 rounded-[32px] bg-[#0B0F19]/60 backdrop-blur-2xl border border-white/10 flex flex-col items-center py-6 z-50 shadow-2xl">
+      
+      <!-- Logo -->
+      <div class="mb-6">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-wealth to-[#B49248] flex items-center justify-center shadow-lg shadow-wealth/20 cursor-pointer hover:scale-105 transition-transform" @click="$router.push('/')">
+          <span class="font-serif font-bold text-2xl text-obsidian">T</span>
         </div>
       </div>
-    </header>
 
-    <!-- 页面内容 -->
-    <main class="portal-content">
-      <router-view />
+      <!-- Navigation -->
+      <div class="flex flex-col gap-4 w-full items-center">
+        <!-- Divider -->
+        <div class="w-8 h-px bg-white/10 mb-2"></div>
+
+        <router-link 
+          v-for="item in navItems" 
+          :key="item.path" 
+          :to="item.path"
+          class="group relative w-12 h-12 flex items-center justify-center rounded-xl transition-all duration-300"
+          :class="$route.path.startsWith(item.path) && item.path !== '/' ? 'bg-white/10 text-wealth shadow-[0_0_15px_rgba(214,181,110,0.3)] shadow-[inset_0_0_10px_rgba(255,255,255,0.1)]' : 'text-white/70 hover:bg-white/10 hover:text-white hover:shadow-[0_0_10px_rgba(255,255,255,0.2)]'"
+        >
+          <component :is="item.icon" class="w-6 h-6 transition-transform group-hover:scale-110" />
+          
+          <!-- Tooltip -->
+          <div class="absolute left-full ml-5 px-3 py-1.5 rounded-lg bg-[#151E2E] border border-white/10 text-sm whitespace-nowrap opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 shadow-xl z-50">
+            {{ item.name }}
+          </div>
+          
+          <!-- Active Indicator (Left Bar) -->
+          <div v-if="$route.path.startsWith(item.path) && item.path !== '/'" class="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-8 bg-wealth rounded-r-full shadow-[0_0_8px_rgba(214,181,110,0.6)]"></div>
+          
+          <!-- Badge -->
+          <span v-if="item.badge && item.badge > 0" class="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border border-obsidian">
+            {{ item.badge }}
+          </span>
+        </router-link>
+      </div>
+
+      <!-- Spacer -->
+      <div class="mt-auto w-full flex flex-col items-center gap-4">
+        
+        <!-- Divider -->
+        <div class="w-8 h-px bg-white/10 mt-2"></div>
+
+        <!-- System Icons -->
+        
+        <!-- Notifications -->
+        <button class="relative group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" @click="$router.push('/messages')" title="Notifications">
+            <component :is="Bell" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
+            <span v-if="unreadCount > 0" class="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-obsidian shadow-sm"></span>
+        </button>
+
+        <!-- Profile -->
+        <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" @click="$router.push('/profile')" title="Profile">
+            <component :is="User" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
+        </button>
+
+        <!-- Language -->
+        <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" title="Language">
+            <component :is="Languages" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
+        </button>
+
+        <!-- Settings -->
+        <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" @click="$router.push('/settings')" title="设置">
+            <component :is="Settings" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
+        </button>
+      </div>
+
+    </div>
+
+    <!-- 4. Main "App Window" Area -->
+    <!-- Instead of a full page, it sits like a window -->
+    <main class="absolute inset-0 z-10 pl-32 pr-8 py-20 pointer-events-none flex flex-col justify-center">
+      <div class="w-full h-full max-w-[1600px] mx-auto pointer-events-auto flex flex-col">
+        <!-- Window Container -->
+        <div class="flex-1 bg-glass/60 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col relative">
+            
+            <!-- Window Glare Effect -->
+            <div class="absolute top-0 right-0 w-[600px] h-[300px] bg-white/5 blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+
+            <!-- Content Scroll Area -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20 p-8">
+               <router-view v-slot="{ Component }">
+                  <transition name="zoom-fade" mode="out-in">
+                    <component :is="Component" />
+                  </transition>
+                </router-view>
+            </div>
+        </div>
+      </div>
     </main>
 
-    <!-- 底部 -->
-    <footer class="portal-footer">
-      <p>© 2026 通海南洋. All rights reserved.</p>
-    </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores'
 import { messageApi } from '@/api'
-import {
-  HomeFilled,
-  Folder,
-  Document,
+import { 
+  LayoutGrid, // Dashboard
+  FolderKanban, // Projects
+  Vault, // Vault
+  MessageSquare, // Messages
+  Settings,
   Bell,
-  ArrowDown,
   User,
-  SwitchButton,
-} from '@element-plus/icons-vue'
+  Languages,
+  LogOut
+} from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
-
 const unreadCount = ref(0)
+
+// More "App-like" naming
+const navItems = computed(() => [
+  { name: 'Dashboard', path: '/dashboard', icon: LayoutGrid },
+  { name: 'Projects', path: '/projects', icon: FolderKanban },
+  { name: 'Secure Vault', path: '/documents', icon: Vault },
+  { name: 'Messages', path: '/messages', icon: MessageSquare, badge: unreadCount.value },
+])
 
 onMounted(async () => {
   try {
     const result = await messageApi.getUnreadCount()
     unreadCount.value = result.data?.count || 0
   } catch {
-    // 忽略错误
+    // ignore
   }
 })
 
@@ -107,133 +162,19 @@ function handleCommand(command: string) {
 </script>
 
 <style scoped>
-.portal-layout {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-background);
+/* App Window Zoom Transition */
+.zoom-fade-enter-active,
+.zoom-fade-leave-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.portal-header {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--color-text);
-  border-bottom: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+.zoom-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.95) translateY(10px);
 }
 
-.header-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 40px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-text {
-  font-family: 'Lexend', sans-serif;
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--color-primary);
-  letter-spacing: -0.05em;
-  text-transform: uppercase;
-}
-
-.logo-sub {
-  font-size: 16px;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  padding-left: 12px;
-  border-left: 1px solid var(--color-border);
-  font-family: 'Source Sans 3', sans-serif;
-}
-
-.nav-menu {
-  display: flex;
-  gap: 8px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 15px;
-  font-family: 'Source Sans 3', sans-serif;
-  font-weight: 600;
-}
-
-.nav-item:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
-}
-
-.nav-item.active {
-  color: var(--color-primary);
-  background: rgba(8, 145, 178, 0.1);
-  font-weight: 700;
-}
-
-.nav-item :deep(.el-icon) {
-  font-size: 18px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  transition: all 0.2s;
-  color: var(--color-text);
-}
-
-.user-info:hover {
-  background: #FFFFFF;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-.user-name {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.portal-content {
-  flex: 1;
-  max-width: 1400px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 48px 40px;
-}
-
-.portal-footer {
-  border-top: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  background: var(--color-surface);
-  text-align: center;
-  padding: 32px;
-  font-size: 13px;
-  font-family: 'Source Sans 3', sans-serif;
+.zoom-fade-leave-to {
+  opacity: 0;
+  transform: scale(1.05);
 }
 </style>

@@ -1,111 +1,136 @@
 <template>
-  <div class="project-detail" v-loading="isLoading">
-    <el-button :icon="ArrowLeft" text @click="$router.push('/projects')">返回项目列表</el-button>
-    
-    <div v-if="project">
-      <!-- 项目头部 -->
-      <div class="project-header">
-        <div class="header-info">
-          <h1>{{ project.title || '无标题项目' }}</h1>
-          <el-tag :type="getStatusType(project.status)" size="large">
-            {{ getStatusLabel(project.status) }}
-          </el-tag>
+  <div class="max-w-5xl mx-auto space-y-8 animate-fade-in-up" v-if="project">
+    <!-- 返回导航 -->
+    <button @click="$router.push('/projects')" class="flex items-center gap-2 text-text-muted hover:text-wealth transition-colors text-sm">
+      <component :is="ArrowLeft" class="w-4 h-4" /> 返回项目列表
+    </button>
+
+    <!-- 头部 -->
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a2333] to-[#0f1621] border border-white/5 p-8">
+      <!-- 背景装饰 -->
+      <div class="absolute top-0 right-0 w-64 h-64 bg-wealth/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+      
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] uppercase tracking-wider text-text-muted">
+              {{ getProjectTypeLabel(project.projectType) }}
+            </span>
+            <span 
+              class="px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold"
+              :class="getStatusClass(project.status)"
+            >
+              {{ getStatusLabel(project.status) }}
+            </span>
+          </div>
+          <h1 class="font-serif text-3xl text-text mb-2">{{ project.title }}</h1>
+          <div class="flex items-center gap-4 text-sm text-text-muted">
+            <span class="flex items-center gap-1.5">
+              <component :is="Calendar" class="w-3.5 h-3.5" /> 开始于 {{ formatDate(project.startDate) }}
+            </span>
+            <span class="flex items-center gap-1.5" v-if="project.estimatedEndDate">
+              <component :is="Clock" class="w-3.5 h-3.5" /> 预计 {{ formatDate(project.estimatedEndDate) }}
+            </span>
+          </div>
         </div>
-        <div class="header-meta">
-          <span><el-icon><Calendar /></el-icon> 开始: {{ formatDate(project.startDate) }}</span>
-          <span><el-icon><Timer /></el-icon> 预计完成: {{ formatDate(project.estimatedEndDate) }}</span>
+
+        <!-- 操作按钮 -->
+        <button @click="showContactDialog = true" class="flex items-center gap-2 px-6 py-3 bg-wealth hover:bg-[#B49248] rounded text-obsidian font-bold transition-all shadow-lg shadow-wealth/20 active:scale-95">
+          <component :is="MessageCircle" class="w-4 h-4" />
+          联系团队
+        </button>
+      </div>
+    </div>
+
+    <!-- 案例进度 -->
+    <div class="p-8 rounded-2xl bg-glass/20 border border-white/5">
+       <h3 class="font-serif text-lg text-text mb-8">案例时间线</h3>
+       <CaseTracker :steps="steps" />
+    </div>
+
+    <!-- 详情网格 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <!-- 左侧: 文档 -->
+      <div class="md:col-span-2 space-y-6">
+        <h3 class="font-serif text-lg text-text">项目文档</h3>
+        <div class="rounded-xl bg-glass/10 border border-white/5 overflow-hidden">
+          <div v-if="project.documents && project.documents.length > 0" class="divide-y divide-white/5">
+             <div 
+                v-for="doc in project.documents" 
+                :key="doc.id"
+                class="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group"
+             >
+               <div class="flex items-center gap-4">
+                 <div class="p-2 rounded bg-obsidian border border-white/10 text-text-muted group-hover:text-wealth transition-colors">
+                   <component :is="FileText" class="w-5 h-5" />
+                 </div>
+                 <div>
+                   <div class="text-sm font-medium text-text">{{ doc.fileName }}</div>
+                   <div class="text-xs text-text-muted">{{ formatDate(doc.createdAt) }}</div>
+                 </div>
+               </div>
+               <button 
+                 @click="handleDownload(doc)"
+                 :disabled="downloadingId === doc.id"
+                 class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors disabled:opacity-50"
+               >
+                 <component :is="downloadingId === doc.id ? Loader2 : Download" :class="downloadingId === doc.id ? 'animate-spin w-4 h-4' : 'w-4 h-4'" />
+                 {{ downloadingId === doc.id ? '下载中...' : '下载' }}
+               </button>
+             </div>
+          </div>
+          <div v-else class="p-8 text-center text-text-muted text-sm">
+             暂无文档
+          </div>
+          <!-- 底部操作 -->
+          <div class="p-3 bg-white/5 border-t border-white/5 text-center">
+            <button @click="$router.push('/documents')" class="bg-transparent text-xs text-wealth hover:text-white transition-colors border-b border-wealth/30 hover:border-wealth pb-0.5">前往安全保险库 &rarr;</button>
+          </div>
         </div>
       </div>
 
-      <el-row :gutter="24">
-        <!-- 左侧：进度时间线 -->
-        <el-col :span="16" :xs="24">
-          <el-card class="timeline-card">
-            <template #header>
-              <div class="timeline-header">
-                <span>项目进度</span>
-                <span class="overall-progress">{{ project.completionPercentage || 0 }}% 已完成</span>
-              </div>
-            </template>
-            <el-timeline v-if="steps && steps.length > 0">
-              <el-timeline-item
-                v-for="step in steps"
-                :key="step.id"
-                :type="getStepType(step.status)"
-                :hollow="step.status === 'pending'"
-                :timestamp="step.completedAt || step.estimatedDate"
-                placement="top"
-              >
-                <div class="step-content">
-                  <div class="step-title">{{ step.title }}</div>
-                  <div class="step-desc">{{ step.description || '无具体说明' }}</div>
-                </div>
-              </el-timeline-item>
-            </el-timeline>
-            <el-empty v-else description="暂无进度详情" />
-          </el-card>
-        </el-col>
-
-        <!-- 右侧：信息栏 -->
-        <el-col :span="8" :xs="24">
-          <el-card class="info-card">
-            <template #header>
-              <span>负责团队</span>
-            </template>
-            <div class="consultant-info">
-              <el-avatar :size="48">{{ project.consultant?.name?.[0] || '管' }}</el-avatar>
-              <div class="consultant-detail">
-                <div class="name">{{ project.consultant?.name || '项目经理' }}</div>
-                <div class="title">通海高级顾问</div>
-              </div>
-            </div>
-            <el-button type="primary" style="width: 100%; margin-top: 16px;" @click="handleContactConsultant">
-              <el-icon><ChatDotRound /></el-icon> 联系顾问
-            </el-button>
-          </el-card>
-
-          <el-card class="info-card" style="margin-top: 16px;">
-            <template #header>
-              <span>相关文档</span>
-            </template>
-            <div class="doc-list" v-if="project.documents && project.documents.length > 0">
-              <div v-for="doc in project.documents" :key="doc.id" class="doc-item">
-                <el-icon><Document /></el-icon>
-                <span class="doc-name">{{ doc.fileName }}</span>
-                <el-button link type="primary" size="small">预览</el-button>
-              </div>
-            </div>
-            <el-empty v-else description="暂无相关文档" :image-size="40" />
-            <el-button style="width: 100%; margin-top: 16px;" @click="$router.push('/documents')">
-              查看全部文档
-            </el-button>
-          </el-card>
-        </el-col>
-      </el-row>
+      <!-- 右侧: 顾问 -->
+      <div>
+         <h3 class="font-serif text-lg text-text mb-6">首席顾问</h3>
+         <ConsultantCard 
+           :consultant="project.consultant"
+           role-label="项目负责人"
+           @schedule-meeting="handleScheduleMeeting"
+         />
+      </div>
     </div>
-    <el-empty v-else-if="!isLoading" description="未找到项目详情" />
-    <el-dialog v-model="showContactDialog" title="联系顾问" width="500px">
-      <el-form :model="contactForm" label-position="top">
-        <el-form-item label="标题">
-          <el-input v-model="contactForm.title" placeholder="请输入标题" />
-        </el-form-item>
-        <el-form-item label="内容">
-          <el-input
-            v-model="contactForm.content"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入您想咨询的内容..."
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showContactDialog = false">取消</el-button>
-          <el-button type="primary" :loading="sending" @click="submitContact">
-            发送
-          </el-button>
-        </span>
-      </template>
+
+    <!-- 联系对话框 -->
+    <el-dialog v-model="showContactDialog" title="联系服务团队" width="500px" class="!bg-obsidian !border-white/10 !text-text rounded-xl">
+       <div class="space-y-4">
+         <div class="space-y-2">
+           <label class="text-xs font-bold uppercase tracking-wider text-text-muted">主题</label>
+           <el-input v-model="contactForm.title" placeholder="请输入主题" class="login-input" />
+         </div>
+         <div class="space-y-2">
+           <label class="text-xs font-bold uppercase tracking-wider text-text-muted">内容</label>
+           <el-input 
+              v-model="contactForm.content" 
+              type="textarea" 
+              :rows="4" 
+              placeholder="请描述您的问题..." 
+              class="login-input" 
+           />
+         </div>
+       </div>
+       <template #footer>
+          <div class="flex justify-end gap-3 pt-4 border-t border-white/5">
+            <button @click="showContactDialog = false" class="px-5 py-2.5 text-sm font-medium text-text bg-white/5 hover:bg-white/10 border border-white/10 rounded transition-colors">取消</button>
+            <button 
+              @click="submitContact" 
+              :disabled="submitting || !contactForm.title || !contactForm.content"
+              class="px-6 py-2.5 bg-wealth hover:bg-[#B49248] text-obsidian rounded font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <span v-if="submitting" class="animate-spin">⟳</span>
+              发送消息
+            </button>
+          </div>
+       </template>
     </el-dialog>
   </div>
 </template>
@@ -115,65 +140,34 @@ import { onMounted, computed, ref, reactive } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Calendar, Timer, ChatDotRound, Document } from '@element-plus/icons-vue'
+import { 
+  ArrowLeft, Calendar, Clock, MessageCircle, FileText, Download, Loader2
+} from 'lucide-vue-next'
 import { useProjectStore } from '@/stores/projectStore'
-import { messageApi } from '@/api'
+import { messageApi, documentApi } from '@/api'
+import CaseTracker from '@/components/ui/CaseTracker.vue'
+import ConsultantCard from '@/components/ui/ConsultantCard.vue'
 
 const route = useRoute()
 const projectStore = useProjectStore()
-const { currentProject: project, isLoading } = storeToRefs(projectStore)
+const { currentProject: project } = storeToRefs(projectStore)
 
-const projectId = route.params.id as string
 const showContactDialog = ref(false)
-const sending = ref(false)
-const contactForm = reactive({
-  title: '',
-  content: ''
-})
+const submitting = ref(false)
+const downloadingId = ref<string | null>(null)
+const contactForm = reactive({ title: '', content: '' })
 
 onMounted(() => {
-  projectStore.fetchProject(projectId)
+  projectStore.fetchProject(route.params.id as string)
 })
 
-function handleContactConsultant() {
-  contactForm.title = `关于项目：${project.value?.title || ''}`
-  contactForm.content = ''
-  showContactDialog.value = true
-}
-
-async function submitContact() {
-  if (!contactForm.title || !contactForm.content) {
-    ElMessage.warning('请填写标题和内容')
-    return
-  }
-  
-  sending.value = true
-  try {
-    await messageApi.sendMessage({
-      projectId: project.value.id,
-      recipientId: project.value.consultant?.id, // 后端会校验或回退
-      title: contactForm.title,
-      content: contactForm.content
-    })
-    ElMessage.success('消息发送成功')
-    showContactDialog.value = false
-  } catch (error) {
-    ElMessage.error('发送失败，请稍后重试')
-  } finally {
-    sending.value = false
-  }
-}
-
-// ... existing helpers ...
 const steps = computed(() => {
   if (!project.value?.tasks) return []
   return project.value.tasks.map((task: any) => ({
     id: task.id,
     title: task.title,
-    description: task.description,
     status: mapTaskStatus(task.status),
-    completedAt: task.completedAt ? formatDate(task.completedAt) : null,
-    estimatedDate: task.dueDate ? formatDate(task.dueDate) : null
+    date: task.completedAt ? formatDate(task.completedAt) : (task.dueDate ? `截止 ${formatDate(task.dueDate)}` : null)
   }))
 })
 
@@ -183,131 +177,82 @@ function mapTaskStatus(status: string) {
   return 'pending'
 }
 
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return '-'
+  return new Date(dateStr).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 function getStatusLabel(status: string): string {
   const map: Record<string, string> = {
     PLANNING: '规划中',
     ACTIVE: '进行中',
     ON_HOLD: '暂停',
     COMPLETED: '已完成',
-    ARCHIVED: '归档'
+    ARCHIVED: '已归档'
   }
   return map[status] || status
 }
 
-function getStatusType(status: string): 'success' | 'warning' | 'danger' | 'info' {
-  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
-    PLANNING: 'info',
-    ACTIVE: 'success',
-    ON_HOLD: 'warning',
-    COMPLETED: 'success',
-    ARCHIVED: 'info'
-  }
-  return map[status] || 'info'
+function getStatusClass(status: string): string {
+  if (status === 'ACTIVE') return 'bg-green-500/10 text-green-400'
+  if (status === 'COMPLETED') return 'bg-blue-500/10 text-blue-400'
+  if (status === 'ON_HOLD') return 'bg-amber-500/10 text-amber-400'
+  return 'bg-white/5 text-text-muted'
 }
 
-function getStepType(status: string): 'primary' | 'success' | 'info' {
-  const map: Record<string, 'primary' | 'success' | 'info'> = {
-    completed: 'success',
-    current: 'primary',
-    pending: 'info',
+function getProjectTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    IMMIGRATION: '移民项目',
+    EDUCATION: '教育项目',
+    BUSINESS: '商业项目',
+    REALESTATE: '房产项目',
   }
-  return map[status] || 'info'
+  return map[type] || type || '服务项目'
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN')
+async function handleDownload(doc: any) {
+  downloadingId.value = doc.id
+  try {
+    ElMessage.info('正在解密并下载...')
+    const response = await documentApi.downloadDocument(doc.id)
+    const url = window.URL.createObjectURL(new Blob([response as any]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', doc.fileName)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    ElMessage.success('下载完成')
+  } catch {
+    ElMessage.error('下载失败')
+  } finally {
+    downloadingId.value = null
+  }
+}
+
+function handleScheduleMeeting() {
+  ElMessage.info('预约功能即将上线')
+}
+
+async function submitContact() {
+  if (!contactForm.title || !contactForm.content) return
+  
+  submitting.value = true
+  try {
+     await messageApi.sendMessage({
+      projectId: project.value.id,
+      recipientId: project.value.consultant?.id,
+      title: contactForm.title,
+      content: contactForm.content
+    })
+    ElMessage.success('消息已发送')
+    showContactDialog.value = false
+    contactForm.title = ''
+    contactForm.content = ''
+  } catch {
+    ElMessage.error('发送失败')
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
-
-<style scoped>
-.project-detail {
-  max-width: 1200px;
-}
-
-.project-header {
-  background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%);
-  border-radius: 16px;
-  padding: 32px;
-  color: #fff;
-  margin: 16px 0 32px;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.header-info h1 {
-  margin: 0;
-  font-size: 28px;
-}
-
-.header-meta {
-  display: flex;
-  gap: 24px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-}
-
-.header-meta span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.timeline-card, .info-card {
-  border-radius: 12px;
-}
-
-.step-content {
-  padding: 8px 0;
-}
-
-.step-title {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.step-desc {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.consultant-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.consultant-detail .name {
-  font-weight: 600;
-  color: #333;
-}
-
-.consultant-detail .title {
-  font-size: 13px;
-  color: #666;
-}
-
-.doc-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.doc-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #333;
-}
-</style>

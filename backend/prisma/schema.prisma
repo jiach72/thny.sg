@@ -177,6 +177,7 @@ model Lead {
   lastContactedAt DateTime?  @map("last_contacted_at")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
+  deletedAt       DateTime?  @map("deleted_at") // 软删除字段
 
   // 关联
   customer        Customer?
@@ -188,6 +189,7 @@ model Lead {
   @@index([assignedToId])
   @@index([status])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("leads")
 }
 
@@ -208,11 +210,13 @@ model Customer {
   riskGrade     RiskGrade @default(LOW) @map("risk_grade")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at") // 软删除字段
 
   // 关联
   projects     Project[]
   appointments Appointment[]
 
+  @@index([deletedAt])
   @@map("customers")
 }
 
@@ -233,6 +237,7 @@ model Project {
   currency             String        @default("SGD")
   createdAt            DateTime      @default(now()) @map("created_at")
   updatedAt            DateTime      @updatedAt @map("updated_at")
+  deletedAt            DateTime?     @map("deleted_at") // 软删除字段
 
   // 关联
   tasks     Task[]
@@ -242,6 +247,7 @@ model Project {
 
   @@index([customerId])
   @@index([status])
+  @@index([deletedAt])
   @@map("projects")
 }
 
@@ -267,10 +273,12 @@ model Task {
   notes          String?      @db.Text
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at") // 软删除字段
 
   @@index([assignedToId])
   @@index([status])
   @@index([dueDate])
+  @@index([deletedAt])
   @@map("tasks")
 }
 
@@ -694,12 +702,14 @@ model Invoice {
   createdById     String?  @map("created_by_id")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at") // 软删除字段
 
   payments        Payment[]
 
   @@index([projectId])
   @@index([customerId])
   @@index([status])
+  @@index([deletedAt])
   @@map("invoices")
 }
 
@@ -724,9 +734,11 @@ model Payment {
   recordedBy      User?    @relation("PaymentRecorder", fields: [recordedById], references: [id])
   recordedById    String?  @map("recorded_by_id")
   createdAt       DateTime @default(now()) @map("created_at")
+  deletedAt       DateTime? @map("deleted_at") // 软删除字段
 
   @@index([invoiceId])
   @@index([paymentDate])
+  @@index([deletedAt])
   @@map("payments")
 }
 

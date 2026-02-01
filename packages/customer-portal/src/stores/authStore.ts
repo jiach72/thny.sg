@@ -8,6 +8,10 @@ interface User {
     email: string
     role: string
     avatarUrl?: string
+    familyMembers?: any[]
+    riskGrade?: string
+    phone?: string
+    company?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
