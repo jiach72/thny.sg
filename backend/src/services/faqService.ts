@@ -220,10 +220,31 @@ export const faqService = {
      */
 
     /**
-     * searchFaqs (previous code remains same, no changes needed inside)
+     * searchFaqs - 优化版本，支持中文分词
      */
     async searchFaqs(query: string, locale: 'zh' | 'en' = 'zh') {
-        const searchTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 0)
+        // 对中文进行字符级分词，对英文进行空格分词
+        const normalizedQuery = query.toLowerCase().trim()
+
+        // 中文分词：将连续中文字符拆分为 2-3 字的词组
+        const chineseChars = normalizedQuery.match(/[\u4e00-\u9fa5]+/g) || []
+        const chineseTerms: string[] = []
+        for (const chars of chineseChars) {
+            // 添加完整词
+            chineseTerms.push(chars)
+            // 添加 2 字词组
+            for (let i = 0; i < chars.length - 1; i++) {
+                chineseTerms.push(chars.substring(i, i + 2))
+            }
+        }
+
+        // 英文分词：按空格分割
+        const englishTerms = normalizedQuery.split(/\s+/).filter(t => t.length > 1 && !/[\u4e00-\u9fa5]/.test(t))
+
+        const searchTerms = [...new Set([...chineseTerms, ...englishTerms])]
+
+        console.log(`[FAQ Search] 用户查询: "${query}"`)
+        console.log(`[FAQ Search] 分词结果: ${JSON.stringify(searchTerms)}`)
 
         const items = await prisma.faqItem.findMany({
             where: { isActive: true },
@@ -234,25 +255,40 @@ export const faqService = {
             }
         })
 
+        console.log(`[FAQ Search] 数据库中共有 ${items.length} 条 FAQ`)
+
         // 计算匹配分数
         const scored = items.map(item => {
             let score = 0
             const question = locale === 'en' && item.questionEn ? item.questionEn.toLowerCase() : item.question.toLowerCase()
+            const answer = locale === 'en' && item.answerEn ? item.answerEn.toLowerCase() : item.answer.toLowerCase()
             const keywords = item.keywords.map(k => k.toLowerCase())
 
             for (const term of searchTerms) {
+                // 问题匹配
                 if (question.includes(term)) score += 10
+                // 答案匹配（权重较低）
+                if (answer.includes(term)) score += 3
+                // 关键词精确匹配
                 if (keywords.includes(term)) score += 20
+                // 关键词模糊匹配
                 if (keywords.some(k => k.includes(term) || term.includes(k))) score += 5
             }
 
             return { ...item, score }
         })
 
-        return scored
+        const results = scored
             .filter(item => item.score > 0)
             .sort((a, b) => b.score - a.score)
             .slice(0, 5) // 返回前5个最匹配的结果
+
+        console.log(`[FAQ Search] 匹配结果: ${results.length} 条, 最高分: ${results[0]?.score || 0}`)
+        if (results.length > 0) {
+            console.log(`[FAQ Search] Top FAQ: "${results[0].question}" (分数: ${results[0].score})`)
+        }
+
+        return results
     },
 
     // ==================== 批量导入 ====================
