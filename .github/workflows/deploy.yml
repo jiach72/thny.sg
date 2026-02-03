@@ -191,6 +191,8 @@ jobs:
 
       - name: Deploy backend via SSH
         uses: appleboy/ssh-action@v1.0.3
+        # 注意: 以下环境变量来自 GitHub 仓库的 Secrets 设置
+        # Settings → Secrets and variables → Actions
         env:
           GITHUB_REPO: ${{ github.repository }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
