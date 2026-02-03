@@ -51,7 +51,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/api/apiClient'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -63,14 +63,11 @@ const form = ref({
   baseUrl: ''
 })
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || ''
-
 async function fetchSettings() {
   loading.value = true
   try {
-    const response = await axios.get(`${apiBase}/api/v1/settings/ai`)
-    if (response.data.success) {
-      const data = response.data.data
+    const data = await apiClient.get('/settings/ai') as Record<string, string> | null
+    if (data) {
       form.value = {
         provider: data.AI_PROVIDER || 'OPENAI',
         apiKey: data.AI_API_KEY || '',
@@ -93,7 +90,7 @@ async function saveSettings() {
 
   saving.value = true
   try {
-    await axios.post(`${apiBase}/api/v1/settings/ai`, {
+    await apiClient.post('/settings/ai', {
       provider: form.value.provider,
       apiKey: form.value.apiKey,
       modelName: form.value.modelName,
@@ -101,7 +98,7 @@ async function saveSettings() {
     })
     ElMessage.success('配置已保存')
   } catch (error: any) {
-    const errMsg = error.response?.data?.error || error.message || '保存失败'
+    const errMsg = error.error || error.message || '保存失败'
     console.error('保存 AI 配置失败:', error)
     ElMessage.error(`保存失败: ${errMsg}`)
   } finally {
