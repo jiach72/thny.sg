@@ -22,12 +22,12 @@ router.get('/ai', authenticateToken, requireAdmin, async (req, res) => {
         }, {} as Record<string, string>)
 
         res.json({
-            success: true,
+            code: 200,
             data: config
         })
     } catch (error) {
         console.error('Error fetching AI settings:', error)
-        res.status(500).json({ success: false, error: 'Failed to fetch settings' })
+        res.status(500).json({ code: 500, message: 'Failed to fetch settings' })
     }
 })
 
@@ -60,10 +60,10 @@ router.post('/ai', authenticateToken, requireAdmin, async (req, res) => {
 
         await Promise.all(operations)
 
-        res.json({ success: true, message: 'Settings saved' })
+        res.json({ code: 200, message: 'Settings saved' })
     } catch (error) {
         console.error('Error saving AI settings:', error)
-        res.status(500).json({ success: false, error: 'Failed to save settings' })
+        res.status(500).json({ code: 500, message: 'Failed to save settings' })
     }
 })
 
