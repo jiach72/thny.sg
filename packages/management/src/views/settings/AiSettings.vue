@@ -100,8 +100,10 @@ async function saveSettings() {
       baseUrl: form.value.baseUrl
     })
     ElMessage.success('配置已保存')
-  } catch (error) {
-    ElMessage.error('保存失败')
+  } catch (error: any) {
+    const errMsg = error.response?.data?.error || error.message || '保存失败'
+    console.error('保存 AI 配置失败:', error)
+    ElMessage.error(`保存失败: ${errMsg}`)
   } finally {
     saving.value = false
   }
