@@ -37,6 +37,32 @@
       </el-form>
     </el-card>
 
+    <!-- 当前配置摘要 -->
+    <el-card class="config-summary" v-if="hasSavedConfig">
+      <template #header>
+        <div class="card-header">
+          <span>当前配置</span>
+          <el-tag type="success" size="small">已生效</el-tag>
+        </div>
+      </template>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="提供商">
+          <el-tag>{{ providerLabel }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="模型名称">
+          <code>{{ form.modelName || '-' }}</code>
+        </el-descriptions-item>
+        <el-descriptions-item label="API Key">
+          <span v-if="form.apiKey">{{ maskApiKey(form.apiKey) }}</span>
+          <span v-else class="text-muted">未配置</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="代理地址">
+          <code v-if="form.baseUrl">{{ form.baseUrl }}</code>
+          <span v-else class="text-muted">默认</span>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
     <div class="info-section">
       <h3>配置说明</h3>
       <ul>
@@ -49,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import apiClient from '@/api/apiClient'
 
@@ -62,6 +88,25 @@ const form = ref({
   modelName: 'gpt-4o-mini',
   baseUrl: ''
 })
+
+// 是否有已保存的配置
+const hasSavedConfig = computed(() => !!form.value.apiKey)
+
+// 提供商显示名称
+const providerLabels: Record<string, string> = {
+  OPENAI: 'OpenAI',
+  ANTHROPIC: 'Anthropic',
+  GEMINI: 'Google Gemini',
+  DEEPSEEK: 'DeepSeek',
+  CUSTOM: '自定义'
+}
+const providerLabel = computed(() => providerLabels[form.value.provider] || form.value.provider)
+
+// 遮蔽 API Key 显示
+function maskApiKey(key: string): string {
+  if (!key || key.length < 8) return '***'
+  return key.substring(0, 4) + '****' + key.substring(key.length - 4)
+}
 
 async function fetchSettings() {
   loading.value = true
@@ -97,6 +142,8 @@ async function saveSettings() {
       baseUrl: form.value.baseUrl
     })
     ElMessage.success('配置已保存')
+    // 保存成功后重新加载配置
+    await fetchSettings()
   } catch (error: any) {
     const errMsg = error.error || error.message || '保存失败'
     console.error('保存 AI 配置失败:', error)
@@ -170,6 +217,28 @@ onMounted(fetchSettings)
   font-size: 12px;
   color: #9ca3af;
   margin-top: 4px;
+}
+
+.config-summary {
+  margin-bottom: 24px;
+}
+
+.config-summary .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.config-summary code {
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.text-muted {
+  color: #9ca3af;
 }
 
 .info-section {
