@@ -90,6 +90,41 @@
       </div>
     </div>
 
+    <!-- 批量操作栏 -->
+    <Transition name="slide-up">
+      <div v-if="selectedLeads.length > 0" class="batch-actions-bar">
+        <div class="batch-info">
+          <el-checkbox 
+            :model-value="isAllSelected" 
+            :indeterminate="isIndeterminate"
+            @change="handleSelectAll"
+          />
+          <span class="selected-count">已选择 <strong>{{ selectedLeads.length }}</strong> 条线索</span>
+        </div>
+        <div class="batch-buttons">
+          <el-button size="small" @click="handleBatchAssign">
+            <el-icon><UserFilled /></el-icon>
+            批量分配
+          </el-button>
+          <el-button size="small" @click="handleBatchUpdateStatus">
+            <el-icon><Edit /></el-icon>
+            批量改状态
+          </el-button>
+          <el-button size="small" @click="handleBatchExport">
+            <el-icon><Download /></el-icon>
+            导出选中
+          </el-button>
+          <el-button size="small" type="danger" @click="handleBatchDelete">
+            <el-icon><Delete /></el-icon>
+            批量删除
+          </el-button>
+          <el-button size="small" text @click="clearSelection">
+            取消选择
+          </el-button>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 表格视图 -->
     <div v-if="viewMode === 'table'" class="table-container">
       <el-table
@@ -101,7 +136,15 @@
         border
         @row-click="handleRowClick"
         @header-dragend="handleColumnResize"
+        @selection-change="handleSelectionChange"
       >
+        <!-- 批量选择列 -->
+        <el-table-column
+          type="selection"
+          width="50"
+          align="center"
+          @click.stop
+        />
         <el-table-column label="联系人" min-width="200">
           <template #default="{ row }">
             <div class="contact-cell">
@@ -254,7 +297,7 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, Search, List, Edit, Delete, UserFilled, Message, Phone,
-  Document, Star, Clock, CircleCheck, WarningFilled, Grid, Upload
+  Document, Star, Clock, CircleCheck, WarningFilled, Grid, Upload, Download
 } from '@element-plus/icons-vue'
 import { useLeadStore } from '@/stores'
 import type { Lead } from '@tonghai/shared/types'
@@ -271,6 +314,16 @@ const viewMode = ref<'table' | 'card'>('table')
 const assignees = ref<{ id: string; name: string }[]>([])
 const leadTableRef = ref()
 const importDialogRef = ref()
+const selectedLeads = ref<Lead[]>([])
+
+// 批量选择状态
+const isAllSelected = computed(() => {
+  return leads.value.length > 0 && selectedLeads.value.length === leads.value.length
+})
+
+const isIndeterminate = computed(() => {
+  return selectedLeads.value.length > 0 && selectedLeads.value.length < leads.value.length
+})
 
 // 列宽持久化存储键
 const COLUMN_WIDTH_KEY = 'lead-table-column-widths'
@@ -397,6 +450,93 @@ async function handleDelete(lead: Lead) {
 function handleSuccess() {
   editingLead.value = null
   leadStore.fetchLeads()
+}
+
+// 批量操作函数
+function handleSelectionChange(selection: Lead[]) {
+  selectedLeads.value = selection
+}
+
+function handleSelectAll(val: boolean) {
+  if (val) {
+    leadTableRef.value?.toggleAllSelection()
+  } else {
+    leadTableRef.value?.clearSelection()
+  }
+}
+
+function clearSelection() {
+  leadTableRef.value?.clearSelection()
+  selectedLeads.value = []
+}
+
+async function handleBatchAssign() {
+  // TODO: 显示分配对话框，选择负责人
+  ElMessage.info(`正在分配 ${selectedLeads.value.length} 条线索...`)
+}
+
+async function handleBatchUpdateStatus() {
+  try {
+    const { value: status } = await ElMessageBox.prompt(
+      '请选择新状态',
+      '批量修改状态',
+      {
+        inputPattern: /^(NEW|IN_PROGRESS|CONVERTED|LOST)$/,
+        inputErrorMessage: '请输入有效状态',
+        inputPlaceholder: 'NEW / IN_PROGRESS / CONVERTED / LOST',
+      }
+    )
+    // TODO: 调用批量更新 API
+    ElMessage.success(`已将 ${selectedLeads.value.length} 条线索状态更新为 ${status}`)
+    clearSelection()
+    leadStore.fetchLeads()
+  } catch {
+    // 用户取消
+  }
+}
+
+function handleBatchExport() {
+  // 导出为 CSV
+  const headers = ['联系人', '公司', '邮箱', '电话', '来源', '状态', '评分']
+  const rows = selectedLeads.value.map(lead => [
+    lead.contactName,
+    lead.companyName,
+    lead.email,
+    lead.phone,
+    lead.sourceChannel,
+    lead.status,
+    lead.score,
+  ])
+  
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `线索导出_${new Date().toISOString().split('T')[0]}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+  
+  ElMessage.success(`已导出 ${selectedLeads.value.length} 条线索`)
+}
+
+async function handleBatchDelete() {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedLeads.value.length} 条线索吗？此操作不可恢复。`,
+      '批量删除确认',
+      { type: 'warning', confirmButtonText: '确认删除', confirmButtonClass: 'el-button--danger' }
+    )
+    // 逐个删除
+    for (const lead of selectedLeads.value) {
+      await leadStore.deleteLead(lead.id)
+    }
+    ElMessage.success(`已删除 ${selectedLeads.value.length} 条线索`)
+    clearSelection()
+    leadStore.fetchLeads()
+  } catch {
+    // 用户取消
+  }
 }
 
 function formatDate(dateStr: string): string {
@@ -811,5 +951,50 @@ function getScoreClass(score: number): string {
 .card-date {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+/* 批量操作栏 */
+.batch-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%);
+  border: 1px solid var(--color-primary);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selected-count {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.selected-count strong {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.batch-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* 批量操作栏动画 */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

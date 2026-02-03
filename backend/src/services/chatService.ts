@@ -45,8 +45,13 @@ const SYSTEM_PROMPT = `你是通海南洋（TongHai Nanyang）的智能客服助
 5. 品牌转型与企业考察
 6. 政府津贴与税务优化
 
-请用友好、专业的语气回答客户问题。如果问题超出你的知识范围，建议客户预约专业顾问咨询。
-回答要简洁明了，控制在150字以内。`
+【重要指令】
+- 如果用户消息后附有「参考信息」，请**优先**根据参考信息回答问题。
+- 不要编造参考信息中没有的数字、政策细节或费用。
+- 如果参考信息不足以完全回答问题，可结合你的通用知识补充，但要标注"建议咨询顾问确认"。
+- 如果完全没有相关信息，礼貌地建议客户预约专业顾问。
+
+请用友好、专业的语气回答。回答要简洁明了，控制在150字以内。`
 
 const SYSTEM_PROMPT_EN = `You are the AI assistant for TongHai Nanyang, a professional consulting firm headquartered in Singapore. We provide services for Chinese-speaking entrepreneurs and high-net-worth families:
 
@@ -57,8 +62,13 @@ const SYSTEM_PROMPT_EN = `You are the AI assistant for TongHai Nanyang, a profes
 5. Brand Transformation & Corporate Visits
 6. Government Grants & Tax Optimization
 
-Answer questions in a friendly, professional manner. If the question is beyond your knowledge, suggest booking a professional consultation.
-Keep responses concise, under 100 words.`
+【Important Instructions】
+- If "Reference Information" is provided after the user message, **prioritize** answering based on that reference.
+- Do not fabricate numbers, policy details, or fees not found in the reference.
+- If the reference is insufficient, you may supplement with general knowledge but note "please confirm with a consultant".
+- If no relevant information exists, politely suggest booking a professional consultation.
+
+Answer in a friendly, professional manner. Keep responses concise, under 100 words.`
 
 export const chatService = {
     /**
@@ -187,16 +197,36 @@ export const chatService = {
                 take: 10 // 最近10条消息作为上下文
             })
 
+            // 构建参考信息（从低分 FAQ 匹配结果中提取）
+            let referenceContext = ''
+            if (matchedFaqs.length > 0) {
+                const relevantFaqs = matchedFaqs.slice(0, 3) // 取前3个相关 FAQ
+                const faqTexts = relevantFaqs.map((faq, idx) => {
+                    const q = locale === 'en' && faq.questionEn ? faq.questionEn : faq.question
+                    const a = locale === 'en' && faq.answerEn ? faq.answerEn : faq.answer
+                    return `${idx + 1}. 问：${q}\n   答：${a}`
+                }).join('\n\n')
+                referenceContext = locale === 'en'
+                    ? `\n\n【Reference Information from Knowledge Base】\n${faqTexts}`
+                    : `\n\n【参考信息（来自知识库）】\n${faqTexts}`
+            }
+
+            // 将参考信息附加到用户最后一条消息
+            const historyMessages = history.slice(0, -1).map(msg => ({
+                role: msg.role as 'user' | 'assistant',
+                content: msg.content
+            }))
+            const lastUserMessage = input.message + referenceContext
+
             const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
                 { role: 'system', content: locale === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT },
-                ...history.map(msg => ({
-                    role: msg.role as 'user' | 'assistant',
-                    content: msg.content
-                }))
+                ...historyMessages,
+                { role: 'user', content: lastUserMessage }
             ]
 
+            const modelName = _modelName // 使用配置中的模型名称
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: modelName,
                 messages,
                 max_tokens: 300,
                 temperature: 0.7

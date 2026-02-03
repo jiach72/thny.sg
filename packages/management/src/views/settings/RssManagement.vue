@@ -385,7 +385,7 @@ onMounted(fetchFeeds)
 .page-header h1 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .header-right {
@@ -398,13 +398,13 @@ onMounted(fetchFeeds)
 }
 
 .stat-card {
-  background: white;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .stat-icon {
@@ -424,16 +424,16 @@ onMounted(fetchFeeds)
 .stat-value {
   font-size: 28px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .stat-label {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .text-muted {
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-size: 12px;
 }
 

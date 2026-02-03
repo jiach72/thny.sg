@@ -827,12 +827,12 @@ onMounted(() => {
 .page-header h1 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .page-header .subtitle {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .header-right {
@@ -845,13 +845,13 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: white;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .stat-icon {
@@ -872,19 +872,19 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .stat-label {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .content-tabs {
-  background: white;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .tab-toolbar {
@@ -907,7 +907,7 @@ onMounted(() => {
 
 .text-muted {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--color-text-muted);
 }
 
 .pagination {
@@ -940,8 +940,8 @@ onMounted(() => {
 
 .message-bubble.assistant {
   align-self: flex-start;
-  background: #f3f4f6;
-  color: #1f2937;
+  background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 .message-role {

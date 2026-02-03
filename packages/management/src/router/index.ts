@@ -58,6 +58,12 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '项目详情' },
             },
             {
+                path: 'reports',
+                name: 'ReportBuilder',
+                component: () => import('@/views/reports/ReportBuilder.vue'),
+                meta: { title: '报表中心' },
+            },
+            {
                 path: 'settings',
                 name: 'Settings',
                 component: () => import('@/views/settings/Settings.vue'),
@@ -140,6 +146,12 @@ const routes: RouteRecordRaw[] = [
                 name: 'SchedulerManagement',
                 component: () => import('@/views/settings/SchedulerManagement.vue'),
                 meta: { title: '定时任务' },
+            },
+            {
+                path: 'settings/workflow',
+                name: 'WorkflowRules',
+                component: () => import('@/views/settings/WorkflowRules.vue'),
+                meta: { title: '工作流自动化' },
             },
         ],
     },

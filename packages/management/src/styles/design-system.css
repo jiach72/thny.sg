@@ -23,6 +23,9 @@
   --color-border: #E2E8F0;
   /* Slate 200 */
 
+  /* Primary with alpha for backgrounds */
+  --color-primary-light: rgba(8, 145, 178, 0.1);
+
   /* Spacing */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
@@ -42,6 +45,54 @@
   /* 8px */
   --radius-lg: 0.75rem;
   /* 12px */
+}
+
+/* ==================== 深色模式 ==================== */
+:root.dark,
+[data-theme="dark"] {
+  --color-primary: #22d3ee;
+  /* Cyan 400 - Brighter for dark mode */
+  --color-secondary: #06b6d4;
+  /* Cyan 500 */
+  --color-cta: #34d399;
+  /* Emerald 400 */
+  --color-accent: #a78bfa;
+  /* Violet 400 */
+
+  --color-background: #0f172a;
+  /* Slate 900 */
+  --color-surface: #1e293b;
+  /* Slate 800 */
+  --color-surface-hover: #334155;
+  /* Slate 700 */
+
+  --color-text: #f1f5f9;
+  /* Slate 100 */
+  --color-text-muted: #94a3b8;
+  /* Slate 400 */
+  --color-border: #334155;
+  /* Slate 700 */
+
+  --color-primary-light: rgba(34, 211, 238, 0.15);
+
+  /* Shadows for dark mode */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+}
+
+/* 主题切换过渡 */
+*,
+*::before,
+*::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.15s ease;
+}
+
+/* 深色模式 Glassmorphism */
+:root.dark .glass,
+[data-theme="dark"] .glass {
+  background: rgba(30, 41, 59, 0.9);
+  border-bottom-color: rgba(51, 65, 85, 0.8);
 }
 
 /* Typography Overrides */
@@ -114,4 +165,448 @@ body {
   font-weight: 500;
   color: var(--color-text-muted);
   margin-left: 12px;
+}
+
+/* ==================== 深色模式 Element Plus 覆盖 ==================== */
+
+/* 卡片组件 */
+:root.dark .el-card,
+[data-theme="dark"] .el-card {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+:root.dark .el-card__header,
+[data-theme="dark"] .el-card__header {
+  border-bottom-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* 表格组件 */
+:root.dark .el-table,
+[data-theme="dark"] .el-table {
+  --el-table-bg-color: var(--color-surface) !important;
+  --el-table-tr-bg-color: var(--color-surface) !important;
+  --el-table-header-bg-color: var(--color-background) !important;
+  --el-table-row-hover-bg-color: var(--color-surface-hover) !important;
+  --el-table-border-color: var(--color-border) !important;
+  --el-table-text-color: var(--color-text) !important;
+  --el-table-header-text-color: var(--color-text-muted) !important;
+}
+
+:root.dark .el-table th.el-table__cell,
+[data-theme="dark"] .el-table th.el-table__cell {
+  background-color: var(--color-background) !important;
+}
+
+:root.dark .el-table td.el-table__cell,
+[data-theme="dark"] .el-table td.el-table__cell {
+  border-bottom-color: var(--color-border) !important;
+}
+
+/* 输入框 */
+:root.dark .el-input__wrapper,
+[data-theme="dark"] .el-input__wrapper {
+  background-color: var(--color-surface) !important;
+  box-shadow: 0 0 0 1px var(--color-border) inset !important;
+}
+
+:root.dark .el-input__inner,
+[data-theme="dark"] .el-input__inner {
+  color: var(--color-text) !important;
+}
+
+:root.dark .el-input__inner::placeholder,
+[data-theme="dark"] .el-input__inner::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* 下拉选择 */
+:root.dark .el-select__wrapper,
+[data-theme="dark"] .el-select__wrapper {
+  background-color: var(--color-surface) !important;
+  box-shadow: 0 0 0 1px var(--color-border) inset !important;
+}
+
+:root.dark .el-select-dropdown,
+[data-theme="dark"] .el-select-dropdown {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+:root.dark .el-select-dropdown__item,
+[data-theme="dark"] .el-select-dropdown__item {
+  color: var(--color-text) !important;
+}
+
+:root.dark .el-select-dropdown__item.hover,
+:root.dark .el-select-dropdown__item:hover,
+[data-theme="dark"] .el-select-dropdown__item.hover,
+[data-theme="dark"] .el-select-dropdown__item:hover {
+  background-color: var(--color-surface-hover) !important;
+}
+
+/* 对话框 */
+:root.dark .el-dialog,
+[data-theme="dark"] .el-dialog {
+  background-color: var(--color-surface) !important;
+}
+
+:root.dark .el-dialog__header,
+[data-theme="dark"] .el-dialog__header {
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+:root.dark .el-dialog__title,
+[data-theme="dark"] .el-dialog__title {
+  color: var(--color-text) !important;
+}
+
+:root.dark .el-dialog__footer,
+[data-theme="dark"] .el-dialog__footer {
+  border-top: 1px solid var(--color-border) !important;
+}
+
+/* 分页 */
+:root.dark .el-pagination,
+[data-theme="dark"] .el-pagination {
+  --el-pagination-bg-color: var(--color-surface) !important;
+  --el-pagination-text-color: var(--color-text) !important;
+  --el-pagination-button-disabled-bg-color: var(--color-surface-hover) !important;
+}
+
+/* tabs 标签页 */
+:root.dark .el-tabs__item,
+[data-theme="dark"] .el-tabs__item {
+  color: var(--color-text-muted) !important;
+}
+
+:root.dark .el-tabs__item.is-active,
+[data-theme="dark"] .el-tabs__item.is-active {
+  color: var(--color-primary) !important;
+}
+
+/* 空状态 */
+:root.dark .el-empty__description,
+[data-theme="dark"] .el-empty__description {
+  color: var(--color-text-muted) !important;
+}
+
+/* Popover 弹出框 */
+:root.dark .el-popover,
+[data-theme="dark"] .el-popover {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Form 表单 */
+:root.dark .el-form-item__label,
+[data-theme="dark"] .el-form-item__label {
+  color: var(--color-text) !important;
+}
+
+/* Divider 分割线 */
+:root.dark .el-divider,
+[data-theme="dark"] .el-divider {
+  border-color: var(--color-border) !important;
+}
+
+:root.dark .el-divider__text,
+[data-theme="dark"] .el-divider__text {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-muted) !important;
+}
+
+/* 时间线 */
+:root.dark .el-timeline-item__content,
+[data-theme="dark"] .el-timeline-item__content {
+  color: var(--color-text) !important;
+}
+
+:root.dark .el-timeline-item__timestamp,
+[data-theme="dark"] .el-timeline-item__timestamp {
+  color: var(--color-text-muted) !important;
+}
+
+/* 描述列表 */
+:root.dark .el-descriptions__label,
+[data-theme="dark"] .el-descriptions__label {
+  color: var(--color-text-muted) !important;
+  background-color: var(--color-background) !important;
+}
+
+:root.dark .el-descriptions__content,
+[data-theme="dark"] .el-descriptions__content {
+  color: var(--color-text) !important;
+  background-color: var(--color-surface) !important;
+}
+
+:root.dark .el-descriptions__cell,
+[data-theme="dark"] .el-descriptions__cell {
+  border-color: var(--color-border) !important;
+}
+
+/* ==================== 统一字体规范 ==================== */
+
+/* 页面标题统一 */
+h1,
+.page-title {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.02em !important;
+}
+
+h2,
+.section-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+h3,
+.card-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+/* 按钮字体统一 */
+.el-button {
+  font-family: 'Source Sans 3', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.el-button--small {
+  font-size: 13px !important;
+}
+
+.el-button--large {
+  font-size: 15px !important;
+}
+
+/* 表格字体统一 */
+.el-table {
+  font-size: 14px !important;
+}
+
+.el-table th {
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+}
+
+/* 卡片标题 */
+.el-card__header {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--color-text) !important;
+}
+
+/* 标签字体 */
+.el-tag {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* ==================== 通用深色模式覆盖（修复硬编码白色背景） ==================== */
+
+/* 统计卡片 - 修复 FAQ、新闻管理等页面的白色统计卡片 */
+:root.dark .stat-card,
+:root.dark .stats-card,
+:root.dark .statistic-card,
+:root.dark [class*="stat-"],
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .stats-card,
+[data-theme="dark"] .statistic-card,
+[data-theme="dark"] [class*="stat-"] {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* 筛选区域和工具栏 */
+:root.dark .filter-bar,
+:root.dark .toolbar,
+:root.dark .search-bar,
+:root.dark .filter-section,
+[data-theme="dark"] .filter-bar,
+[data-theme="dark"] .toolbar,
+[data-theme="dark"] .search-bar,
+[data-theme="dark"] .filter-section {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* 内容区块 */
+:root.dark .content-card,
+:root.dark .section-card,
+:root.dark .panel,
+:root.dark .card-content,
+[data-theme="dark"] .content-card,
+[data-theme="dark"] .section-card,
+[data-theme="dark"] .panel,
+[data-theme="dark"] .card-content {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* 表格容器 */
+:root.dark .table-container,
+:root.dark .list-container,
+:root.dark .data-table,
+[data-theme="dark"] .table-container,
+[data-theme="dark"] .list-container,
+[data-theme="dark"] .data-table {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* 强制覆盖所有硬编码 background: white 的元素 */
+:root.dark [style*="background: white"],
+:root.dark [style*="background-color: white"],
+:root.dark [style*="background:#fff"],
+:root.dark [style*="background-color:#fff"],
+[data-theme="dark"] [style*="background: white"],
+[data-theme="dark"] [style*="background-color: white"],
+[data-theme="dark"] [style*="background:#fff"],
+[data-theme="dark"] [style*="background-color:#fff"] {
+  background: var(--color-surface) !important;
+  background-color: var(--color-surface) !important;
+}
+
+/* FAQ、新闻、RSS 管理特定修复 */
+:root.dark .faq-item,
+:root.dark .news-card,
+:root.dark .rss-card,
+:root.dark .article-card,
+[data-theme="dark"] .faq-item,
+[data-theme="dark"] .news-card,
+[data-theme="dark"] .rss-card,
+[data-theme="dark"] .article-card {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* 用户管理表格行条纹 */
+:root.dark .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell,
+[data-theme="dark"] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--color-background) !important;
+}
+
+/* 悬停效果 */
+:root.dark .el-table__body tr:hover>td.el-table__cell,
+[data-theme="dark"] .el-table__body tr:hover>td.el-table__cell {
+  background-color: var(--color-surface-hover) !important;
+}
+
+/* 深色模式文字颜色修复 */
+:root.dark .stat-value,
+:root.dark .stat-label,
+:root.dark .stat-title,
+:root.dark .card-title,
+[data-theme="dark"] .stat-value,
+[data-theme="dark"] .stat-label,
+[data-theme="dark"] .stat-title,
+[data-theme="dark"] .card-title {
+  color: var(--color-text) !important;
+}
+
+:root.dark .stat-subtitle,
+:root.dark .stat-desc,
+:root.dark .muted-text,
+[data-theme="dark"] .stat-subtitle,
+[data-theme="dark"] .stat-desc,
+[data-theme="dark"] .muted-text {
+  color: var(--color-text-muted) !important;
+}
+
+/* 日历组件 */
+:root.dark .el-calendar,
+[data-theme="dark"] .el-calendar {
+  background-color: var(--color-surface) !important;
+}
+
+:root.dark .el-calendar-table td,
+:root.dark .el-calendar-table th,
+[data-theme="dark"] .el-calendar-table td,
+[data-theme="dark"] .el-calendar-table th {
+  border-color: var(--color-border) !important;
+}
+
+:root.dark .el-calendar-day,
+[data-theme="dark"] .el-calendar-day {
+  color: var(--color-text) !important;
+}
+
+/* Switch 开关 */
+:root.dark .el-switch__core,
+[data-theme="dark"] .el-switch__core {
+  background: var(--color-surface-hover) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* DatePicker 日期选择 */
+:root.dark .el-date-editor,
+[data-theme="dark"] .el-date-editor {
+  background-color: var(--color-surface) !important;
+}
+
+:root.dark .el-picker-panel,
+[data-theme="dark"] .el-picker-panel {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+:root.dark .el-date-table td.available:hover,
+[data-theme="dark"] .el-date-table td.available:hover {
+  color: var(--color-primary) !important;
+}
+
+/* Dropdown 下拉菜单 */
+:root.dark .el-dropdown-menu,
+[data-theme="dark"] .el-dropdown-menu {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+:root.dark .el-dropdown-menu__item,
+[data-theme="dark"] .el-dropdown-menu__item {
+  color: var(--color-text) !important;
+}
+
+:root.dark .el-dropdown-menu__item:hover,
+[data-theme="dark"] .el-dropdown-menu__item:hover {
+  background-color: var(--color-surface-hover) !important;
+}
+
+/* Message Box 弹窗 */
+:root.dark .el-message-box,
+[data-theme="dark"] .el-message-box {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+:root.dark .el-message-box__title,
+:root.dark .el-message-box__content,
+[data-theme="dark"] .el-message-box__title,
+[data-theme="dark"] .el-message-box__content {
+  color: var(--color-text) !important;
+}
+
+/* Popper 弹出层箭头 */
+:root.dark .el-popper.is-light,
+[data-theme="dark"] .el-popper.is-light {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+:root.dark .el-popper.is-light .el-popper__arrow::before,
+[data-theme="dark"] .el-popper.is-light .el-popper__arrow::before {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
 }

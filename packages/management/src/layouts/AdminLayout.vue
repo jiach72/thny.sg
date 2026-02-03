@@ -117,7 +117,25 @@
           </el-breadcrumb>
         </div>
         
+        <!-- 全局搜索 -->
+        <div class="header-center">
+          <button class="search-trigger" @click="showCommandPalette = true">
+            <el-icon><Search /></el-icon>
+            <span>搜索...</span>
+            <div class="search-shortcut">
+              <kbd>⌘</kbd>
+              <kbd>K</kbd>
+            </div>
+          </button>
+        </div>
+        
         <div class="header-right">
+          <!-- 主题切换器 -->
+          <ThemeSwitcher />
+          
+          <!-- 通知中心 -->
+          <NotificationCenter />
+          
           <el-dropdown trigger="click" @command="handleCommand">
             <div class="user-info">
               <el-avatar :size="32" :src="user?.avatarUrl">
@@ -141,6 +159,9 @@
         <router-view />
       </main>
     </div>
+    
+    <!-- 全局搜索命令面板 -->
+    <CommandPalette v-model:visible="showCommandPalette" />
   </div>
 </template>
 
@@ -149,6 +170,9 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores'
+import CommandPalette from '@/components/common/CommandPalette.vue'
+import NotificationCenter from '@/components/common/NotificationCenter.vue'
+import ThemeSwitcher from '@/components/common/ThemeSwitcher.vue'
 import {
   Odometer,
   User,
@@ -170,6 +194,7 @@ import {
   Trophy,
   Message,
   Timer,
+  Search,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -178,6 +203,7 @@ const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 
 const isCollapsed = ref(false)
+const showCommandPalette = ref(false)
 
 const activeMenu = computed(() => {
   const path = route.path
@@ -339,14 +365,10 @@ function handleCommand(command: string) {
   gap: 20px;
 }
 
-:deep(.el-breadcrumb__inner) {
-  color: var(--color-text-muted) !important;
-  font-weight: 400;
-}
-
-:deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
-  color: var(--color-text) !important;
-  font-weight: 600;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .user-info {
@@ -378,5 +400,61 @@ function handleCommand(command: string) {
   padding: 32px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* 全局搜索触发按钮 */
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  min-width: 260px;
+}
+
+.search-trigger:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.search-trigger span {
+  flex: 1;
+  text-align: left;
+}
+
+.search-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-shortcut kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: var(--color-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 </style>

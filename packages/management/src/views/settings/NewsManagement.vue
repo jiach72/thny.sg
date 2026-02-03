@@ -608,12 +608,12 @@ onMounted(async () => {
 .page-header h1 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .page-header .subtitle {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .header-right {
@@ -626,13 +626,13 @@ onMounted(async () => {
 }
 
 .stat-card {
-  background: white;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .stat-icon {
@@ -653,12 +653,12 @@ onMounted(async () => {
 .stat-value {
   font-size: 28px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .stat-label {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .filter-bar {
@@ -666,9 +666,9 @@ onMounted(async () => {
   gap: 12px;
   margin-bottom: 16px;
   padding: 16px;
-  background: white;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .article-cell {
@@ -696,7 +696,7 @@ onMounted(async () => {
   display: flex;
   gap: 8px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--color-text-muted);
 }
 
 .table-footer {
@@ -705,7 +705,8 @@ onMounted(async () => {
   align-items: center;
   margin-top: 16px;
   padding: 12px 16px;
-  background: white;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
 }
 

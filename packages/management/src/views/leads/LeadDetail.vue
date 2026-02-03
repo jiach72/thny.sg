@@ -60,31 +60,27 @@
           </el-descriptions>
         </el-card>
 
-        <!-- 活动时间线 -->
-        <el-card class="info-card" style="margin-top: 16px;">
-          <template #header>
-            <span>活动记录</span>
-          </template>
-          <el-timeline v-if="lead.activities?.length">
-            <el-timeline-item
-              v-for="activity in lead.activities"
-              :key="activity.id"
-              :timestamp="formatDate(activity.createdAt)"
-              placement="top"
-            >
-              <div class="activity-item">
-                <strong>{{ activity.actor?.name }}</strong>
-                <span>{{ activity.description }}</span>
-              </div>
-            </el-timeline-item>
-          </el-timeline>
-          <el-empty v-else description="暂无活动记录" :image-size="80" />
-        </el-card>
+        <!-- 增强版活动时间线 -->
+        <ActivityTimeline
+          style="margin-top: 16px;"
+          :activities="formattedActivities"
+          :has-more="false"
+          :loading="false"
+          @add-note="handleAddNote"
+        />
       </el-col>
 
       <!-- 右侧边栏 -->
       <el-col :span="8">
-        <el-card class="info-card">
+        <!-- 健康评分卡片 -->
+        <HealthScoreCard
+          :score="lead.score || 50"
+          :last-contact-days="getLastContactDays()"
+          :response-rate="75"
+          :task-completion-rate="getTaskCompletionRate()"
+        />
+
+        <el-card class="info-card" style="margin-top: 16px;">
           <template #header>
             <span>负责人</span>
           </template>
@@ -151,13 +147,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, ArrowDown } from '@element-plus/icons-vue'
 import { useLeadStore } from '@/stores'
 import AssigneeDialog from '@/components/AssigneeDialog.vue'
+import HealthScoreCard from '@/components/common/HealthScoreCard.vue'
+import ActivityTimeline from '@/components/common/ActivityTimeline.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -167,6 +165,43 @@ const { currentLead: lead, loading } = storeToRefs(leadStore)
 const showEditDialog = ref(false)
 
 const showAssignDialog = ref(false)
+
+// 格式化活动数据用于 ActivityTimeline 组件
+const formattedActivities = computed(() => {
+  if (!lead.value?.activities) return []
+  return lead.value.activities.map((activity: any) => ({
+    id: activity.id,
+    type: activity.type || 'note',
+    description: activity.description,
+    actor: activity.actor,
+    metadata: activity.metadata,
+    createdAt: activity.createdAt,
+  }))
+})
+
+// 计算最后联系天数
+function getLastContactDays(): number {
+  if (!lead.value?.activities?.length) return 999
+  const lastActivity = lead.value.activities[0]
+  if (!lastActivity) return 999
+  const lastDate = new Date(lastActivity.createdAt)
+  const now = new Date()
+  return Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+// 计算任务完成率
+function getTaskCompletionRate(): number {
+  if (!lead.value?.tasks?.length) return 0
+  const completed = lead.value.tasks.filter((t: any) => t.status === 'DONE').length
+  return Math.round((completed / lead.value.tasks.length) * 100)
+}
+
+// 添加备注
+function handleAddNote(note: string) {
+  // TODO: 调用 API 添加备注
+  ElMessage.success('备注已添加')
+  console.log('添加备注:', note)
+}
 
 onMounted(() => {
   const id = route.params.id as string
@@ -256,10 +291,6 @@ function handleAddTag() {
 
 function handleRemoveTag(tag: string) {
   ElMessage.info(`移除标签: ${tag}`)
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('zh-CN')
 }
 
 function getStatusLabel(status: string): string {

@@ -20,6 +20,12 @@
         <!-- 统计卡片行 -->
         <StatCards />
 
+        <!-- 今日焦点 -->
+        <TodayFocus 
+          @create-lead="handleCreate"
+          @create-task="handleCreateTask"
+        />
+
         <div class="content-row">
            <!-- 左列：最新线索表格 -->
            <RecentLeads />
@@ -63,6 +69,7 @@ import LeadFormDialog from '../leads/components/LeadFormDialog.vue'
 
 // Import New Components
 import StatCards from './components/StatCards.vue'
+import TodayFocus from './components/TodayFocus.vue'
 import RecentLeads from './components/RecentLeads.vue'
 import InquiryList from './components/InquiryList.vue'
 import SalesFunnelChart from './components/SalesFunnelChart.vue'
@@ -82,6 +89,11 @@ const currentDate = dayjs().format('YYYY年MM月DD日 dddd')
 
 const handleCreate = () => {
     showCreateDialog.value = true
+}
+
+const handleCreateTask = () => {
+    // 导航到任务页面并触发创建
+    window.location.href = '/tasks?action=create'
 }
 
 const handleCreateSuccess = () => {

@@ -359,7 +359,7 @@ function isOverdue(dateStr: string): boolean {
 .page-title {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
   margin: 0;
 }
 
@@ -375,8 +375,9 @@ function isOverdue(dateStr: string): boolean {
   flex: 1;
   min-width: 280px;
   max-width: 320px;
-  background: #f5f6f7;
-  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
 }
@@ -386,12 +387,12 @@ function isOverdue(dateStr: string): boolean {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .column-title {
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
 }
 
 .column-content {
@@ -406,26 +407,27 @@ function isOverdue(dateStr: string): boolean {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 100px; /* 确保空列也有放置区域 */
+  min-height: 100px;
   height: 100%;
 }
 
 .task-card {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  transition: box-shadow 0.3s;
+  transition: all 0.2s ease;
 }
 
 .task-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
 }
 
 .task-title {
   font-weight: 500;
-  color: #333;
+  color: var(--color-text);
   margin-bottom: 8px;
   line-height: 1.4;
 }
@@ -439,7 +441,7 @@ function isOverdue(dateStr: string): boolean {
 
 .due-date {
   font-size: 12px;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .due-date.overdue {
@@ -457,7 +459,7 @@ function isOverdue(dateStr: string): boolean {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .assignee-avatar {
