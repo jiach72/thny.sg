@@ -261,14 +261,15 @@ export const faqService = {
         const scored = items.map(item => {
             let score = 0
             const question = locale === 'en' && item.questionEn ? item.questionEn.toLowerCase() : item.question.toLowerCase()
-            const answer = locale === 'en' && item.answerEn ? item.answerEn.toLowerCase() : item.answer.toLowerCase()
+            const answer = (locale === 'en' && item.answerEn ? item.answerEn : item.answer) || ''
+            const answerLower = answer.toLowerCase()
             const keywords = item.keywords.map(k => k.toLowerCase())
 
             for (const term of searchTerms) {
                 // 问题匹配
                 if (question.includes(term)) score += 10
                 // 答案匹配（权重较低）
-                if (answer.includes(term)) score += 3
+                if (answerLower.includes(term)) score += 3
                 // 关键词精确匹配
                 if (keywords.includes(term)) score += 20
                 // 关键词模糊匹配

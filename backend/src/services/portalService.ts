@@ -308,7 +308,7 @@ export const portalService = {
         message: string
         preferredContact?: string
     }) {
-        const customer = await prisma.customer.findFirst({
+        const _customer = await prisma.customer.findFirst({
             where: { userId },
         })
 
