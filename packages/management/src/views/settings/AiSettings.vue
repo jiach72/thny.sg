@@ -108,13 +108,34 @@ async function saveSettings() {
 }
 
 function handleProviderChange(val: string) {
-  // 预设默认值
-  if (val === 'OPENAI') {
-    form.value.modelName = 'gpt-4o-mini'
-    form.value.baseUrl = ''
-  } else if (val === 'DEEPSEEK') {
-    form.value.modelName = 'deepseek-chat'
-    form.value.baseUrl = 'https://api.deepseek.com'
+  // 预设默认值（模型名称和代理地址）
+  const presets: Record<string, { modelName: string; baseUrl: string }> = {
+    OPENAI: {
+      modelName: 'gpt-4o-mini',
+      baseUrl: ''
+    },
+    ANTHROPIC: {
+      modelName: 'claude-3-haiku-20240307',
+      baseUrl: 'https://api.anthropic.com'
+    },
+    GEMINI: {
+      modelName: 'gemini-2.0-flash',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai'
+    },
+    DEEPSEEK: {
+      modelName: 'deepseek-chat',
+      baseUrl: 'https://api.deepseek.com'
+    },
+    CUSTOM: {
+      modelName: '',
+      baseUrl: ''
+    }
+  }
+
+  const preset = presets[val]
+  if (preset) {
+    form.value.modelName = preset.modelName
+    form.value.baseUrl = preset.baseUrl
   }
 }
 
