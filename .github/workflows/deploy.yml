@@ -1,7 +1,10 @@
 name: Deploy to Production
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches: [main]
   workflow_dispatch:
 
@@ -12,6 +15,8 @@ env:
 jobs:
   # ========== 构建前端 ==========
   build-frontend:
+    # 仅当 CI 成功时才执行（手动触发时跳过检查）
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
