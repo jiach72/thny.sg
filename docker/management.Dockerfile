@@ -12,7 +12,7 @@ COPY packages/shared ./packages/shared
 COPY packages/management ./packages/management
 
 # 安装依赖
-RUN npm install --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 
 # 构建 Management
 WORKDIR /app/packages/management

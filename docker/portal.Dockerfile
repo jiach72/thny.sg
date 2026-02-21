@@ -12,7 +12,7 @@ COPY packages/shared ./packages/shared
 COPY packages/customer-portal ./packages/customer-portal
 
 # 安装依赖
-RUN npm install --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 
 # 构建 Portal
 WORKDIR /app/packages/customer-portal

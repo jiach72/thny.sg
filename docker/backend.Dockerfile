@@ -13,7 +13,7 @@ COPY packages/shared ./packages/shared
 COPY backend ./backend
 
 # 安装依赖
-RUN npm install --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 
 # 2. 生成 Prisma Client
 WORKDIR /app/backend
@@ -27,8 +27,8 @@ RUN npm run build
 # ==========
 FROM node:20-alpine AS runner
 
-# 安装 OpenSSL (Prisma 需要)
-RUN apk add --no-cache openssl
+# curl: Docker healthcheck 需要; openssl: Prisma 需要
+RUN apk add --no-cache openssl curl
 
 WORKDIR /app
 ENV NODE_ENV=production

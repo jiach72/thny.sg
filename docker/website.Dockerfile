@@ -12,7 +12,7 @@ COPY packages/shared ./packages/shared
 COPY packages/website ./packages/website
 
 # 安装依赖
-RUN npm install --legacy-peer-deps
+RUN npm ci --legacy-peer-deps
 
 ARG VITE_PORTAL_URL=https://portal.thny.sg
 ENV VITE_PORTAL_URL=$VITE_PORTAL_URL

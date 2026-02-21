@@ -112,34 +112,31 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          GITHUB_REPO: ${{ github.repository }}
-          # 注意：这里使用 repository_owner 因为镜像tag是基于 owner 命名的
           IMAGE_OWNER: ${{ github.repository_owner }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DEPLOY_GHCR_TOKEN: ${{ secrets.DEPLOY_GHCR_TOKEN }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: IMAGE_OWNER,JWT_SECRET,DB_PASSWORD
+          envs: IMAGE_OWNER,JWT_SECRET,DB_PASSWORD,DEPLOY_GHCR_TOKEN
           script: |
             cd /var/www/tonghai
             
-            # 1. 生成 .env
+            # 1. 生成 .env (逐行写入，避免 heredoc 缩进问题)
             echo "IMAGE_OWNER=$IMAGE_OWNER" > .env
             echo "JWT_SECRET=$JWT_SECRET" >> .env
             echo "DB_PASSWORD=$DB_PASSWORD" >> .env
-            # 这些 URL 变量 backend 需要，可以写死或从 secrets 传
             echo "FRONTEND_URL=https://www.thny.sg" >> .env
             echo "MANAGEMENT_URL=https://crm.thny.sg" >> .env
             echo "PORTAL_URL=https://portal.thny.sg" >> .env
             
-            # 2. 准备 docker-compose.yml
-            mv docker-compose.prod.yml docker-compose.yml
+            # 2. 准备 docker-compose.yml (cp 而非 mv，确保重复部署安全)
+            cp -f docker-compose.prod.yml docker-compose.yml
             
-            # 3. 拉取最新镜像
-            # 注意：docker-compose.yml 里所有的 image 都是 ghcr.io/jiach72/thny-xxx:latest
-            # 不需要特殊变量替换，直接 pull 即可
+            # 3. 登录 GHCR 并拉取最新镜像
+            echo "$DEPLOY_GHCR_TOKEN" | docker login ghcr.io -u "$IMAGE_OWNER" --password-stdin
             echo "Pulling latest images..."
             docker compose pull
             
@@ -150,12 +147,23 @@ jobs:
             # 5. 清理旧镜像
             docker image prune -f
             
-            # 6. 后端迁移与做种 (可选，取决于策略)
+            # 6. 等待后端容器健康
+            echo "Waiting for backend to be ready..."
+            sleep 15
+            
+            # 7. 数据库迁移
             echo "Running database migrations..."
             docker compose exec -T backend npx prisma migrate deploy
             
-            # 如果需要每次部署都重置 demo 数据，可以跑 seed
-            # docker compose exec -T backend npm run db:seed:sdq
+            # 8. 首次部署时播种初始数据
+            echo "Checking if database needs seeding..."
+            USER_COUNT=$(docker compose exec -T postgres psql -U crm_user -d crm_db -tAc "SELECT COUNT(*) FROM \"User\";" 2>/dev/null || echo "0")
+            if [ "$USER_COUNT" = "0" ] || [ -z "$USER_COUNT" ]; then
+              echo "First deployment detected, seeding database..."
+              docker compose exec -T backend npx prisma db seed
+            else
+              echo "Database already has $USER_COUNT users, skipping seed."
+            fi
             
             echo "Deployment complete!"
 

@@ -7,7 +7,7 @@ dotenv.config()
 const envSchema = z.object({
     // 服务配置
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-    PORT: z.coerce.number().int().positive().default(8000),
+    PORT: z.coerce.number().int().positive().default(4000),
 
     // 数据库
     DATABASE_URL: z.string().min(1, '❌ DATABASE_URL 必须设置'),
