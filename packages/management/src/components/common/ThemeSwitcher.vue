@@ -1,5 +1,7 @@
 <template>
-  <!-- 暗色模式已应要求停用 -->
+  <div style="display: none;">
+    <!-- 暗色模式已应要求停用 -->
+  </div>
 </template>
 
 <script setup lang="ts">

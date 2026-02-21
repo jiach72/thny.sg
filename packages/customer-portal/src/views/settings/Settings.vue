@@ -323,7 +323,9 @@ onMounted(async () => {
     if (data) {
         settings.twoFactorEnabled = !!data.twoFactorEnabled
     }
-  } catch(e) {}
+  } catch(e) {
+    console.warn('获取双重认证状态失败', e)
+  }
 })
 
 // 保存提示定时器（防止内存泄漏）
