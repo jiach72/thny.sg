@@ -166,6 +166,8 @@ async function main() {
     console.log('👤 创建管理员用户...')
     const passwordHash = await bcrypt.hash('password123', 12)
     const adminRoleId = roleMap.get('ADMIN')!
+    const managerRoleId = roleMap.get('MANAGER')!
+    const salesRoleId = roleMap.get('SALES')!
     const customerRoleId = roleMap.get('CUSTOMER')!
 
     // 管理员
@@ -181,6 +183,34 @@ async function main() {
         },
     })
     console.log('  ✅ admin@thny.sg (管理员)')
+
+    // 经理/交付
+    await prisma.user.upsert({
+        where: { email: 'zhaoliu@thny.sg' },
+        update: { roleId: managerRoleId },
+        create: {
+            email: 'zhaoliu@thny.sg',
+            name: '赵六',
+            passwordHash,
+            roleId: managerRoleId,
+            department: '交付部',
+        },
+    })
+    console.log('  ✅ zhaoliu@thny.sg (交付经理)')
+
+    // 销售顾问
+    await prisma.user.upsert({
+        where: { email: 'lisi@thny.sg' },
+        update: { roleId: salesRoleId },
+        create: {
+            email: 'lisi@thny.sg',
+            name: '李四',
+            passwordHash,
+            roleId: salesRoleId,
+            department: '销售部',
+        },
+    })
+    console.log('  ✅ lisi@thny.sg (销售顾问)')
 
     // 5. 创建演示客户数据 (client@example.com)
     console.log('👤 创建演示客户数据...')
@@ -198,6 +228,30 @@ async function main() {
         },
     })
     console.log('  ✅ client@example.com (演示客户)')
+
+    await prisma.user.upsert({
+        where: { email: 'liming@startup.io' },
+        update: { roleId: customerRoleId },
+        create: {
+            email: 'liming@startup.io',
+            name: '李明',
+            passwordHash,
+            roleId: customerRoleId,
+        },
+    })
+    console.log('  ✅ liming@startup.io (演示客户)')
+
+    await prisma.user.upsert({
+        where: { email: 'harvey@global.com' },
+        update: { roleId: customerRoleId },
+        create: {
+            email: 'harvey@global.com',
+            name: 'Harvey Tan',
+            passwordHash,
+            roleId: customerRoleId,
+        },
+    })
+    console.log('  ✅ harvey@global.com (演示客户)')
 
     // 5.2 创建 Lead & Customer (如果是新用户)
     // 检查是否有关联客户，没有则创建
