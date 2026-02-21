@@ -158,31 +158,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import * as echarts from 'echarts/core'
-import { BarChart, LineChart, PieChart, FunnelChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  LegendComponent
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+import echarts from '@/utils/echarts'
 import { 
   Download, Filter, TrendCharts, PieChart as PieChartIcon, Trophy, List, 
   Wallet, User, DataLine, Checked, Search
 } from '@element-plus/icons-vue'
-
-echarts.use([
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  LegendComponent,
-  BarChart,
-  LineChart,
-  PieChart,
-  FunnelChart,
-  CanvasRenderer
-])
 
 // 状态
 const dateRange = ref('')

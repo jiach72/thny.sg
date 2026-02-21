@@ -127,6 +127,7 @@ import { useI18n } from 'vue-i18n'
 import { ChatDotRound, Close, Position, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 
 import apiClient from '../api/apiClient'
+import DOMPurify from 'dompurify'
 
 const { t, locale } = useI18n()
 
@@ -273,11 +274,12 @@ async function giveFeedback(messageId: string, isHelpful: boolean) {
   }
 }
 
-// 格式化消息（支持链接）
+// 格式化消息（支持链接，通过 DOMPurify 消毒防止 XSS）
 function formatMessage(content: string): string {
   // 转换 URL 为链接
   const urlRegex = /(https?:\/\/[^\s]+)/g
-  return content.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+  const html = content.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['a', 'br', 'strong', 'em'], ALLOWED_ATTR: ['href', 'target', 'rel'] })
 }
 
 // 格式化时间

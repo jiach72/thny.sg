@@ -1,11 +1,12 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores'
+import { ADMIN_LOGIN_PATH } from '@/config/security'
 
 // 路由配置
 const routes: RouteRecordRaw[] = [
     // 认证页面 (无需登录)
     {
-        path: '/login',
+        path: ADMIN_LOGIN_PATH,
         name: 'Login',
         component: () => import('@/views/auth/Login.vue'),
         meta: { requiresAuth: false, title: '登录' },
@@ -153,6 +154,18 @@ const routes: RouteRecordRaw[] = [
                 component: () => import('@/views/settings/WorkflowRules.vue'),
                 meta: { title: '工作流自动化' },
             },
+            {
+                path: 'analytics',
+                name: 'SalesDashboard',
+                component: () => import('@/views/analytics/SalesDashboard.vue'),
+                meta: { title: '销售分析' },
+            },
+            {
+                path: 'settings/workflow-designer',
+                name: 'WorkflowDesigner',
+                component: () => import('@/views/settings/WorkflowDesigner.vue'),
+                meta: { title: '工作流设计器' },
+            },
         ],
     },
 
@@ -178,8 +191,8 @@ router.beforeEach((to, _from, next) => {
 
     // 检查认证
     if (to.meta.requiresAuth !== false && !authStore.isAuthenticated) {
-        next({ path: '/login', query: { redirect: to.fullPath } })
-    } else if (to.path === '/login' && authStore.isAuthenticated) {
+        next({ path: ADMIN_LOGIN_PATH, query: { redirect: to.fullPath } })
+    } else if (to.path === ADMIN_LOGIN_PATH && authStore.isAuthenticated) {
         next('/dashboard')
     } else {
         next()

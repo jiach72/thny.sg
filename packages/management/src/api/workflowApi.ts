@@ -87,6 +87,14 @@ export const getSopSteps = (serviceType: string): Promise<SopStep[]> =>
 export const createSopTasks = (leadId: string, serviceType: string): Promise<{ success: boolean; tasks: any[] }> =>
     apiClient.post(`/workflow/leads/${leadId}/create-sop`, { serviceType })
 
+// 保存工作流配置
+export const saveWorkflowDefinition = (data: any): Promise<any> =>
+    apiClient.post('/workflow/definitions', data)
+
+// 测试工作流配置
+export const testWorkflowDefinition = (data: any): Promise<any> =>
+    apiClient.post('/workflow/definitions/test', data)
+
 export default {
     getTeamWorkload,
     autoAssignLead,
@@ -95,6 +103,8 @@ export default {
     getUserFollowUps,
     getOverdueStats,
     getSopSteps,
-    createSopTasks
+    createSopTasks,
+    saveWorkflowDefinition,
+    testWorkflowDefinition
 }
 

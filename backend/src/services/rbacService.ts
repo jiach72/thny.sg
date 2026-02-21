@@ -7,8 +7,11 @@ const prisma = new PrismaClient()
  * 负责权限检查、角色管理、权限管理
  */
 class RBACService {
-    // 内存缓存: roleCode -> Set<permissionCode>
-    private cache = new Map<string, Set<string>>()
+    /** 缓存 TTL: 5 分钟（毫秒） */
+    private static readonly CACHE_TTL_MS = 5 * 60 * 1000
+
+    /** 内存缓存: roleCode -> { permissions, loadedAt } */
+    private cache = new Map<string, { permissions: Set<string>; loadedAt: number }>()
 
     /**
      * 检查角色是否拥有某权限
@@ -17,12 +20,14 @@ class RBACService {
         // ADMIN 超级权限兜底 (防止死锁)
         if (roleCode === 'ADMIN') return true
 
-        // 从缓存读取
-        if (!this.cache.has(roleCode)) {
+        // 从缓存读取，过期则重新加载
+        const cached = this.cache.get(roleCode)
+        const isExpired = cached && (Date.now() - cached.loadedAt > RBACService.CACHE_TTL_MS)
+        if (!cached || isExpired) {
             await this.loadRolePermissions(roleCode)
         }
 
-        return this.cache.get(roleCode)?.has(permissionCode) ?? false
+        return this.cache.get(roleCode)?.permissions.has(permissionCode) ?? false
     }
 
     /**
@@ -39,14 +44,14 @@ class RBACService {
         })
 
         if (!role) {
-            this.cache.set(roleCode, new Set())
+            this.cache.set(roleCode, { permissions: new Set(), loadedAt: Date.now() })
             return
         }
 
         const permissionCodes = new Set<string>(
             role.permissions.map(rp => rp.permission.code)
         )
-        this.cache.set(roleCode, permissionCodes)
+        this.cache.set(roleCode, { permissions: permissionCodes, loadedAt: Date.now() })
     }
 
     /**

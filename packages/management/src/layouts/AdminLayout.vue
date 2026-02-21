@@ -55,6 +55,11 @@
           <el-icon><DataAnalysis /></el-icon>
           <template #title>报表中心</template>
         </el-menu-item>
+
+        <el-menu-item index="/analytics">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>销售分析</template>
+        </el-menu-item>
         
         <el-sub-menu index="settings-root">
           <template #title>
@@ -96,6 +101,10 @@
           <el-menu-item index="/settings/ai">
             <el-icon><Cpu /></el-icon>
             <span>AI 设置</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/workflow-designer">
+            <el-icon><Connection /></el-icon>
+            <span>工作流设计器</span>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>
@@ -195,6 +204,8 @@ import {
   Message,
   Timer,
   Search,
+  TrendCharts,
+  Connection,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

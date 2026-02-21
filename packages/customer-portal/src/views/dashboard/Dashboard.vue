@@ -175,6 +175,30 @@
       :user-email="user?.email || ''"
       @success="handleInquirySuccess"
     />
+
+    <!-- 预约顾问对话框 -->
+    <div v-if="showMeetingDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-obsidian/80 backdrop-blur-sm" @click="showMeetingDialog = false"></div>
+      <div class="relative w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-xl p-6 shadow-2xl">
+        <h3 class="text-xl font-serif text-text mb-4">预约会议: {{ consultant?.name }}</h3>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs text-text-muted mb-1">会议主题</label>
+            <input v-model="meetingForm.title" type="text" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-wealth/50" placeholder="例如：讨论业务细节">
+          </div>
+          <div>
+            <label class="block text-xs text-text-muted mb-1">预计开始时间</label>
+            <input v-model="meetingForm.date" type="datetime-local" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-wealth/50">
+          </div>
+        </div>
+
+        <div class="mt-6 flex gap-3 justify-end">
+          <button @click="showMeetingDialog = false" class="px-4 py-2 text-sm text-text-muted hover:text-text transition-colors">取消</button>
+          <button @click="submitMeeting" :disabled="isSubmittingMeeting" class="px-4 py-2 bg-wealth text-obsidian text-sm font-bold rounded hover:bg-[#B49248] transition-colors disabled:opacity-50">提交预约</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -197,13 +221,20 @@ const { user } = storeToRefs(authStore)
 const projectStore = useProjectStore()
 const { projects } = storeToRefs(projectStore)
 
-const todos = ref<any[]>([])
+const todos = ref<Array<{ id: string; title: string; completed: boolean; dueDate?: string }>>([])
 const stats = ref({
   activeProjects: 0,
   pendingDocuments: 0
 })
 const statsLoading = ref(true)
-const consultant = ref<any>(null)
+// 顾问卡片与预约
+const consultant = ref<{ id: string; name: string; email?: string; phone?: string; avatar?: string } | null>(null)
+const showMeetingDialog = ref(false)
+const isSubmittingMeeting = ref(false)
+const meetingForm = ref({
+  title: '',
+  date: ''
+})
 
 // 服务咨询对话框
 const showServiceDialog = ref(false)
@@ -255,9 +286,8 @@ function openServiceInquiry(type: ServiceType) {
   showServiceDialog.value = true
 }
 
-function handleActionClick(item: any) {
+function handleActionClick(_item: any) {
   // ActionCenter 组件已处理跳转逻辑
-  console.log('Action clicked:', item)
 }
 
 function handleInquirySuccess() {
@@ -265,7 +295,47 @@ function handleInquirySuccess() {
 }
 
 function handleScheduleMeeting() {
-  ElMessage.info('预约功能即将上线')
+  if (!consultant.value) {
+    ElMessage.warning('尚未指定专属顾问')
+    return
+  }
+  meetingForm.value.title = ''
+  // 默认填充明天同时刻
+  const tmr = new Date()
+  tmr.setDate(tmr.getDate() + 1)
+  tmr.setMinutes(tmr.getMinutes() - tmr.getTimezoneOffset())
+  meetingForm.value.date = tmr.toISOString().slice(0, 16)
+  showMeetingDialog.value = true
+}
+
+async function submitMeeting() {
+  if (!meetingForm.value.title.trim()) {
+    ElMessage.warning('请填写会议主题')
+    return
+  }
+  if (!meetingForm.value.date) {
+    ElMessage.warning('请选择预计时间')
+    return
+  }
+  
+  const startTime = new Date(meetingForm.value.date)
+  const endTime = new Date(startTime.getTime() + 60 * 60 * 1000) // 默认1小时
+  
+  isSubmittingMeeting.value = true
+  try {
+    await portalApi.bookAppointment({
+      title: meetingForm.value.title,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      userId: consultant.value.id
+    })
+    ElMessage.success('会议预约请求已发送')
+    showMeetingDialog.value = false
+  } catch (error: any) {
+    ElMessage.error(error.message || '预约失败，请稍后重试')
+  } finally {
+    isSubmittingMeeting.value = false
+  }
 }
 
 function getStatusLabel(status: string): string {

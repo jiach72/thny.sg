@@ -124,14 +124,31 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { messageApi } from '@/api'
 
+// 消息类型
+type MessageType = 'SYSTEM' | 'PROJECT' | 'DOCUMENT' | 'PAYMENT' | 'REMINDER' | 'ANNOUNCEMENT'
+
+interface CustomerOption {
+  id: string
+  name: string
+  email: string
+}
+
+interface SentMessage {
+  id: string
+  title: string
+  content: string
+  type: MessageType
+  recipient?: { name: string }
+  createdAt: string
+}
 const formRef = ref<FormInstance>()
 const sendMode = ref<'single' | 'bulk'>('single')
 const sending = ref(false)
 const loadingCustomers = ref(false)
 const loadingSent = ref(false)
 
-const customers = ref<any[]>([])
-const sentMessages = ref<any[]>([])
+const customers = ref<CustomerOption[]>([])
+const sentMessages = ref<SentMessage[]>([])
 
 const form = reactive({
   recipientId: '',
@@ -152,7 +169,7 @@ const rules: FormRules = {
 async function loadCustomers() {
   loadingCustomers.value = true
   try {
-    const result = await messageApi.getCustomers() as any
+    const result = await messageApi.getCustomers()
     customers.value = result || []
   } catch {
     customers.value = []
@@ -165,7 +182,7 @@ async function loadCustomers() {
 async function loadSentMessages() {
   loadingSent.value = true
   try {
-    const result = await messageApi.getSentMessages(1, 10) as any
+    const result = await messageApi.getSentMessages(1, 10) as { messages: SentMessage[] }
     sentMessages.value = result.messages || []
   } catch {
     sentMessages.value = []
@@ -193,7 +210,7 @@ async function handleSend() {
           recipientId: form.recipientId,
           title: form.title,
           content: form.content,
-          type: form.type as any,
+          type: form.type as MessageType,
         })
         ElMessage.success('消息发送成功')
       } else {
@@ -201,15 +218,15 @@ async function handleSend() {
           recipientIds: form.recipientIds,
           title: form.title,
           content: form.content,
-          type: form.type as any,
-        }) as any
+          type: form.type as MessageType,
+        }) as { count: number }
         ElMessage.success(`成功发送 ${result.count} 条消息`)
       }
 
       resetForm()
       loadSentMessages()
-    } catch (error: any) {
-      ElMessage.error(error.message || '发送失败')
+    } catch (error: unknown) {
+      ElMessage.error((error as Error).message || '发送失败')
     } finally {
       sending.value = false
     }
@@ -242,7 +259,7 @@ function getTypeLabel(type: string): string {
 }
 
 function getTypeTagType(type: string): 'success' | 'warning' | 'danger' | 'info' {
-  const map: Record<string, any> = {
+  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
     SYSTEM: 'info',
     PROJECT: 'success',
     DOCUMENT: 'warning',

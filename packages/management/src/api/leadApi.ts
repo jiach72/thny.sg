@@ -88,6 +88,13 @@ export const leadApi = {
         return apiClient.post(`/leads/${id}/convert`)
     },
 
+    /**
+     * 添加线索备注
+     */
+    addNote(id: string, content: string): Promise<any> {
+        return apiClient.post(`/leads/${id}/notes`, { content })
+    },
+
     importLeads(formData: FormData) {
         return apiClient.post('/leads/import', formData, {
             headers: {

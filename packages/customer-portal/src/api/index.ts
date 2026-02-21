@@ -9,6 +9,13 @@ export const authApi = {
     },
 
     /**
+     * 验证双重认证登录
+     */
+    login2fa(payload: { tempToken: string; code: string }) {
+        return apiClient.post('/auth/login/2fa', payload)
+    },
+
+    /**
      * 刷新 Token
      */
     refreshToken(refreshToken: string) {
@@ -41,6 +48,27 @@ export const authApi = {
      */
     setupPassword(token: string, password: string) {
         return apiClient.post('/auth/setup-password', { token, password })
+    },
+
+    /**
+     * 获取 2FA 二维码与私钥
+     */
+    generate2fa() {
+        return apiClient.get('/auth/2fa/generate')
+    },
+
+    /**
+     * 验证并开启 2FA
+     */
+    enable2fa(payload: { code: string }) {
+        return apiClient.post('/auth/2fa/enable', payload)
+    },
+
+    /**
+     * 关闭 2FA
+     */
+    disable2fa(payload: { code: string }) {
+        return apiClient.post('/auth/2fa/disable', payload)
     },
 }
 
@@ -155,6 +183,13 @@ export const portalApi = {
     },
 
     /**
+     * 一键导出客户资料与账单记录 (Excel)
+     */
+    exportMyData() {
+        return apiClient.get('/portal/export-data', { responseType: 'blob' })
+    },
+
+    /**
      * 获取待办/通知列表
      */
     getNotifications() {
@@ -233,6 +268,13 @@ export const portalApi = {
         preferredContact?: string
     }) {
         return apiClient.post('/portal/inquiries', data)
+    },
+
+    /**
+     * 发起预约会议请求 (向专属顾问)
+     */
+    bookAppointment(data: { title: string; description?: string; startTime: string; endTime: string; userId: string; projectId?: string }) {
+        return apiClient.post('/portal/appointments', data)
     },
 
     // ==================== 家庭成员接口 ====================

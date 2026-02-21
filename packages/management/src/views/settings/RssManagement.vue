@@ -158,14 +158,35 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, ArrowLeft, Refresh, Connection, CircleCheck, Document
 } from '@element-plus/icons-vue'
-import axios from 'axios'
+import apiClient from '@/api/apiClient'
 
+// RSS 订阅源接口
+interface RssFeed {
+  id: string
+  name: string
+  url: string
+  category: string
+  language: string
+  fetchInterval: number
+  isActive: boolean
+  lastFetchAt?: string
+  _count?: { articles: number }
+  fetching?: boolean
+}
+
+interface RssTestResult {
+  valid?: boolean
+  error?: string
+  title?: string
+  itemCount?: number
+  sampleItems?: Array<{ title: string; link: string }>
+}
 // 状态
 const loading = ref(false)
 const saving = ref(false)
 const testing = ref(false)
 const fetching = ref(false)
-const feeds = ref<any[]>([])
+const feeds = ref<RssFeed[]>([])
 
 // 统计
 const stats = ref({
@@ -179,7 +200,7 @@ const totalArticles = computed(() => {
 
 // 表单
 const showFeedDialog = ref(false)
-const editingFeed = ref<any>(null)
+const editingFeed = ref<RssFeed | null>(null)
 const feedForm = ref({
   name: '',
   url: '',
@@ -187,21 +208,18 @@ const feedForm = ref({
   language: 'zh',
   fetchInterval: 60,
 })
-const testResult = ref<any>(null)
-
-// API 基础路径
-const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+const testResult = ref<RssTestResult | null>(null)
 
 // 获取订阅源列表
 async function fetchFeeds() {
   loading.value = true
   try {
-    const response = await axios.get(`${apiBase}/api/v1/news-admin/feeds`)
-    if (response.data.success) {
-      feeds.value = response.data.data.map((f: any) => ({ ...f, fetching: false }))
-      stats.value.totalFeeds = feeds.value.length
-      stats.value.activeFeeds = feeds.value.filter((f: any) => f.isActive).length
-    }
+    const data = await apiClient.get('/news-admin/feeds') as RssFeed[] | { data: RssFeed[] }
+    // apiClient 智能解包后 data 即为业务数组
+    const feedList = Array.isArray(data) ? data : []
+    feeds.value = feedList.map((f) => ({ ...f, fetching: false }))
+    stats.value.totalFeeds = feeds.value.length
+    stats.value.activeFeeds = feeds.value.filter((f) => f.isActive).length
   } catch (error) {
     console.error('Error fetching feeds:', error)
   } finally {
@@ -219,10 +237,10 @@ async function testFeed() {
   testing.value = true
   testResult.value = null
   try {
-    const response = await axios.post(`${apiBase}/api/v1/news-admin/feeds/test`, {
+    const data = await apiClient.post('/news-admin/feeds/test', {
       url: feedForm.value.url,
     })
-    testResult.value = response.data.data
+    testResult.value = data as RssTestResult
   } catch (error) {
     testResult.value = { valid: false, error: '测试失败' }
   } finally {
@@ -240,17 +258,18 @@ async function saveFeed() {
   saving.value = true
   try {
     if (editingFeed.value) {
-      await axios.put(`${apiBase}/api/v1/news-admin/feeds/${editingFeed.value.id}`, feedForm.value)
+      await apiClient.put(`/news-admin/feeds/${editingFeed.value.id}`, feedForm.value)
     } else {
-      await axios.post(`${apiBase}/api/v1/news-admin/feeds`, feedForm.value)
+      await apiClient.post('/news-admin/feeds', feedForm.value)
     }
     ElMessage.success('保存成功')
     showFeedDialog.value = false
     resetForm()
     await fetchFeeds()
-  } catch (error: any) {
-    if (error.response?.data?.message) {
-      ElMessage.error(error.response.data.message)
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    if (err.response?.data?.message) {
+      ElMessage.error(err.response.data.message)
     } else {
       ElMessage.error('保存失败')
     }
@@ -260,7 +279,7 @@ async function saveFeed() {
 }
 
 // 编辑订阅源
-function editFeed(feed: any) {
+function editFeed(feed: RssFeed) {
   editingFeed.value = feed
   feedForm.value = {
     name: feed.name,
@@ -273,9 +292,9 @@ function editFeed(feed: any) {
 }
 
 // 切换状态
-async function toggleFeedStatus(feed: any) {
+async function toggleFeedStatus(feed: RssFeed) {
   try {
-    await axios.put(`${apiBase}/api/v1/news-admin/feeds/${feed.id}`, {
+    await apiClient.put(`/news-admin/feeds/${feed.id}`, {
       isActive: !feed.isActive,
     })
     ElMessage.success(feed.isActive ? '已禁用' : '已启用')
@@ -286,10 +305,10 @@ async function toggleFeedStatus(feed: any) {
 }
 
 // 删除订阅源
-async function deleteFeed(feed: any) {
+async function deleteFeed(feed: RssFeed) {
   await ElMessageBox.confirm(`确定要删除订阅源"${feed.name}"吗？`, '提示', { type: 'warning' })
   try {
-    await axios.delete(`${apiBase}/api/v1/news-admin/feeds/${feed.id}`)
+    await apiClient.delete(`/news-admin/feeds/${feed.id}`)
     ElMessage.success('删除成功')
     await fetchFeeds()
   } catch (error) {
@@ -298,18 +317,14 @@ async function deleteFeed(feed: any) {
 }
 
 // 抓取单个订阅源
-async function fetchSingleFeed(feed: any) {
+async function fetchSingleFeed(feed: RssFeed) {
   feed.fetching = true
   try {
-    const response = await axios.post(`${apiBase}/api/v1/news-admin/feeds/${feed.id}/fetch`)
-    if (response.data.success) {
-      ElMessage.success(response.data.message)
-      await fetchFeeds()
-    } else {
-      ElMessage.error(response.data.message)
-    }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.message || '抓取失败')
+    await apiClient.post(`/news-admin/feeds/${feed.id}/fetch`)
+    ElMessage.success('抓取完成')
+    await fetchFeeds()
+  } catch (error: unknown) {
+    ElMessage.error((error as Error)?.message || '抓取失败')
   } finally {
     feed.fetching = false
   }
@@ -319,13 +334,11 @@ async function fetchSingleFeed(feed: any) {
 async function fetchAllFeeds() {
   fetching.value = true
   try {
-    const response = await axios.post(`${apiBase}/api/v1/news-admin/feeds/fetch-all`)
-    if (response.data.success) {
-      ElMessage.success(response.data.message)
-      await fetchFeeds()
-    }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.message || '抓取失败')
+    await apiClient.post('/news-admin/feeds/fetch-all')
+    ElMessage.success('全部抓取完成')
+    await fetchFeeds()
+  } catch (error: unknown) {
+    ElMessage.error((error as Error)?.message || '抓取失败')
   } finally {
     fetching.value = false
   }

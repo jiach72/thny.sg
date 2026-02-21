@@ -26,6 +26,7 @@ vi.mock('../../src/config/index.js', () => ({
     config: {
         jwt: {
             secret: 'test-secret',
+            refreshSecret: 'test-refresh-secret',
             expiresIn: '15m',
             refreshExpiresIn: '7d',
         },

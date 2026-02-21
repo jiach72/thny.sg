@@ -1,4 +1,5 @@
 import { prisma } from '../config/index.js'
+import logger from '../config/logger.js'
 
 interface CreateFaqCategoryInput {
     name: string
@@ -134,7 +135,7 @@ export const faqService = {
                 { sortOrder: 'asc' }
             ]
         })
-        console.log(`[FAQ Service] getItems found ${items.length} items. Filter: ${JSON.stringify(where)}`)
+        logger.debug(`getItems 查询到 ${items.length} 条 FAQ`, { filter: where, context: 'faqService' })
         return items
     },
 
@@ -243,8 +244,7 @@ export const faqService = {
 
         const searchTerms = [...new Set([...chineseTerms, ...englishTerms])]
 
-        console.log(`[FAQ Search] 用户查询: "${query}"`)
-        console.log(`[FAQ Search] 分词结果: ${JSON.stringify(searchTerms)}`)
+        logger.debug(`FAQ 搜索: "${query}"`, { searchTerms, context: 'faqSearch' })
 
         const items = await prisma.faqItem.findMany({
             where: { isActive: true },
@@ -255,7 +255,7 @@ export const faqService = {
             }
         })
 
-        console.log(`[FAQ Search] 数据库中共有 ${items.length} 条 FAQ`)
+        logger.debug(`FAQ 搜索数据库匹配`, { totalItems: items.length, context: 'faqSearch' })
 
         // 计算匹配分数
         const scored = items.map(item => {
@@ -284,10 +284,7 @@ export const faqService = {
             .sort((a, b) => b.score - a.score)
             .slice(0, 5) // 返回前5个最匹配的结果
 
-        console.log(`[FAQ Search] 匹配结果: ${results.length} 条, 最高分: ${results[0]?.score || 0}`)
-        if (results.length > 0) {
-            console.log(`[FAQ Search] Top FAQ: "${results[0].question}" (分数: ${results[0].score})`)
-        }
+        logger.debug(`FAQ 搜索结果`, { count: results.length, topScore: results[0]?.score || 0, context: 'faqSearch' })
 
         return results
     },
@@ -295,21 +292,25 @@ export const faqService = {
     // ==================== 批量导入 ====================
 
     /**
-     * 从 Excel/CSV Buffer 导入数据
+     * 从 Excel/CSV Buffer 导入数据（使用 ExcelJS）
      */
     async importFromBuffer(buffer: Buffer) {
-        const XLSX_MODULE = await import('xlsx')
-        // @ts-ignore
-        const XLSX = XLSX_MODULE.default || XLSX_MODULE
-
-        const workbook = XLSX.read(buffer, { type: 'buffer' })
+        const ExcelJS = await import('exceljs')
+        const workbook = new ExcelJS.Workbook()
+        await workbook.xlsx.load(buffer as unknown as ArrayBuffer)
 
         // 读取第一个 sheet
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
+        const worksheet = workbook.worksheets[0]
+        if (!worksheet) {
+            throw new Error('Excel 文件中没有工作表')
+        }
 
-        // 转换为 JSON
-        const rows = XLSX.utils.sheet_to_json(worksheet) as any[]
+        // 读取表头（第一行）
+        const headers: string[] = []
+        const headerRow = worksheet.getRow(1)
+        headerRow.eachCell((cell, colNumber) => {
+            headers[colNumber] = String(cell.value || '').trim()
+        })
 
         const results = {
             success: 0,
@@ -324,9 +325,22 @@ export const faqService = {
         const existingCats = await prisma.faqCategory.findMany()
         existingCats.forEach(cat => categoryMap.set(cat.name, cat.id))
 
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i]
-            const lineNum = i + 2 // Excel 行号（表头为1）
+        // 遍历数据行（从第2行开始，跳过表头）
+        for (let rowIndex = 2; rowIndex <= worksheet.rowCount; rowIndex++) {
+            const excelRow = worksheet.getRow(rowIndex)
+            const lineNum = rowIndex // Excel 行号
+
+            // 构建 key-value 行数据
+            const row: Record<string, string> = {}
+            excelRow.eachCell((cell, colNumber) => {
+                const header = headers[colNumber]
+                if (header) {
+                    row[header] = String(cell.value || '').trim()
+                }
+            })
+
+            // 跳过空行
+            if (Object.values(row).every(v => !v)) continue
 
             try {
                 // 必填字段检查
@@ -334,12 +348,12 @@ export const faqService = {
                 if (!row['Question'] && !row['问题']) throw new Error('缺少问题')
                 if (!row['Answer'] && !row['答案']) throw new Error('缺少答案')
 
-                const catName = String(row['Category'] || row['分类']).trim()
-                const question = String(row['Question'] || row['问题']).trim()
-                const answer = String(row['Answer'] || row['答案']).trim()
-                const questionEn = String(row['QuestionEn'] || row['英文问题'] || '').trim()
-                const answerEn = String(row['AnswerEn'] || row['英文答案'] || '').trim()
-                const keywordsData = (row['Keywords'] || row['关键词'] || '')
+                const catName = (row['Category'] || row['分类']).trim()
+                const question = (row['Question'] || row['问题']).trim()
+                const answer = (row['Answer'] || row['答案']).trim()
+                const questionEn = (row['QuestionEn'] || row['英文问题'] || '').trim()
+                const answerEn = (row['AnswerEn'] || row['英文答案'] || '').trim()
+                const keywordsData = row['Keywords'] || row['关键词'] || ''
 
                 // 处理 keywords (支持逗号、中文逗号、空格分隔)
                 const keywords = String(keywordsData)
@@ -371,9 +385,10 @@ export const faqService = {
                 })
 
                 results.success++
-            } catch (error: any) {
+            } catch (error: unknown) {
                 results.failed++
-                results.errors.push(`第 ${lineNum} 行: ${error.message}`)
+                const msg = error instanceof Error ? error.message : '未知错误'
+                results.errors.push(`第 ${lineNum} 行: ${msg}`)
             }
         }
 

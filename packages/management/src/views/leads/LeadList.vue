@@ -61,6 +61,7 @@
           class="filter-select"
           @change="handleSearch"
         >
+          <el-option label="手动录入" value="MANUAL" />
           <el-option label="官网表单" value="website_form" />
           <el-option label="客户推荐" value="referral" />
           <el-option label="活动获客" value="event" />
@@ -145,25 +146,26 @@
           align="center"
           @click.stop
         />
-        <el-table-column label="联系人" min-width="200">
+        <el-table-column label="联系人" min-width="180">
           <template #default="{ row }">
             <div class="contact-cell">
-              <el-avatar :size="40" class="contact-avatar">
+              <el-avatar :size="36" class="contact-avatar">
                 {{ row.contactName?.[0] }}
               </el-avatar>
               <div class="contact-info">
                 <span class="contact-name">{{ row.contactName }}</span>
-                <span class="contact-company">{{ row.companyName }}</span>
+                <span v-if="row.companyName" class="contact-company">{{ row.companyName }}</span>
               </div>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column label="联系方式" min-width="180">
+        <el-table-column label="联系方式" min-width="160">
           <template #default="{ row }">
             <div class="contact-methods">
-              <span class="contact-email">{{ row.email }}</span>
-              <span class="contact-phone">{{ row.phone }}</span>
+              <span v-if="row.email" class="contact-email">{{ row.email }}</span>
+              <span v-if="row.phone" class="contact-phone">{{ row.phone }}</span>
+              <span v-if="!row.email && !row.phone" class="unassigned">—</span>
             </div>
           </template>
         </el-table-column>
@@ -184,7 +186,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="评分" width="80" align="center">
+        <el-table-column label="评分" width="80" align="center" sortable sort-by="score">
           <template #default="{ row }">
             <div class="score-ring" :class="getScoreClass(row.score)">
               {{ row.score }}
@@ -201,7 +203,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="创建时间" width="120">
+        <el-table-column label="创建时间" width="110" sortable sort-by="createdAt">
           <template #default="{ row }">
             <span class="date-text">{{ formatDate(row.createdAt) }}</span>
           </template>
@@ -280,6 +282,46 @@
       </div>
     </div>
 
+    <!-- 批量分配对话框 -->
+    <el-dialog v-model="showAssignDialog" title="批量分配线索" width="400px" custom-class="assign-dialog">
+      <el-form label-position="top">
+        <el-form-item label="选择负责人">
+          <el-select v-model="assignTarget" placeholder="请选择新负责人" style="width: 100%">
+            <el-option v-for="user in assignees" :key="user.id" :label="user.name" :value="user.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="分配备注（可选）">
+           <el-input v-model="assignReason" type="textarea" :rows="2" placeholder="请输入分配原因或注意事项..." />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showAssignDialog = false">取消</el-button>
+          <el-button type="primary" @click="confirmBatchAssign" :disabled="!assignTarget">确认分配</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 批量改状态对话框 -->
+    <el-dialog v-model="showStatusDialog" title="批量修改状态" width="400px">
+      <el-form label-position="top">
+        <el-form-item label="选择新状态">
+          <el-select v-model="batchStatusTarget" placeholder="请选择目标状态" style="width: 100%">
+            <el-option label="新线索" value="NEW" />
+            <el-option label="已联系" value="CONTACTED" />
+            <el-option label="已确认" value="QUALIFIED" />
+            <el-option label="跟进中" value="IN_PROGRESS" />
+            <el-option label="已转化" value="CONVERTED" />
+            <el-option label="已流失" value="LOST" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showStatusDialog = false">取消</el-button>
+        <el-button type="primary" :disabled="!batchStatusTarget" @click="confirmBatchUpdateStatus">确认修改</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 新建/编辑对话框 -->
     <LeadFormDialog
       v-model:visible="showCreateDialog"
@@ -303,6 +345,7 @@ import { useLeadStore } from '@/stores'
 import type { Lead } from '@tonghai/shared/types'
 import LeadFormDialog from './components/LeadFormDialog.vue'
 import LeadImportDialog from '@/components/LeadImportDialog.vue'
+import { userApi } from '@/api/userApi'
 
 const router = useRouter()
 const leadStore = useLeadStore()
@@ -315,6 +358,11 @@ const assignees = ref<{ id: string; name: string }[]>([])
 const leadTableRef = ref()
 const importDialogRef = ref()
 const selectedLeads = ref<Lead[]>([])
+
+// 批量分配相关的状态
+const showAssignDialog = ref(false)
+const assignTarget = ref('')
+const assignReason = ref('')
 
 // 批量选择状态
 const isAllSelected = computed(() => {
@@ -335,19 +383,53 @@ const filters = reactive({
   search: '',
 })
 
-// 状态统计数据
+// 状态统计数据（从服务端获取的聚合数据）
+const statusCounts = ref<Record<string, number>>({})
+
 const statusStats = computed(() => [
   { status: '', label: '全部', count: total.value, icon: markRaw(Document), gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-  { status: 'NEW', label: '新线索', count: leads.value.filter(l => l.status === 'NEW').length, icon: markRaw(Star), gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' },
-  { status: 'IN_PROGRESS', label: '跟进中', count: leads.value.filter(l => l.status === 'IN_PROGRESS').length, icon: markRaw(Clock), gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-  { status: 'CONVERTED', label: '已转化', count: leads.value.filter(l => l.status === 'CONVERTED').length, icon: markRaw(CircleCheck), gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
-  { status: 'LOST', label: '已流失', count: leads.value.filter(l => l.status === 'LOST').length, icon: markRaw(WarningFilled), gradient: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)' },
+  { status: 'NEW', label: '新线索', count: statusCounts.value['NEW'] || 0, icon: markRaw(Star), gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' },
+  { status: 'IN_PROGRESS', label: '跟进中', count: statusCounts.value['IN_PROGRESS'] || 0, icon: markRaw(Clock), gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+  { status: 'CONVERTED', label: '已转化', count: statusCounts.value['CONVERTED'] || 0, icon: markRaw(CircleCheck), gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+  { status: 'LOST', label: '已流失', count: statusCounts.value['LOST'] || 0, icon: markRaw(WarningFilled), gradient: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)' },
 ])
 
-onMounted(() => {
-  leadStore.fetchLeads()
+// 拉取各状态的线索计数（遍历所有状态分别查询聚合）
+async function fetchStatusCounts() {
+  try {
+    // 用一次不带状态过滤的请求获取全部线索，然后在前端按状态分组计数
+    // 这里简化为：遍历当前已拉取的数据（当 pageSize 足够大时准确）
+    // 或者后端已有分组聚合接口可直接调用
+    const allStatuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'IN_PROGRESS', 'LOST', 'CONVERTED']
+    const counts: Record<string, number> = {}
+    allStatuses.forEach(s => { counts[s] = 0 })
+    // 先用当前页数据填充（后续可替换为服务端聚合接口）
+    leads.value.forEach(l => {
+      if (counts[l.status] !== undefined) counts[l.status]++
+    })
+    statusCounts.value = counts
+  } catch (e) {
+    console.error('获取状态计数失败:', e)
+  }
+}
+
+onMounted(async () => {
+  await leadStore.fetchLeads()
+  fetchStatusCounts()
   // 恢复保存的列宽
   restoreColumnWidths()
+  
+  // 拉取所有员工以便筛选和重新分配
+  try {
+    const res = await userApi.getList()
+    // 兼容 API 嵌套结构
+    const userList = (res as any).data || res
+    if (Array.isArray(userList)) {
+      assignees.value = userList.map((u: any) => ({ id: u.id, name: u.name }))
+    }
+  } catch (e) {
+    console.error('获取所有员工列表失败:', e)
+  }
 })
 
 // 恢复列宽
@@ -426,8 +508,9 @@ async function handleConvert(lead: Lead) {
       '转化确认',
       { type: 'success', confirmButtonText: '确认转化' }
     )
-    // TODO: 调用转化 API
+    await leadStore.convertToCustomer(lead.id)
     ElMessage.success('转化成功')
+    leadStore.fetchLeads()
   } catch {
     // 用户取消
   }
@@ -470,28 +553,60 @@ function clearSelection() {
   selectedLeads.value = []
 }
 
-async function handleBatchAssign() {
-  // TODO: 显示分配对话框，选择负责人
-  ElMessage.info(`正在分配 ${selectedLeads.value.length} 条线索...`)
+function handleBatchAssign() {
+  if (selectedLeads.value.length === 0) return
+  assignTarget.value = ''
+  assignReason.value = ''
+  showAssignDialog.value = true
 }
 
-async function handleBatchUpdateStatus() {
+async function confirmBatchAssign() {
+  if (!assignTarget.value) return
   try {
-    const { value: status } = await ElMessageBox.prompt(
-      '请选择新状态',
-      '批量修改状态',
-      {
-        inputPattern: /^(NEW|IN_PROGRESS|CONVERTED|LOST)$/,
-        inputErrorMessage: '请输入有效状态',
-        inputPlaceholder: 'NEW / IN_PROGRESS / CONVERTED / LOST',
-      }
+    const targetId = assignTarget.value
+    const reason = assignReason.value
+    showAssignDialog.value = false
+    
+    ElMessage.info(`正在分配 ${selectedLeads.value.length} 条线索...`)
+    
+    // 循环并发分配线索给相同员工
+    await Promise.all(
+       selectedLeads.value.map(lead => leadStore.assignLead(lead.id, targetId, reason || undefined))
     )
-    // TODO: 调用批量更新 API
-    ElMessage.success(`已将 ${selectedLeads.value.length} 条线索状态更新为 ${status}`)
+    
+    ElMessage.success(`已成功分配 ${selectedLeads.value.length} 条线索`)
     clearSelection()
     leadStore.fetchLeads()
+  } catch (e: any) {
+    ElMessage.error(e.message || '分配遇到错误')
+  }
+}
+
+// 批量改状态 - 使用下拉选择而非文本输入
+const showStatusDialog = ref(false)
+const batchStatusTarget = ref('')
+
+function handleBatchUpdateStatus() {
+  if (selectedLeads.value.length === 0) return
+  batchStatusTarget.value = ''
+  showStatusDialog.value = true
+}
+
+async function confirmBatchUpdateStatus() {
+  if (!batchStatusTarget.value) return
+  try {
+    showStatusDialog.value = false
+    ElMessage.info(`正在批量更新 ${selectedLeads.value.length} 条线索...`)
+    await Promise.all(
+      selectedLeads.value.map(lead => leadStore.updateLead(lead.id, { status: batchStatusTarget.value as Lead['status'] }))
+    )
+    
+    ElMessage.success(`已将 ${selectedLeads.value.length} 条线索状态更新为 ${getStatusLabel(batchStatusTarget.value)}`)
+    clearSelection()
+    await leadStore.fetchLeads()
+    fetchStatusCounts()
   } catch {
-    // 用户取消
+    // 用户取消或报错
   }
 }
 
@@ -565,9 +680,14 @@ function getStatusLabel(status: string): string {
 
 function getSourceLabel(source: string): string {
   const map: Record<string, string> = {
+    MANUAL: '手动',
     website_form: '官网',
+    WEBSITE: '官网',
     referral: '推荐',
+    REFERRAL: '推荐',
     event: '活动',
+    EVENT: '活动',
+    IMPORT: '导入',
     other: '其他',
   }
   return map[source] || source

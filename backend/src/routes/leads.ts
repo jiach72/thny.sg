@@ -8,9 +8,43 @@ import { LeadStatus } from '@prisma/client'
 const router = Router()
 
 /**
- * GET /leads - 获取线索列表
+ * @swagger
+ * tags:
+ *   name: Leads
+ *   description: 线索管理接口
+ */
+
+/**
+ * @swagger
+ * /leads:
+ *   get:
+ *     summary: 获取线索列表
+ *     tags: [Leads]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [NEW, CONTACTED, QUALIFIED, PROPOSAL, NEGOTIATION, CONVERTED, LOST] }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *       - in: query
+ *         name: assignedToId
+ *         schema: { type: string }
+ *       - in: query
+ *         name: sourceChannel
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: 线索列表（分页）
  */
 router.get(
+
     '/',
     authMiddleware,
     [
@@ -172,6 +206,31 @@ router.put(
                 req.user!.id
             )
             res.json(lead)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /leads/:id/notes - 添加线索备注
+ */
+router.post(
+    '/:id/notes',
+    authMiddleware,
+    [
+        param('id').notEmpty(),
+        body('content').notEmpty().withMessage('备注内容不能为空'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const activity = await leadService.addNote(
+                req.params.id,
+                req.body.content,
+                req.user!.id
+            )
+            res.json(activity)
         } catch (error) {
             next(error)
         }

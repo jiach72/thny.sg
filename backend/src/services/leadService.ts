@@ -257,6 +257,32 @@ export const leadService = {
     },
 
     /**
+     * 添加线索备注
+     */
+    async addNote(id: string, content: string, userId: string) {
+        const lead = await prisma.lead.findUnique({ where: { id } })
+        if (!lead) {
+            throw new NotFoundError('线索不存在')
+        }
+
+        const activity = await prisma.activity.create({
+            data: {
+                actorId: userId,
+                actionType: 'NOTE', // 从已有类型推测 NOTE 可能是较合理的记录分类
+                entityType: 'LEAD',
+                entityId: id,
+                leadId: id,
+                description: content,
+            },
+            include: {
+                actor: { select: { id: true, name: true, avatarUrl: true } }
+            }
+        })
+
+        return activity
+    },
+
+    /**
      * 分配线索
      */
     async assignLead(id: string, assignedToId: string, assignerId: string, reason?: string) {

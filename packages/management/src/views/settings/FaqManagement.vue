@@ -356,6 +356,7 @@ import {
   ChatLineRound, QuestionFilled, Upload, UploadFilled, Download, Refresh
 } from '@element-plus/icons-vue'
 import apiClient from '@/api/apiClient'
+import type { FaqCategory, FaqItem } from '@tonghai/shared/types'
 
 // 状态
 const loading = ref(false)
@@ -372,9 +373,9 @@ const stats = ref({
 })
 
 // 分类
-const categories = ref<any[]>([])
+const categories = ref<FaqCategory[]>([])
 const showCreateCategory = ref(false)
-const editingCategory = ref<any>(null)
+const editingCategory = ref<FaqCategory | null>(null)
 const categoryForm = ref({
   name: '',
   nameEn: '',
@@ -383,9 +384,9 @@ const categoryForm = ref({
 })
 
 // FAQ 条目
-const items = ref<any[]>([])
+const items = ref<FaqItem[]>([])
 const showCreateItem = ref(false)
-const editingItem = ref<any>(null)
+const editingItem = ref<FaqItem | null>(null)
 const itemForm = ref({
   question: '',
   questionEn: '',
@@ -485,8 +486,6 @@ async function fetchItems() {
         data = response.data
     }
     
-    console.log('API returned items:', data)
-      
     if (data.length === 0) {
         // Data is empty, do nothing (show empty state in UI)
         items.value = []
@@ -494,8 +493,6 @@ async function fetchItems() {
         items.value = [...data]
     }
   } catch (error: any) {
-    console.error('Error fetching items:', error)
-    console.dir(error) 
     ElMessage.error(`获取列表失败: ${error.message || error}`)
   }
 }
@@ -708,7 +705,6 @@ async function handleImport(options: any) {
     })
     
     loading.value = false
-    console.log('Import response:', response)
     
     if (response.success) {
       const result = response.data

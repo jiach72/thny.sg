@@ -53,7 +53,8 @@ import LanguageSwitcher from './LanguageSwitcher.vue'
 const mobileMenuOpen = ref(false) // force update
 
 const openClientPortal = () => {
-  window.open('http://localhost:3002', '_blank')
+  const portalUrl = import.meta.env.VITE_PORTAL_URL || 'http://localhost:3002'
+  window.open(portalUrl, '_blank')
 }
 
 interface NavItem {

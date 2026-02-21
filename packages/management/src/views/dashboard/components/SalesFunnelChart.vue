@@ -11,12 +11,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { DataAnalysis } from '@element-plus/icons-vue'
-import * as echarts from 'echarts/core'
-import { FunnelChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-
-echarts.use([TitleComponent, TooltipComponent, LegendComponent, FunnelChart, CanvasRenderer])
+import * as echarts from '@/utils/echarts'
 
 const chartRef = ref<HTMLElement | null>(null)
 let chart: echarts.ECharts | null = null

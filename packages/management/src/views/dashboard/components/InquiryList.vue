@@ -41,9 +41,8 @@ const formatTimeAgo = (date: string) => {
   return dayjs(date).fromNow()
 }
 
-const handleInquiryClick = (inquiry: any) => {
-  console.log('View inquiry', inquiry)
-  // TODO: Implement inquiry view logic or emitted event
+const handleInquiryClick = (_inquiry: any) => {
+  // TODO: 实现咨询详情查看逻辑
 }
 </script>
 

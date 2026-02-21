@@ -28,7 +28,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-text-muted">姓名</label>
-                <input v-model="profileForm.name" type="text" class="w-full bg-obsidian border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:outline-none transition-colors" placeholder="您的姓名" />
+                <input v-model="profileForm.name" type="text" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" placeholder="您的姓名" />
               </div>
               <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-text-muted">电子邮箱</label>
@@ -36,11 +36,11 @@
               </div>
               <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-text-muted">电话号码</label>
-                <input v-model="profileForm.phone" type="tel" class="w-full bg-obsidian border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:outline-none transition-colors" placeholder="+65 ..." />
+                <input v-model="profileForm.phone" type="tel" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" placeholder="+65 ..." />
               </div>
               <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-text-muted">公司/信托</label>
-                <input v-model="profileForm.company" type="text" class="w-full bg-obsidian border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:outline-none transition-colors" placeholder="家族办公室名称" />
+                <input v-model="profileForm.company" type="text" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" placeholder="家族办公室名称" />
               </div>
             </div>
 
@@ -132,16 +132,16 @@
           <form @submit.prevent="handleChangePassword" class="space-y-6">
             <div class="space-y-2">
               <label class="text-xs font-bold uppercase tracking-wider text-text-muted">当前密码</label>
-              <input v-model="passwordForm.currentPassword" type="password" class="w-full bg-obsidian border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:outline-none transition-colors" />
+              <input v-model="passwordForm.currentPassword" type="password" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-text-muted">新密码</label>
-                <input v-model="passwordForm.newPassword" type="password" class="w-full bg-obsidian border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:outline-none transition-colors" />
+                <input v-model="passwordForm.newPassword" type="password" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" />
               </div>
               <div class="space-y-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-text-muted">确认新密码</label>
-                <input v-model="passwordForm.confirmPassword" type="password" class="w-full bg-obsidian border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:outline-none transition-colors" />
+                <input v-model="passwordForm.confirmPassword" type="password" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" />
               </div>
             </div>
             <div class="flex justify-end pt-4">
@@ -221,7 +221,7 @@
           <input 
             v-model="newMemberForm.name" 
             type="text" 
-            class="w-full bg-obsidian border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:outline-none transition-colors" 
+            class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" 
             placeholder="成员姓名" 
           />
         </div>

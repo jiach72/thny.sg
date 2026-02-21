@@ -110,6 +110,23 @@ router.get('/dashboard', customerAuth, async (req: Request, res: Response, next:
 
 // ==================== 站内消息接口 ====================
 import messageService from '../services/messageService.js'
+import exportService from '../services/exportService.js'
+
+/**
+ * GET /portal/export-data - 一键导出客户的个人资料与日志
+ */
+router.get('/export-data', customerAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const buffer = await exportService.exportCustomerData(req.user!.id)
+
+        const filename = `my_data_${new Date().toISOString().split('T')[0]}.xlsx`
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+        res.send(buffer)
+    } catch (error) {
+        next(error)
+    }
+})
 
 /**
  * GET /portal/messages - 获取站内消息列表

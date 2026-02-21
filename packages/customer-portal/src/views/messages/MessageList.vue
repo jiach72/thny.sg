@@ -79,11 +79,20 @@
       </div>
       
       <!-- 空状态 -->
-      <div v-else class="py-12 text-center">
+      <div v-else class="py-16 text-center">
         <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
           <component :is="Bell" class="w-8 h-8 text-text-muted/50" />
         </div>
-        <p class="text-text-muted">暂无消息</p>
+        <p class="text-text-muted mb-2">{{ activeTab === 'unread' ? '没有未读消息' : '暂无消息' }}</p>
+        <p class="text-xs text-text-muted/50 mb-6">{{ activeTab === 'unread' ? '所有消息已阅读，做得好！' : '顾问团队发送的通知将显示在这里' }}</p>
+        <button 
+          v-if="activeTab !== 'unread'"
+          @click="$router.push('/projects')"
+          class="inline-flex items-center gap-2 px-6 py-2.5 bg-wealth hover:bg-[#B49248] text-obsidian rounded font-bold text-sm transition-all active:scale-95"
+        >
+          <component :is="Folder" class="w-4 h-4" />
+          查看我的项目
+        </button>
       </div>
 
       <!-- 分页 -->
@@ -154,14 +163,14 @@ const router = useRouter()
 
 const loading = ref(false)
 const activeTab = ref('all')
-const messages = ref<any[]>([])
+const messages = ref<Array<{ id: string; title: string; content: string; type: string; isRead: boolean; createdAt: string; relatedId?: string }>>([])
 const page = ref(1)
 const limit = ref(20)
 const total = ref(0)
 const unreadCount = ref(0)
 
 const showDetail = ref(false)
-const selectedMessage = ref<any>(null)
+const selectedMessage = ref<{ id: string; title: string; content: string; type: string; isRead: boolean; createdAt: string } | null>(null)
 
 const tabs = [
   { id: 'all', label: '全部消息' },

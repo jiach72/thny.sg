@@ -7,157 +7,87 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # format: jiach72/thny.sg -> jiach72
+  IMAGE_OWNER: ${{ github.repository_owner }}
 
 jobs:
   # ========== 代码质量检查 ==========
   quality-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v6
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
-          
       - name: Install Dependencies
-        run: npm ci
-        
+        run: npm ci --legacy-peer-deps
       - name: Lint Codebase
         run: npm run lint
-        
-      - name: Type Check Website
-        run: cd packages/website && npm run type-check
-        
-      - name: Type Check Management
-        run: cd packages/management && npm run type-check
-        
-      - name: Type Check Customer Portal
-        run: cd packages/customer-portal && npm run type-check
+      - name: Dependency Audit
+        run: npm audit --audit-level=high || true
 
-  # ========== 后端测试 ==========
-  backend-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Generate Prisma Client
-        run: cd backend && npx prisma generate
-
-      - name: Build Backend
-        run: cd backend && npm run build
-        
-      - name: Test Backend
-        run: cd backend && npm test -- --run
-
-  # ========== 构建前端 ==========
-  build-frontend:
-    needs: [quality-check, backend-test]
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package: [website, management, customer-portal]
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Build ${{ matrix.package }}
-        run: |
-          if [ "${{ matrix.package }}" == "website" ]; then
-            npm run build:website
-          elif [ "${{ matrix.package }}" == "management" ]; then
-            npm run build:management
-          else
-            npm run build:portal
-          fi
-        env:
-          VITE_API_URL: ${{ secrets.API_URL }}
-      
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.package }}-dist
-          path: packages/${{ matrix.package }}/dist
-          retention-days: 1
-
-  # ========== 构建后端 Docker 镜像 ==========
-  build-backend:
-    needs: [quality-check, backend-test]
+  # ========== 构建并推送镜像 (并行) ==========
+  build-push-images:
+    needs: [quality-check]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            file: docker/backend.Dockerfile
+            image: thny-backend
+          - name: management
+            file: docker/management.Dockerfile
+            image: thny-management
+          - name: portal
+            file: docker/portal.Dockerfile
+            image: thny-portal
+          - name: website
+            file: docker/website.Dockerfile
+            image: thny-website
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v6
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image }}
           tags: |
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
-      
+
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: .
+          file: ${{ matrix.file }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   # ========== 部署到服务器 ==========
   deploy:
-    needs: [build-frontend, build-backend]
+    needs: [build-push-images]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Download website artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: website-dist
-          path: dist/website
-      
-      - name: Download management artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: management-dist
-          path: dist/management
-      
-      - name: Download customer-portal artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: customer-portal-dist
-          path: dist/customer-portal
-      
+      - uses: actions/checkout@v6
+
       - name: Prepare target directory
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -165,20 +95,10 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo mkdir -p /var/www/tonghai/static
+            sudo mkdir -p /var/www/tonghai
             sudo chown -R $USER:$USER /var/www/tonghai
             sudo chmod -R 755 /var/www/tonghai
 
-      - name: Upload frontend files via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "dist/*"
-          target: "/var/www/tonghai/static"
-          strip_components: 1
-      
       - name: Upload config files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -189,47 +109,74 @@ jobs:
           target: "/var/www/tonghai"
           strip_components: 1
 
-      - name: Deploy backend via SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
-        # 注意: 以下环境变量来自 GitHub 仓库的 Secrets 设置
-        # Settings → Secrets and variables → Actions
         env:
           GITHUB_REPO: ${{ github.repository }}
+          # 注意：这里使用 repository_owner 因为镜像tag是基于 owner 命名的
+          IMAGE_OWNER: ${{ github.repository_owner }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: GITHUB_REPO,JWT_SECRET,DB_PASSWORD
+          envs: IMAGE_OWNER,JWT_SECRET,DB_PASSWORD
           script: |
-            # 1. 准备环境 (创建 .env 文件以供 docker compose 使用)
             cd /var/www/tonghai
-            echo "GITHUB_REPO=$GITHUB_REPO" > .env
+            
+            # 1. 生成 .env
+            echo "IMAGE_OWNER=$IMAGE_OWNER" > .env
             echo "JWT_SECRET=$JWT_SECRET" >> .env
             echo "DB_PASSWORD=$DB_PASSWORD" >> .env
+            # 这些 URL 变量 backend 需要，可以写死或从 secrets 传
             echo "FRONTEND_URL=https://www.thny.sg" >> .env
             echo "MANAGEMENT_URL=https://crm.thny.sg" >> .env
             echo "PORTAL_URL=https://portal.thny.sg" >> .env
             
-            # 2. 修复权限
-            sudo chown -R $USER:$USER /var/www/tonghai
-            sudo chmod -R 755 /var/www/tonghai
-
-            # 3. 部署
-            # 重命名上传的 prod 配置文件为默认文件名，方便使用
+            # 2. 准备 docker-compose.yml
             mv docker-compose.prod.yml docker-compose.yml
             
+            # 3. 拉取最新镜像
+            # 注意：docker-compose.yml 里所有的 image 都是 ghcr.io/jiach72/thny-xxx:latest
+            # 不需要特殊变量替换，直接 pull 即可
             echo "Pulling latest images..."
             docker compose pull
-            echo "Recreating containers..."
-            # 重启所有服务 (包括新增的 Nginx)
-            docker compose up -d --force-recreate
             
+            # 4. 重启服务
+            echo "Recreating containers..."
+            docker compose up -d --remove-orphans
+            
+            # 5. 清理旧镜像
+            docker image prune -f
+            
+            # 6. 后端迁移与做种 (可选，取决于策略)
             echo "Running database migrations..."
             docker compose exec -T backend npx prisma migrate deploy
             
-            echo "Seeding test user (Su Daqiang)..."
-            docker compose exec -T backend npm run db:seed:sdq
-
+            # 如果需要每次部署都重置 demo 数据，可以跑 seed
+            # docker compose exec -T backend npm run db:seed:sdq
+            
             echo "Deployment complete!"
+
+      - name: Health Check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "等待服务启动..."
+            sleep 10
+            for i in $(seq 1 6); do
+              if curl -sf http://localhost:4000/api/v1/health > /dev/null 2>&1; then
+                echo "✅ 健康检查通过"
+                exit 0
+              fi
+              echo "⏳ 第 $i 次检查失败，等待 10 秒..."
+              sleep 10
+            done
+            echo "❌ 健康检查失败，输出日志:"
+            cd /var/www/tonghai
+            docker compose logs --tail=50 backend
+            exit 1

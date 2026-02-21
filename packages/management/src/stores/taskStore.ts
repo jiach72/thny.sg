@@ -26,7 +26,7 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
-    async function fetchTasks(filters: any = {}) {
+    async function fetchTasks(filters: Record<string, unknown> = {}) {
         loading.value = true
         try {
             const result = await taskApi.getList(filters)

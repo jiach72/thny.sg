@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   QuestionFilled,
   CircleCheck,
@@ -205,13 +205,6 @@ watch(() => props.score, (newScore) => {
 
   requestAnimationFrame(animate)
 }, { immediate: true })
-
-onMounted(() => {
-  animatedScore.value = 0
-  setTimeout(() => {
-    animatedScore.value = props.score
-  }, 100)
-})
 </script>
 
 <style scoped>

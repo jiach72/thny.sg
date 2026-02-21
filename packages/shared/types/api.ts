@@ -58,3 +58,43 @@ export interface RefreshTokenResponse {
     accessToken: string
     expiresIn: number
 }
+
+/**
+ * 常用 API 响应类型
+ */
+export interface IdResponse {
+    id: string
+}
+
+export interface CountResponse {
+    count: number
+}
+
+export interface MessageResponse {
+    message: string
+}
+
+/**
+ * 排序参数
+ */
+export interface SortParams {
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+}
+
+/**
+ * 日期范围参数
+ */
+export interface DateRangeParams {
+    startDate?: string
+    endDate?: string
+}
+
+/**
+ * 通用查询参数
+ */
+export interface QueryParams extends PaginationParams, SortParams, DateRangeParams {
+    search?: string
+    status?: string
+    [key: string]: unknown
+}

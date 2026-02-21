@@ -153,6 +153,7 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, ArrowDown } from '@element-plus/icons-vue'
 import { useLeadStore } from '@/stores'
+// Lead 类型在 store 中已声明，此处通过 storeToRefs 继承推断
 import AssigneeDialog from '@/components/AssigneeDialog.vue'
 import HealthScoreCard from '@/components/common/HealthScoreCard.vue'
 import ActivityTimeline from '@/components/common/ActivityTimeline.vue'
@@ -169,12 +170,11 @@ const showAssignDialog = ref(false)
 // 格式化活动数据用于 ActivityTimeline 组件
 const formattedActivities = computed(() => {
   if (!lead.value?.activities) return []
-  return lead.value.activities.map((activity: any) => ({
+  return lead.value.activities.map((activity) => ({
     id: activity.id,
-    type: activity.type || 'note',
+    type: (activity.actionType || 'note') as 'note' | 'call' | 'email' | 'meeting' | 'status_change' | 'task' | 'system',
     description: activity.description,
     actor: activity.actor,
-    metadata: activity.metadata,
     createdAt: activity.createdAt,
   }))
 })
@@ -192,15 +192,20 @@ function getLastContactDays(): number {
 // 计算任务完成率
 function getTaskCompletionRate(): number {
   if (!lead.value?.tasks?.length) return 0
-  const completed = lead.value.tasks.filter((t: any) => t.status === 'DONE').length
+  const completed = lead.value.tasks.filter((t) => t.status === 'DONE').length
   return Math.round((completed / lead.value.tasks.length) * 100)
 }
 
 // 添加备注
-function handleAddNote(note: string) {
-  // TODO: 调用 API 添加备注
-  ElMessage.success('备注已添加')
-  console.log('添加备注:', note)
+async function handleAddNote(note: string) {
+  if (!lead.value) return
+  if (!note.trim()) return
+  try {
+    await leadStore.addNote(lead.value.id, note)
+    ElMessage.success('备注已添加')
+  } catch (error: any) {
+    ElMessage.error(error.message || '添加备注失败')
+  }
 }
 
 onMounted(() => {
@@ -285,12 +290,36 @@ function handleCreateTask() {
   router.push('/tasks')
 }
 
-function handleAddTag() {
-  ElMessage.info('添加标签功能开发中')
+async function handleAddTag() {
+  if (!lead.value) return
+  try {
+    const { value: newTag } = await ElMessageBox.prompt('请输入新标签名称 (如: 高意向)', '添加标签', {
+      inputPattern: /\S+/,
+      inputErrorMessage: '标签不能为空'
+    })
+    const currentTags = lead.value.tags || []
+    if (currentTags.includes(newTag)) {
+      ElMessage.warning('标签已存在')
+      return
+    }
+    const updatedTags = [...currentTags, newTag]
+    await leadStore.updateLead(lead.value.id, { tags: updatedTags })
+    ElMessage.success('添加标签成功')
+  } catch {
+    // 用户取消
+  }
 }
 
-function handleRemoveTag(tag: string) {
-  ElMessage.info(`移除标签: ${tag}`)
+async function handleRemoveTag(tag: string) {
+  if (!lead.value) return
+  try {
+    const currentTags = lead.value.tags || []
+    const updatedTags = currentTags.filter(t => t !== tag)
+    await leadStore.updateLead(lead.value.id, { tags: updatedTags })
+    ElMessage.success(`已移除标签`)
+  } catch (error: any) {
+    ElMessage.error(error.message || '移除标签失败')
+  }
 }
 
 function getStatusLabel(status: string): string {

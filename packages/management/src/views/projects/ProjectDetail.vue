@@ -56,6 +56,33 @@ const statusMap: Record<string, string> = {
   COMPLETED: '已完成',
   ARCHIVED: '归档'
 }
+
+function getTaskStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    NOT_STARTED: '待开始',
+    IN_PROGRESS: '进行中',
+    BLOCKED: '已阻塞',
+    DONE: '已完成',
+    CANCELLED: '已取消',
+  }
+  return map[status] || status
+}
+
+function getTaskStatusType(status: string): 'success' | 'warning' | 'danger' | 'info' {
+  const map: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
+    NOT_STARTED: 'info',
+    IN_PROGRESS: 'warning',
+    BLOCKED: 'danger',
+    DONE: 'success',
+    CANCELLED: 'info',
+  }
+  return map[status] || 'info'
+}
+
+function getPriorityLabel(p: string): string {
+  const map: Record<string, string> = { LOW: '低', MEDIUM: '中', HIGH: '高', CRITICAL: '紧急' }
+  return map[p] || p
+}
 </script>
 
 <template>
@@ -120,10 +147,48 @@ const statusMap: Record<string, string> = {
              </div>
           </el-tab-pane>
           <el-tab-pane label="任务列表" name="tasks">
-             <el-empty description="任务模块开发中..." />
+             <div v-if="currentProject.tasks?.length">
+               <el-table :data="currentProject.tasks" style="width: 100%" border stripe>
+                 <el-table-column prop="title" label="任务名称" min-width="200" />
+                 <el-table-column prop="status" label="状态" width="120">
+                   <template #default="{ row }">
+                     <el-tag :type="getTaskStatusType(row.status)" size="small">
+                       {{ getTaskStatusLabel(row.status) }}
+                     </el-tag>
+                   </template>
+                 </el-table-column>
+                 <el-table-column prop="priority" label="优先级" width="100">
+                   <template #default="{ row }">
+                     {{ getPriorityLabel(row.priority) }}
+                   </template>
+                 </el-table-column>
+                 <el-table-column prop="assignedTo.name" label="负责人" width="120">
+                   <template #default="{ row }">
+                     {{ row.assignedTo?.name || '-' }}
+                   </template>
+                 </el-table-column>
+                 <el-table-column prop="dueDate" label="截止日期" width="120">
+                   <template #default="{ row }">
+                     {{ row.dueDate ? new Date(row.dueDate).toLocaleDateString() : '-' }}
+                   </template>
+                 </el-table-column>
+               </el-table>
+             </div>
+             <el-empty v-else description="该项目暂无任务" />
           </el-tab-pane>
           <el-tab-pane label="文档文件" name="documents">
-             <el-empty description="文档模块待集成" />
+             <div v-if="currentProject.documents?.length">
+               <el-table :data="currentProject.documents" style="width: 100%">
+                 <el-table-column prop="fileName" label="文件名称" />
+                 <el-table-column prop="uploadedBy.name" label="上传者" />
+                 <el-table-column prop="createdAt" label="上传时间">
+                   <template #default="{ row }">
+                     {{ new Date(row.createdAt).toLocaleDateString() }}
+                   </template>
+                 </el-table-column>
+               </el-table>
+             </div>
+             <el-empty v-else description="项目暂无文档" />
           </el-tab-pane>
         </el-tabs>
 

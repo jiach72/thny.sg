@@ -15,15 +15,35 @@ module.exports = {
     },
     plugins: ['unused-imports'],
     rules: {
+        // Vue 规则
         'vue/multi-word-component-names': 'off',
+
+        // 基础规则
         'no-undef': 'off',
+
+        // 未使用变量 - 使用 unused-imports 插件
         'no-unused-vars': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
         'unused-imports/no-unused-imports': 'error',
         'unused-imports/no-unused-vars': [
             'warn',
             { 'vars': 'all', 'varsIgnorePattern': '^_', 'args': 'after-used', 'argsIgnorePattern': '^_' }
-        ]
+        ],
+
+        // 新增：禁止 any 类型（warn 级别，逐步修复）
+        '@typescript-eslint/no-explicit-any': 'warn',
+
+        // 新增：禁止 console（生产代码）
+        'no-console': ['warn', { allow: ['warn', 'error'] }],
+
+        // 新增：要求显式返回类型（函数）
+        '@typescript-eslint/explicit-function-return-type': [
+            'warn',
+            {
+                allowExpressions: true,
+                allowTypedFunctionExpressions: true,
+                allowHigherOrderFunctions: true,
+            },
+        ],
     }
 }
-

@@ -284,11 +284,35 @@ import {
 } from '@element-plus/icons-vue'
 import apiClient from '@/api/apiClient'
 
+// 新闻文章接口
+interface NewsArticle {
+  id: string
+  title: string
+  titleEn?: string
+  summary?: string
+  summaryEn?: string
+  content: string
+  contentEn?: string
+  coverImage?: string
+  source?: string
+  sourceUrl?: string
+  author?: string
+  category: string
+  type?: string
+  tags?: string[]
+  isPublished: boolean
+  isTop: boolean
+  status?: string
+  viewCount: number
+  publishedAt?: string
+  createdAt: string
+  updatedAt: string
+}
 // 状态
 const loading = ref(false)
 const saving = ref(false)
 const importing = ref(false)
-const articles = ref<any[]>([])
+const articles = ref<NewsArticle[]>([])
 const selectedIds = ref<string[]>([])
 
 // 导入公众号文章
@@ -323,7 +347,7 @@ const pagination = ref({
 
 // 文章表单
 const showArticleDialog = ref(false)
-const editingArticle = ref<any>(null)
+const editingArticle = ref<NewsArticle | null>(null)
 const articleForm = ref({
   title: '',
   titleEn: '',
@@ -343,7 +367,7 @@ const articleForm = ref({
 async function fetchArticles() {
   loading.value = true
   try {
-    const params: any = {
+    const params: Record<string, unknown> = {
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
     }
@@ -353,10 +377,9 @@ async function fetchArticles() {
     if (filters.search) params.search = filters.search
 
     const response = await apiClient.get(`/news-admin/articles`, { params })
-    if (response.data.success) {
-      articles.value = response.data.data.articles
-      pagination.value = { ...pagination.value, ...response.data.data.pagination }
-    }
+    // apiClient 智能解包后 response 即为业务数据
+    articles.value = response.articles
+    pagination.value = { ...pagination.value, ...response.pagination }
   } catch (error) {
     console.error('Error fetching articles:', error)
   } finally {
@@ -368,16 +391,15 @@ async function fetchArticles() {
 async function fetchStats() {
   try {
     const response = await apiClient.get(`/news-admin/stats`)
-    if (response.data.success) {
-      stats.value = response.data.data
-    }
+    // apiClient 智能解包后 response 即为业务数据
+    stats.value = response
   } catch (error) {
     console.error('Error fetching stats:', error)
   }
 }
 
 // 编辑文章
-function editArticle(article: any) {
+function editArticle(article: NewsArticle) {
   editingArticle.value = article
   articleForm.value = {
     title: article.title,
@@ -429,7 +451,7 @@ async function saveArticle(status: string) {
 }
 
 // 切换发布状态
-async function togglePublish(article: any) {
+async function togglePublish(article: NewsArticle) {
   try {
     if (article.status === 'PUBLISHED') {
       await apiClient.post(`/news-admin/articles/${article.id}/unpublish`)
@@ -446,7 +468,7 @@ async function togglePublish(article: any) {
 }
 
 // 切换置顶
-async function toggleTop(article: any) {
+async function toggleTop(article: NewsArticle) {
   try {
     await apiClient.post(`/news-admin/articles/${article.id}/toggle-top`)
     ElMessage.success(article.isTop ? '已取消置顶' : '已置顶')
@@ -494,24 +516,22 @@ async function importWechatArticle() {
       type: importForm.value.type
     })
     
-    if (response.data.success) {
-      ElMessage.success(response.data.message || '导入成功')
+    if (response) {
+      ElMessage.success('导入成功')
       showImportDialog.value = false
       importForm.value.url = ''
       await fetchArticles()
       await fetchStats()
-    } else {
-      ElMessage.error(response.data.message || '导入失败')
     }
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.message || '导入失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error)?.message || '导入失败')
   } finally {
     importing.value = false
   }
 }
 
 // 处理选择变化
-function handleSelectionChange(rows: any[]) {
+function handleSelectionChange(rows: NewsArticle[]) {
   selectedIds.value = rows.map((r) => r.id)
 }
 

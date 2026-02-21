@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import { ADMIN_LOGIN_PATH } from '@/config/security'
 
 const apiClient: AxiosInstance = axios.create({
     baseURL: '/api/v1',
@@ -42,8 +43,8 @@ apiClient.interceptors.response.use(
         const authStore = useAuthStore()
 
         if (error.response?.status === 401) {
-            // 如果是登录接口本身的 401 错误，直接返回异常供页面处理，不进行跳转
-            if (error.config?.url?.includes('/auth/login')) {
+            // 如果是登录或刷新接口本身的 401 错误，直接返回异常供页面处理，不进行跳转
+            if (error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/refresh')) {
                 return Promise.reject(error.response?.data || error)
             }
 
@@ -60,16 +61,35 @@ apiClient.interceptors.response.use(
                 } catch {
                     // 刷新失败，跳转登录
                     authStore.logout()
-                    window.location.href = '/login'
+                    window.location.href = ADMIN_LOGIN_PATH
                 }
             } else {
                 authStore.logout()
-                window.location.href = '/login'
+                window.location.href = ADMIN_LOGIN_PATH
             }
         }
 
         return Promise.reject(error.response?.data || error)
     }
 )
+
+/**
+ * 类型安全的 API 客户端封装
+ * 使用示例: const leads = await typedApi.get<Lead[]>('/leads')
+ */
+export const typedApi = {
+    async get<T>(url: string, config?: Parameters<typeof apiClient.get>[1]): Promise<T> {
+        return apiClient.get(url, config) as Promise<T>
+    },
+    async post<T>(url: string, data?: unknown, config?: Parameters<typeof apiClient.post>[2]): Promise<T> {
+        return apiClient.post(url, data, config) as Promise<T>
+    },
+    async put<T>(url: string, data?: unknown, config?: Parameters<typeof apiClient.put>[2]): Promise<T> {
+        return apiClient.put(url, data, config) as Promise<T>
+    },
+    async delete<T>(url: string, config?: Parameters<typeof apiClient.delete>[1]): Promise<T> {
+        return apiClient.delete(url, config) as Promise<T>
+    },
+}
 
 export default apiClient

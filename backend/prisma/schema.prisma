@@ -134,6 +134,8 @@ model User {
   status            UserStatus @default(ACTIVE)
   setupToken        String?    @map("setup_token")       // 首次登录设置密码 token
   setupTokenExpiry  DateTime?  @map("setup_token_expiry") // token 过期时间
+  twoFactorEnabled  Boolean    @default(false) @map("two_factor_enabled")
+  twoFactorSecret   String?    @map("two_factor_secret")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
@@ -150,6 +152,7 @@ model User {
   sentEmails       EmailLog[]    @relation("EmailSender")
   invoicesCreated  Invoice[]  @relation("InvoiceCreator")
   paymentsRecorded Payment[]  @relation("PaymentRecorder")
+  auditLogs        AuditLog[] @relation("UserAuditLogs")
 
   @@index([roleId])
   @@map("users")
@@ -244,6 +247,7 @@ model Project {
   documents Document[]
   messages  Message[]
   invoices  Invoice[]
+  signatureRequests SignatureRequest[]
 
   @@index([customerId])
   @@index([status])
@@ -299,6 +303,8 @@ model Document {
   expiresAt    DateTime?   @map("expires_at")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  signatureRequests SignatureRequest[]
 
   @@index([projectId])
   @@index([documentType])
@@ -736,9 +742,173 @@ model Payment {
   createdAt       DateTime @default(now()) @map("created_at")
   deletedAt       DateTime? @map("deleted_at") // 软删除字段
 
+  gatewayTransaction PaymentGatewayTransaction?
+
   @@index([invoiceId])
   @@index([paymentDate])
   @@index([deletedAt])
   @@map("payments")
+}
+
+// ==================== 功能升级：分析模块 ====================
+
+// 销售指标快照（每日/每周/每月统计）
+model SalesMetric {
+  id             String   @id @default(cuid())
+  date           DateTime @db.Date
+  metricType     String   @map("metric_type") // DAILY, WEEKLY, MONTHLY
+  stage          String   // NEW, CONTACTED, QUALIFIED, CONVERTED, LOST
+  count          Int      @default(0)
+  conversionRate Float?   @map("conversion_rate")
+  avgDaysInStage Float?   @map("avg_days_in_stage")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([date, metricType, stage])
+  @@index([date, metricType])
+  @@map("sales_metrics")
+}
+
+// 渠道效果统计
+model ChannelMetric {
+  id             String   @id @default(cuid())
+  date           DateTime @db.Date
+  sourceChannel  String   @map("source_channel")
+  leadCount      Int      @default(0) @map("lead_count")
+  convertedCount Int      @default(0) @map("converted_count")
+  conversionRate Float?   @map("conversion_rate")
+  avgScore       Float?   @map("avg_score")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([date, sourceChannel])
+  @@map("channel_metrics")
+}
+
+// ==================== 功能升级：工作流引擎 ====================
+
+// 工作流定义
+model WorkflowDefinition {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  triggerType   String   @map("trigger_type") // LEAD_CREATED, LEAD_STATUS_CHANGED, TASK_DUE, SCHEDULED, WEBHOOK
+  triggerConfig Json     @map("trigger_config") // 触发条件配置
+  nodes         Json     // 流程节点配置
+  edges         Json     // 节点连接配置
+  isActive      Boolean  @default(true) @map("is_active")
+  version       Int      @default(1)
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  executions    WorkflowExecution[]
+
+  @@map("workflow_definitions")
+}
+
+// 工作流执行记录
+model WorkflowExecution {
+  id            String              @id @default(cuid())
+  workflowId    String              @map("workflow_id")
+  workflow      WorkflowDefinition  @relation(fields: [workflowId], references: [id])
+  triggerData   Json                @map("trigger_data") // 触发时的数据快照
+  executionPath Json?               @map("execution_path") // 执行路径记录
+  status        String              // RUNNING, COMPLETED, FAILED
+  startedAt     DateTime            @default(now()) @map("started_at")
+  completedAt   DateTime?           @map("completed_at")
+  error         String?
+
+  @@index([workflowId])
+  @@index([status])
+  @@map("workflow_executions")
+}
+
+// ==================== 功能升级：支付网关 ====================
+
+// 支付网关交易记录
+model PaymentGatewayTransaction {
+  id             String    @id @default(cuid())
+  paymentId      String    @unique @map("payment_id")
+  payment        Payment   @relation(fields: [paymentId], references: [id])
+
+  gatewayType    String    @map("gateway_type")   // STRIPE, PAYNOW
+  gatewayTransId String?   @map("gateway_trans_id")
+  gatewayStatus  String    @map("gateway_status")  // PENDING, COMPLETED, FAILED, REFUNDED
+
+  paymentUrl     String?   @map("payment_url")    // 支付链接
+  qrCode         String?   @map("qr_code")        // QR 码数据
+
+  amount         Decimal   @db.Decimal(15, 2)
+  currency       String
+
+  metadata       Json?     // 网关返回的元数据
+
+  paidAt         DateTime? @map("paid_at")
+  expiredAt      DateTime? @map("expired_at")
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([gatewayTransId])
+  @@map("payment_gateway_transactions")
+}
+
+// ==================== 功能升级：电子签署 ====================
+
+// 签署请求
+model SignatureRequest {
+  id                String    @id @default(cuid())
+  documentId        String?   @map("document_id")
+  document          Document? @relation(fields: [documentId], references: [id])
+
+  projectId         String    @map("project_id")
+  project           Project   @relation(fields: [projectId], references: [id])
+
+  title             String
+  description       String?
+
+  // DocuSign 相关
+  envelopeId        String?   @map("envelope_id")
+  status            String    @default("DRAFT") // DRAFT, SENT, SIGNED, COMPLETED, VOIDED
+
+  // 签署者
+  signers           Json      // [{name, email, status, signedAt}]
+
+  // 文档
+  documentUrl       String?   @map("document_url")
+  signedDocumentUrl String?   @map("signed_document_url")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  completedAt       DateTime? @map("completed_at")
+
+  @@index([projectId])
+  @@index([envelopeId])
+  @@map("signature_requests")
+}
+
+// ==================== 功能升级：审计日志 ====================
+
+// 审计日志
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  user       User     @relation("UserAuditLogs", fields: [userId], references: [id])
+
+  action     String   // LOGIN, LOGOUT, DATA_ACCESS, DATA_EXPORT, PERMISSION_CHANGE, CONFIG_CHANGE
+  resource   String   // 资源名称
+  resourceId String?  @map("resource_id")
+
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+
+  details    Json?    // 详细信息
+
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { error } from '../utils/responseHelper.js'
+import logger from '../config/logger.js'
 
 // 自定义错误类
 export class AppError extends Error {
@@ -45,6 +46,23 @@ export class ConflictError extends AppError {
     }
 }
 
+// 业务验证错误
+export class ValidationError extends AppError {
+    details?: Record<string, unknown>
+
+    constructor(message: string, details?: Record<string, unknown>) {
+        super(message, 400, 'VALIDATION_ERROR')
+        this.details = details
+    }
+}
+
+// 业务逻辑错误
+export class BusinessLogicError extends AppError {
+    constructor(message: string, code = 'BUSINESS_ERROR') {
+        super(message, 422, code)
+    }
+}
+
 /**
  * 全局错误处理中间件
  */
@@ -54,7 +72,13 @@ export function errorHandler(
     res: Response,
     _next: NextFunction
 ) {
-    console.error('Error:', err)
+    logger.error('请求错误', {
+        error: err.message,
+        stack: err.stack,
+        method: req.method,
+        path: req.path,
+        context: 'errorHandler',
+    })
 
     if (err instanceof AppError) {
         return res.status(err.statusCode).json(error(err.message, err.statusCode, err.code))
@@ -62,7 +86,7 @@ export function errorHandler(
 
     // Prisma 错误处理
     if (err.name === 'PrismaClientKnownRequestError') {
-        const prismaError = err as any
+        const prismaError = err as { code?: string }
         const errorCode = prismaError.code
 
         // P2002: Unique constraint failed
@@ -82,3 +106,4 @@ export function errorHandler(
     const msg = process.env.NODE_ENV === 'development' ? err.message : '服务器内部错误'
     res.status(500).json(error(msg, 500, 'INTERNAL_ERROR'))
 }
+

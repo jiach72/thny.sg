@@ -107,8 +107,20 @@
               </td>
             </tr>
             <tr v-if="filteredDocs.length === 0">
-              <td colspan="5" class="px-6 py-12 text-center text-text-muted">
-                {{ activeTab === 'pending' ? '暂无待签署文档' : '暂无文档' }}
+              <td colspan="5" class="px-6 py-16 text-center">
+                <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                  <component :is="FileText" class="w-8 h-8 text-text-muted/50" />
+                </div>
+                <p class="text-text-muted mb-2">{{ activeTab === 'pending' ? '暂无待签署文档' : '您的保险库是空的' }}</p>
+                <p class="text-xs text-text-muted/50 mb-6">{{ activeTab === 'pending' ? '所有文档签署已完成' : '上传重要文档，我们将以银行级加密安全存储' }}</p>
+                <button 
+                  v-if="activeTab !== 'pending'"
+                  @click="showUploadDialog = true"
+                  class="inline-flex items-center gap-2 px-6 py-2.5 bg-wealth hover:bg-[#B49248] text-obsidian rounded font-bold text-sm transition-all active:scale-95"
+                >
+                  <component :is="UploadCloud" class="w-4 h-4" />
+                  上传第一份文档
+                </button>
               </td>
             </tr>
           </tbody>

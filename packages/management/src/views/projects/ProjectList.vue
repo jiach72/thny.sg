@@ -135,21 +135,21 @@ const handleCreateSuccess = () => {
 
     <!-- 列表视图 -->
     <div v-else class="list-container" v-loading="isLoading">
-      <el-table :data="projects" style="width: 100%" @row-click="(row: any) => handleView(row.id)">
-        <el-table-column prop="title" label="项目名称" min-width="200" />
+      <el-table :data="projects" style="width: 100%" @row-click="(row: Record<string, string>) => handleView(row.id)">
+        <el-table-column prop="title" label="项目名称" min-width="200" sortable />
         <el-table-column prop="customer.lead.contactName" label="客户" width="150" />
-        <el-table-column prop="projectType" label="类型" width="150" />
-        <el-table-column prop="status" label="状态" width="120">
+        <el-table-column prop="projectType" label="类型" width="150" sortable />
+        <el-table-column prop="status" label="状态" width="120" sortable>
           <template #default="{ row }">
             <el-tag :type="statusColorMap[row.status]">{{ statusMap[row.status] }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="进度" width="200">
+        <el-table-column label="进度" width="200" sortable sort-by="completionPercentage">
           <template #default="{ row }">
             <el-progress :percentage="row.completionPercentage" />
           </template>
         </el-table-column>
-        <el-table-column prop="updatedAt" label="最后更新" width="180">
+        <el-table-column prop="updatedAt" label="最后更新" width="180" sortable>
           <template #default="{ row }">
             {{ new Date(row.updatedAt).toLocaleString() }}
           </template>

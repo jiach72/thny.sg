@@ -1,0 +1,77 @@
+import { Router } from 'express'
+import { authMiddleware } from '../middlewares/auth.js'
+import { analyticsService } from '../services/analyticsService.js'
+
+const router = Router()
+
+// 所有路由需要认证
+router.use(authMiddleware)
+
+// 销售漏斗数据
+router.get('/sales-funnel', async (req, res, next) => {
+    try {
+        const { startDate, endDate } = req.query
+        const data = await analyticsService.getSalesFunnel({
+            startDate: startDate as string,
+            endDate: endDate as string,
+        })
+        res.json({ success: true, data })
+    } catch (error) {
+        next(error)
+    }
+})
+
+// 趋势数据
+router.get('/trend', async (req, res, next) => {
+    try {
+        const { period = 'month', months = '6' } = req.query
+        const data = await analyticsService.getTrend(
+            period as string,
+            Number(months)
+        )
+        res.json({ success: true, data })
+    } catch (error) {
+        next(error)
+    }
+})
+
+// 渠道效果
+router.get('/channels', async (req, res, next) => {
+    try {
+        const { startDate, endDate } = req.query
+        const data = await analyticsService.getChannelMetrics({
+            startDate: startDate as string,
+            endDate: endDate as string,
+        })
+        res.json({ success: true, data })
+    } catch (error) {
+        next(error)
+    }
+})
+
+// 团队绩效
+router.get('/team-performance', async (req, res, next) => {
+    try {
+        const { startDate, endDate } = req.query
+        const data = await analyticsService.getTeamPerformance({
+            startDate: startDate as string,
+            endDate: endDate as string,
+        })
+        res.json({ success: true, data })
+    } catch (error) {
+        next(error)
+    }
+})
+
+// 预测数据
+router.get('/forecast', async (req, res, next) => {
+    try {
+        const { months = '3' } = req.query
+        const data = await analyticsService.getForecast(Number(months))
+        res.json({ success: true, data })
+    } catch (error) {
+        next(error)
+    }
+})
+
+export default router

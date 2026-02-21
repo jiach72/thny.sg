@@ -125,6 +125,7 @@ import { useI18n } from 'vue-i18n'
 import { User, Calendar, View, ArrowLeft, Link, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import apiClient from '../api/apiClient'
+import DOMPurify from 'dompurify'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -135,12 +136,13 @@ const loading = ref(true)
 const article = ref<any>(null)
 const popularArticles = ref<any[]>([])
 
-// 渲染内容（简单转换换行）
+// 渲染内容（通过 DOMPurify 消毒防止 XSS，RSS 源内容可能含恶意脚本）
 const renderedContent = computed(() => {
   if (!article.value?.content) return ''
-  return article.value.content
+  const raw = article.value.content
     .replace(/\n/g, '<br/>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  return DOMPurify.sanitize(raw)
 })
 
 // 获取文章详情

@@ -349,7 +349,7 @@ const statusStats = ref<{ status: string; label: string; count: number; amount: 
 const createDialogVisible = ref(false)
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
-const customers = ref<any[]>([])
+const customers = ref<Array<{ id: string; leadId: string; lead?: { contactName: string } }>>([])
 const form = ref<CreateInvoiceInput>({
   customerId: '',
   items: [{ description: '', quantity: 1, unitPrice: 0, amount: 0 }],
@@ -400,8 +400,8 @@ async function loadInvoices() {
     const result = await invoiceApi.getInvoices(filters.value, pagination.value)
     invoices.value = result.data
     pagination.value.total = result.pagination?.total || 0
-  } catch (err: any) {
-    ElMessage.error(err.message || '加载失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '加载失败')
   } finally {
     loading.value = false
   }
@@ -503,8 +503,8 @@ async function submitForm() {
     createDialogVisible.value = false
     loadInvoices()
     loadStats()
-  } catch (err: any) {
-    ElMessage.error(err.message || '创建失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '创建失败')
   } finally {
     submitLoading.value = false
   }
@@ -533,8 +533,8 @@ async function sendInvoice(invoice: Invoice) {
     ElMessage.success('发票已发送')
     loadInvoices()
     loadStats()
-  } catch (err: any) {
-    ElMessage.error(err.message || '发送失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '发送失败')
   }
 }
 
@@ -545,8 +545,8 @@ async function deleteInvoiceById(id: string) {
     ElMessage.success('发票已删除')
     loadInvoices()
     loadStats()
-  } catch (err: any) {
-    ElMessage.error(err.message || '删除失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '删除失败')
   }
 }
 
@@ -562,8 +562,8 @@ async function checkOverdue() {
     }
     loadInvoices()
     loadStats()
-  } catch (err: any) {
-    ElMessage.error(err.message || '检查失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '检查失败')
   } finally {
     overdueLoading.value = false
   }
@@ -591,8 +591,8 @@ async function submitPayment() {
     paymentDialogVisible.value = false
     loadInvoices()
     loadStats()
-  } catch (err: any) {
-    ElMessage.error(err.message || '记录失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '记录失败')
   } finally {
     paymentLoading.value = false
   }

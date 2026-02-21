@@ -32,7 +32,10 @@ export interface Lead {
     activities?: Array<{
         id: string
         actionType: string
+        entityType?: string
+        entityId?: string
         description: string
+        changes?: Record<string, unknown>
         createdAt: string
         actor?: UserRef
     }>

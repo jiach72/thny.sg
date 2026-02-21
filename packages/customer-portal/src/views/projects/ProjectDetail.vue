@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-5xl mx-auto space-y-8 animate-fade-in-up" v-if="project">
     <!-- 返回导航 -->
-    <button @click="$router.push('/projects')" class="flex items-center gap-2 text-text-muted hover:text-wealth transition-colors text-sm">
+    <button @click="$router.push('/projects')" class="flex items-center gap-2 text-text-muted hover:text-wealth transition-colors text-sm bg-transparent outline-none">
       <component :is="ArrowLeft" class="w-4 h-4" /> 返回项目列表
     </button>
 
@@ -132,6 +132,30 @@
           </div>
        </template>
     </el-dialog>
+
+    <!-- 预约顾问对话框 -->
+    <div v-if="showMeetingDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-obsidian/80 backdrop-blur-sm" @click="showMeetingDialog = false"></div>
+      <div class="relative w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-xl p-6 shadow-2xl">
+        <h3 class="text-xl font-serif text-text mb-4">预约会议: {{ project.consultant?.name }}</h3>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs text-text-muted mb-1">会议主题</label>
+            <input v-model="meetingForm.title" type="text" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-wealth/50" placeholder="例如：讨论业务细节">
+          </div>
+          <div>
+            <label class="block text-xs text-text-muted mb-1">预计开始时间</label>
+            <input v-model="meetingForm.date" type="datetime-local" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-wealth/50">
+          </div>
+        </div>
+
+        <div class="mt-6 flex gap-3 justify-end">
+          <button @click="showMeetingDialog = false" class="px-4 py-2 text-sm text-text-muted hover:text-text transition-colors">取消</button>
+          <button @click="submitMeeting" :disabled="isSubmittingMeeting" class="px-4 py-2 bg-wealth text-obsidian text-sm font-bold rounded hover:bg-[#B49248] transition-colors disabled:opacity-50">提交预约</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -144,7 +168,7 @@ import {
   ArrowLeft, Calendar, Clock, MessageCircle, FileText, Download, Loader2
 } from 'lucide-vue-next'
 import { useProjectStore } from '@/stores/projectStore'
-import { messageApi, documentApi } from '@/api'
+import { messageApi, documentApi, portalApi } from '@/api'
 import CaseTracker from '@/components/ui/CaseTracker.vue'
 import ConsultantCard from '@/components/ui/ConsultantCard.vue'
 
@@ -156,6 +180,11 @@ const showContactDialog = ref(false)
 const submitting = ref(false)
 const downloadingId = ref<string | null>(null)
 const contactForm = reactive({ title: '', content: '' })
+
+// 预约功能
+const showMeetingDialog = ref(false)
+const isSubmittingMeeting = ref(false)
+const meetingForm = ref({ title: '', date: '' })
 
 onMounted(() => {
   projectStore.fetchProject(route.params.id as string)
@@ -231,7 +260,44 @@ async function handleDownload(doc: any) {
 }
 
 function handleScheduleMeeting() {
-  ElMessage.info('预约功能即将上线')
+  if (!project.value?.consultant) {
+    ElMessage.warning('尚未指定项目顾问')
+    return
+  }
+  meetingForm.value.title = ''
+  // 默认填充明天同时间
+  const tmr = new Date()
+  tmr.setDate(tmr.getDate() + 1)
+  tmr.setMinutes(tmr.getMinutes() - tmr.getTimezoneOffset())
+  meetingForm.value.date = tmr.toISOString().slice(0, 16)
+  showMeetingDialog.value = true
+}
+
+async function submitMeeting() {
+  if (!meetingForm.value.title.trim() || !meetingForm.value.date) {
+    ElMessage.warning('请填写会议主题及预估时间')
+    return
+  }
+  
+  const startTime = new Date(meetingForm.value.date)
+  const endTime = new Date(startTime.getTime() + 60 * 60 * 1000)
+  
+  isSubmittingMeeting.value = true
+  try {
+    await portalApi.bookAppointment({
+      title: meetingForm.value.title,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      userId: project.value.consultant.id,
+      projectId: project.value.id
+    })
+    ElMessage.success('会议预约请求已发送')
+    showMeetingDialog.value = false
+  } catch (error: any) {
+    ElMessage.error(error.message || '预约失败')
+  } finally {
+    isSubmittingMeeting.value = false
+  }
 }
 
 async function submitContact() {

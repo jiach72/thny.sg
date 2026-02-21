@@ -16,12 +16,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { TrendCharts } from '@element-plus/icons-vue'
-import * as echarts from 'echarts/core'
-import { LineChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, GridComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-
-echarts.use([TitleComponent, TooltipComponent, GridComponent, LineChart, CanvasRenderer])
+import * as echarts from '@/utils/echarts'
 
 const chartRef = ref<HTMLElement | null>(null)
 let chart: echarts.ECharts | null = null

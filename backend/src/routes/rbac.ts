@@ -1,5 +1,7 @@
-import { Router } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
+import { body, param } from 'express-validator'
 import { authMiddleware, requireRole } from '../middlewares/auth.js'
+import { validate } from '../middlewares/validation.js'
 import { rbacService } from '../services/rbacService.js'
 
 const router = Router()
@@ -12,12 +14,12 @@ router.use(requireRole('ADMIN'))
  * 获取所有角色
  * GET /api/v1/rbac/roles
  */
-router.get('/roles', async (req, res) => {
+router.get('/roles', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const roles = await rbacService.getAllRoles()
         res.json({ success: true, data: roles })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
+    } catch (error) {
+        next(error)
     }
 })
 
@@ -25,62 +27,80 @@ router.get('/roles', async (req, res) => {
  * 创建新角色
  * POST /api/v1/rbac/roles
  */
-router.post('/roles', async (req, res) => {
-    try {
-        const { code, name, description } = req.body
-
-        if (!code || !name) {
-            return res.status(400).json({
-                success: false,
-                message: '角色代码和名称为必填项'
-            })
+router.post(
+    '/roles',
+    [
+        body('code')
+            .notEmpty().withMessage('角色代码不能为空')
+            .isAlphanumeric().withMessage('角色代码只能包含字母和数字')
+            .isLength({ max: 32 }).withMessage('角色代码最长 32 个字符'),
+        body('name')
+            .notEmpty().withMessage('角色名称不能为空')
+            .isLength({ max: 64 }).withMessage('角色名称最长 64 个字符'),
+        body('description')
+            .optional()
+            .isLength({ max: 256 }).withMessage('描述最长 256 个字符'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { code, name, description } = req.body
+            const role = await rbacService.createRole({ code, name, description })
+            res.status(201).json({ success: true, data: role })
+        } catch (error) {
+            // Prisma 唯一约束冲突
+            if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+                return res.status(409).json({
+                    success: false,
+                    message: '角色代码已存在'
+                })
+            }
+            next(error)
         }
-
-        const role = await rbacService.createRole({ code, name, description })
-        res.status(201).json({ success: true, data: role })
-    } catch (error: any) {
-        if (error.code === 'P2002') {
-            return res.status(409).json({
-                success: false,
-                message: '角色代码已存在'
-            })
-        }
-        res.status(500).json({ success: false, message: error.message })
     }
-})
+)
 
 /**
  * 删除角色
  * DELETE /api/v1/rbac/roles/:roleCode
  */
-router.delete('/roles/:roleCode', async (req, res) => {
-    try {
-        const { roleCode } = req.params
-        const deleted = await rbacService.deleteRole(roleCode)
+router.delete(
+    '/roles/:roleCode',
+    [
+        param('roleCode')
+            .notEmpty().withMessage('角色代码不能为空')
+            .isAlphanumeric().withMessage('角色代码格式无效'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { roleCode } = req.params
+            const deleted = await rbacService.deleteRole(roleCode)
 
-        if (!deleted) {
-            return res.status(400).json({
-                success: false,
-                message: '无法删除系统内置角色或角色不存在'
-            })
+            if (!deleted) {
+                return res.status(400).json({
+                    success: false,
+                    message: '无法删除系统内置角色或角色不存在'
+                })
+            }
+
+            res.json({ success: true, message: '角色已删除' })
+        } catch (error) {
+            next(error)
         }
-
-        res.json({ success: true, message: '角色已删除' })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
     }
-})
+)
 
 /**
  * 获取所有权限
  * GET /api/v1/rbac/permissions
  */
-router.get('/permissions', async (req, res) => {
+router.get('/permissions', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const permissions = await rbacService.getAllPermissions()
         res.json({ success: true, data: permissions })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
+    } catch (error) {
+        next(error)
     }
 })
 
@@ -88,12 +108,12 @@ router.get('/permissions', async (req, res) => {
  * 按资源分组获取权限
  * GET /api/v1/rbac/permissions/grouped
  */
-router.get('/permissions/grouped', async (req, res) => {
+router.get('/permissions/grouped', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const grouped = await rbacService.getPermissionsGroupedByResource()
         res.json({ success: true, data: grouped })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
+    } catch (error) {
+        next(error)
     }
 })
 
@@ -101,38 +121,55 @@ router.get('/permissions/grouped', async (req, res) => {
  * 获取角色的权限列表
  * GET /api/v1/rbac/roles/:roleCode/permissions
  */
-router.get('/roles/:roleCode/permissions', async (req, res) => {
-    try {
-        const { roleCode } = req.params
-        const permissions = await rbacService.getRolePermissions(roleCode)
-        res.json({ success: true, data: permissions })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
+router.get(
+    '/roles/:roleCode/permissions',
+    [
+        param('roleCode')
+            .notEmpty().withMessage('角色代码不能为空'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { roleCode } = req.params
+            const permissions = await rbacService.getRolePermissions(roleCode)
+            res.json({ success: true, data: permissions })
+        } catch (error) {
+            next(error)
+        }
     }
-})
+)
 
 /**
  * 更新角色权限 (接收 permissionCodes 数组)
  * PUT /api/v1/rbac/roles/:roleCode/permissions
  * Body: { permissionCodes: ["leads:create", "leads:read", ...] }
  */
-router.put('/roles/:roleCode/permissions', async (req, res) => {
-    try {
-        const { roleCode } = req.params
-        const { permissionCodes } = req.body
+router.put(
+    '/roles/:roleCode/permissions',
+    [
+        param('roleCode')
+            .notEmpty().withMessage('角色代码不能为空'),
+        body('permissionCodes')
+            .isArray().withMessage('permissionCodes 必须是数组')
+            .custom((value: string[]) => {
+                if (!value.every(v => typeof v === 'string' && /^[\w]+:[\w]+$/.test(v))) {
+                    throw new Error('每个权限代码必须为 "resource:action" 格式')
+                }
+                return true
+            }),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { roleCode } = req.params
+            const { permissionCodes } = req.body
 
-        if (!Array.isArray(permissionCodes)) {
-            return res.status(400).json({
-                success: false,
-                message: 'permissionCodes 必须是数组'
-            })
+            await rbacService.setRolePermissions(roleCode, permissionCodes)
+            res.json({ success: true, message: '权限已更新' })
+        } catch (error) {
+            next(error)
         }
-
-        await rbacService.setRolePermissions(roleCode, permissionCodes)
-        res.json({ success: true, message: '权限已更新' })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
     }
-})
+)
 
 export default router

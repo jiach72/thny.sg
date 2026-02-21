@@ -1,4 +1,6 @@
 import { Router } from 'express'
+import { prisma } from '../config/index.js'
+import { getRedis } from '../config/redis.js'
 import authRoutes from './auth.js'
 import leadRoutes from './leads.js'
 import taskRoutes from './tasks.js'
@@ -21,12 +23,61 @@ import emailTemplateRoutes from './emailTemplates.js'
 import invoiceRoutes from './invoices.js'
 import workflowRoutes from './workflow.js'
 import schedulerRoutes from './scheduler.js'
+import analyticsRoutes from './analytics.js'
+import auditRoutes from './audit.js'
+import exportRoutes from './export.js'
 
 const router = Router()
 
-// 健康检查
-router.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() })
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: 健康检查
+ *     tags: [System]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: 所有服务健康
+ *       503:
+ *         description: 部分服务不健康
+ */
+router.get('/health', async (_req, res) => {
+    const checks: {
+        status: string
+        timestamp: string
+        uptime: number
+        services: Record<string, string>
+    } = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: Math.floor(process.uptime()),
+        services: {
+            database: 'unknown',
+            redis: 'unknown',
+        }
+    }
+
+    // 检查数据库连接
+    try {
+        await prisma.$queryRaw`SELECT 1`
+        checks.services.database = 'healthy'
+    } catch {
+        checks.services.database = 'unhealthy'
+    }
+
+    // 检查 Redis 连接
+    try {
+        const redis = getRedis()
+        await redis.ping()
+        checks.services.redis = 'healthy'
+    } catch {
+        checks.services.redis = 'unhealthy'
+    }
+
+    const allHealthy = Object.values(checks.services).every(s => s === 'healthy')
+    checks.status = allHealthy ? 'ok' : 'degraded'
+    res.status(allHealthy ? 200 : 503).json(checks)
 })
 
 // API 版本信息
@@ -50,6 +101,8 @@ router.get('/', (req, res) => {
             invoices: '/api/v1/invoices (发票管理)',
             workflow: '/api/v1/workflow (工作流)',
             scheduler: '/api/v1/scheduler (定时任务)',
+            analytics: '/api/v1/analytics (销售分析)',
+            audit: '/api/v1/audit (审计日志)',
         },
     })
 })
@@ -71,6 +124,9 @@ router.use('/email-templates', emailTemplateRoutes)
 router.use('/invoices', invoiceRoutes)
 router.use('/workflow', workflowRoutes)
 router.use('/scheduler', schedulerRoutes)
+router.use('/analytics', analyticsRoutes)
+router.use('/audit', auditRoutes)
+router.use('/export', exportRoutes)
 
 // 客户门户专用路由
 router.use('/portal', portalRoutes)

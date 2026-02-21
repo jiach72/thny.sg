@@ -18,7 +18,7 @@ export const useLeadStore = defineStore('lead', () => {
         bySource: Record<string, number>
         trend: { date: string; count: number }[]
     } | null>(null)
-    const activities = ref<any[]>([])
+    const activities = ref<NonNullable<Lead['activities']>>([])
 
     // 计算属性
     const totalPages = computed(() => Math.ceil(total.value / limit.value))
@@ -77,9 +77,19 @@ export const useLeadStore = defineStore('lead', () => {
             leads.value[index] = lead
         }
         if (currentLead.value?.id === id) {
-            currentLead.value = lead
+            // 合并已有数据
+            currentLead.value = { ...currentLead.value, ...lead }
         }
         return lead
+    }
+
+    async function addNote(id: string, content: string) {
+        const activity = await leadApi.addNote(id, content)
+        if (currentLead.value?.id === id) {
+            currentLead.value.activities = currentLead.value.activities || []
+            currentLead.value.activities.unshift(activity)
+        }
+        return activity
     }
 
     async function assignLead(id: string, assignedToId: string, reason?: string) {
@@ -139,6 +149,7 @@ export const useLeadStore = defineStore('lead', () => {
         fetchLeadById,
         createLead,
         updateLead,
+        addNote,
         assignLead,
         deleteLead,
         convertToCustomer,

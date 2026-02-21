@@ -180,4 +180,43 @@ router.post(
     }
 )
 
+// ==================== 工作流设计与存取 ====================
+
+/**
+ * POST /workflow/definitions - 保存新的工作流配置
+ */
+router.post(
+    '/definitions',
+    authMiddleware,
+    [
+        body('name').notEmpty().withMessage('名称不能为空'),
+        body('triggerType').notEmpty().withMessage('触发条件不能为空')
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await workflowService.saveWorkflowDefinition(req.body, req.user!.id)
+            res.status(201).json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /workflow/definitions/test - 测试工作流配置
+ */
+router.post(
+    '/definitions/test',
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await workflowService.testWorkflowDefinition(req.body)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
 export default router
