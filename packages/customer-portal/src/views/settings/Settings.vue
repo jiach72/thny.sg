@@ -323,7 +323,9 @@ onMounted(async () => {
     if (data) {
         settings.twoFactorEnabled = !!data.twoFactorEnabled
     }
-  } catch(e) {}
+  } catch(e) {
+    console.warn('Failed to fetch 2FA status:', e)
+  }
 })
 
 // 保存提示定时器（防止内存泄漏）
