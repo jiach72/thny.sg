@@ -65,9 +65,9 @@
               <p class="text-sm text-text-muted line-clamp-2 mb-2">{{ msg.content || '无内容' }}</p>
               
               <div class="flex items-center gap-3 text-xs">
-                <span v-if="msg.sender" class="text-text-secondary">来自: {{ msg.sender.name || '系统' }}</span>
-                <span v-if="msg.project" class="px-2 py-0.5 rounded bg-white/5 text-text-muted border border-white/10">
-                  {{ msg.project.title }}
+                <span v-if="(msg as any).sender" class="text-text-secondary">来自: {{ (msg as any).sender.name || '系统' }}</span>
+                <span v-if="(msg as any).project" class="px-2 py-0.5 rounded bg-white/5 text-text-muted border border-white/10">
+                  {{ (msg as any).project.title }}
                 </span>
               </div>
             </div>
@@ -112,9 +112,9 @@
     <el-dialog v-model="showDetail" :title="selectedMessage?.title" width="600px" class="!bg-obsidian !border-white/10 !text-text rounded-xl">
       <div v-if="selectedMessage" class="space-y-6">
         <div class="flex items-center gap-4 pb-4 border-b border-white/10">
-          <el-avatar :size="40" class="ring-2 ring-white/10">{{ selectedMessage.sender?.name?.[0] }}</el-avatar>
+          <el-avatar :size="40" class="ring-2 ring-white/10">{{ (selectedMessage as any).sender?.name?.[0] }}</el-avatar>
           <div class="flex-1">
-            <div class="font-medium text-text">{{ selectedMessage.sender?.name || '系统' }}</div>
+            <div class="font-medium text-text">{{ (selectedMessage as any).sender?.name || '系统' }}</div>
             <div class="text-xs text-text-muted">{{ formatDateTime(selectedMessage.createdAt) }}</div>
           </div>
           <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider bg-white/5 text-text-muted border border-white/10">
@@ -126,9 +126,9 @@
           {{ selectedMessage.content }}
         </div>
 
-        <div v-if="selectedMessage.project" class="pt-4 border-t border-white/10">
-          <button @click="goToProject(selectedMessage.project.id)" class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors">
-            <component :is="Folder" class="w-4 h-4" /> 查看项目: {{ selectedMessage.project.title }}
+        <div v-if="(selectedMessage as any).project" class="pt-4 border-t border-white/10">
+          <button @click="goToProject((selectedMessage as any).project.id)" class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors">
+            <component :is="Folder" class="w-4 h-4" /> 查看项目: {{ (selectedMessage as any).project.title }}
           </button>
         </div>
       </div>
@@ -258,7 +258,7 @@ async function deleteMessage() {
       cancelButtonClass: '!text-text-muted hover:!text-text'
     })
     await portalApi.deleteMessage(selectedMessage.value.id)
-    messages.value = messages.value.filter(m => m.id !== selectedMessage.value.id)
+    messages.value = messages.value.filter(m => m.id !== (selectedMessage.value as any).id)
     showDetail.value = false
     ElMessage.success('消息已删除')
   } catch (error: unknown) {

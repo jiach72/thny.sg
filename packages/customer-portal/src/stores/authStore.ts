@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
     async function login(payload: { email: string; password: string }) {
         loading.value = true
         try {
-            const data = await authApi.login(payload)
+            const data: any = await authApi.login(payload)
 
             accessToken.value = data.accessToken
             refreshToken.value = data.refreshToken
@@ -48,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (!accessToken.value) return null
 
         try {
-            const data = await authApi.getCurrentUser()
+            const data: any = await authApi.getCurrentUser()
             user.value = data
             return data
         } catch {
@@ -62,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
             throw new Error('No refresh token')
         }
 
-        const data = await authApi.refreshToken(refreshToken.value)
+        const data: any = await authApi.refreshToken(refreshToken.value)
         accessToken.value = data.accessToken
         localStorage.setItem('accessToken', data.accessToken)
 
@@ -84,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('refreshToken', newRefreshToken)
     }
 
-    function setUser(userData: Record<string, unknown>) {
+    function setUser(userData: any) {
         user.value = userData
     }
 

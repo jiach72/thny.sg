@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tonghai-config
+  namespace: tonghai-dev
+data:
+  NODE_ENV: "development"
+  PORT: "4000"
+  FRONTEND_URL: "http://localhost:30080"
+  MANAGEMENT_URL: "http://localhost:30081"
+  PORTAL_URL: "http://localhost:30082"
+  REDIS_URL: "redis://redis:6379"

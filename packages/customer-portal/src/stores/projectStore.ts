@@ -10,7 +10,7 @@ export const useProjectStore = defineStore('project', () => {
     async function fetchMyProjects() {
         isLoading.value = true
         try {
-            const data = await portalApi.getMyProjects()
+            const data: any = await portalApi.getMyProjects()
             projects.value = data || []
         } catch (error) {
             console.error('Failed to fetch projects:', error)
@@ -22,7 +22,7 @@ export const useProjectStore = defineStore('project', () => {
     async function fetchProject(id: string) {
         isLoading.value = true
         try {
-            const data = await portalApi.getProjectById(id)
+            const data: any = await portalApi.getProjectById(id)
             currentProject.value = data || null
         } catch (error) {
             console.error('Failed to fetch project details:', error)

@@ -89,7 +89,8 @@ async function loadUsers() {
   reason.value = ''
   try {
     const result = await userApi.getList({ status: 'ACTIVE' })
-    users.value = result.data || []
+    // The result from userApi.getList might be either an array directly or an object with data property
+    users.value = Array.isArray(result) ? result : (result as any).data || []
   } catch (error) {
     console.error('Failed to load users', error)
   } finally {

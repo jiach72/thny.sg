@@ -46,7 +46,7 @@
            
            <div v-if="projects && projects.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div 
-               v-for="project in projects" 
+               v-for="project in (projects as any[])" 
                :key="project.id"
                class="group relative p-6 rounded-xl bg-glass/20 border border-white/5 hover:bg-glass/30 hover:border-wealth/30 transition-all duration-300 cursor-pointer overflow-hidden"
                @click="$router.push(`/projects/${project.id}`)"
@@ -221,14 +221,14 @@ const { user } = storeToRefs(authStore)
 const projectStore = useProjectStore()
 const { projects } = storeToRefs(projectStore)
 
-const todos = ref<Array<{ id: string; title: string; completed: boolean; dueDate?: string }>>([])
+const todos = ref<any[]>([])
 const stats = ref({
   activeProjects: 0,
   pendingDocuments: 0
 })
 const statsLoading = ref(true)
 // 顾问卡片与预约
-const consultant = ref<{ id: string; name: string; email?: string; phone?: string; avatar?: string } | null>(null)
+const consultant = ref<any | null>(null)
 const showMeetingDialog = ref(false)
 const isSubmittingMeeting = ref(false)
 const meetingForm = ref({
@@ -271,8 +271,8 @@ async function loadDashboardData() {
     stats.value = dashboardStats || { activeProjects: 0, pendingDocuments: 0 }
     
     // 从第一个项目获取顾问信息（如果有）
-    if (projects.value?.length > 0 && projects.value[0].consultant) {
-      consultant.value = projects.value[0].consultant
+    if (projects.value?.length > 0 && (projects.value[0] as any).consultant) {
+      consultant.value = (projects.value[0] as any).consultant
     }
   } catch (err) {
     console.error('加载数据失败', err)
@@ -327,12 +327,12 @@ async function submitMeeting() {
       title: meetingForm.value.title,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
-      userId: consultant.value.id
+      userId: consultant.value?.id || ''
     })
     ElMessage.success('会议预约请求已发送')
     showMeetingDialog.value = false
-  } catch (error: unknown) {
-    ElMessage.error((error as Error).message || '预约失败，请稍后重试')
+  } catch (error: any) {
+    ElMessage.error(error.message || '预约失败，请稍后重试')
   } finally {
     isSubmittingMeeting.value = false
   }

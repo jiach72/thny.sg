@@ -172,7 +172,7 @@ const handleSetup = async () => {
           router.push('/dashboard')
         }, 1000)
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       ElMessage.error(error.response?.data?.message || '设置密码失败')
     } finally {
       loading.value = false

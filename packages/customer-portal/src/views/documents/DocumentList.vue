@@ -79,11 +79,11 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
-            <tr v-for="doc in filteredDocs" :key="doc.id" class="group hover:bg-white/5 transition-colors">
+            <tr v-for="doc in (filteredDocs as any[])" :key="doc.id" class="group hover:bg-white/5 transition-colors">
               <td class="px-6 py-4">
                  <div class="flex items-center gap-3">
                    <div class="p-2 rounded bg-obsidian border border-white/10 text-text-muted group-hover:text-wealth transition-colors">
-                     <component :is="getFileIcon(doc.type)" class="w-5 h-5" />
+                     <component :is="getFileIcon(doc.type as string)" class="w-5 h-5" />
                    </div>
                    <div>
                      <div class="text-sm font-medium text-text group-hover:text-wealth transition-colors">{{ doc.name }}</div>
@@ -98,7 +98,7 @@
                   {{ doc.project }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-sm text-text-muted">{{ formatDate(doc.uploadedAt) }}</td>
+              <td class="px-6 py-4 text-sm text-text-muted">{{ formatDate(doc.uploadedAt as string) }}</td>
               <td class="px-6 py-4 text-sm text-text-muted font-mono">{{ doc.size }}</td>
               <td class="px-6 py-4 text-right">
                 <button @click="handleDownload(doc)" class="bg-transparent p-2 rounded-lg hover:bg-white/10 text-text-muted hover:text-wealth transition-colors" title="下载">
@@ -245,10 +245,10 @@ const documents = computed(() => {
   if (!rawDocuments.value) return []
   return rawDocuments.value.map(doc => ({
     id: doc.id,
-    name: doc.fileName,
-    type: doc.fileType,
-    project: doc.project?.title || '通用',
-    size: formatSize(doc.fileSize),
+    name: doc.fileName || doc.title || (doc as any).name || 'Unknown',
+    type: doc.fileType || (doc as any).type || '',
+    project: (doc as any).project?.title || '通用',
+    size: formatSize(doc.fileSize as number || 0),
     status: 'uploaded', 
     uploadedAt: doc.createdAt
   }))

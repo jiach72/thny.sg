@@ -9,7 +9,7 @@ export const useDocumentStore = defineStore('document', () => {
     async function fetchMyDocuments(projectId?: string) {
         isLoading.value = true
         try {
-            const data = await documentApi.getMyDocuments(projectId)
+            const data: any = await documentApi.getMyDocuments(projectId)
             documents.value = data || []
         } catch (error) {
             console.error('Failed to fetch documents:', error)

@@ -210,7 +210,7 @@ async function handleSend() {
           recipientId: form.recipientId,
           title: form.title,
           content: form.content,
-          type: form.type as MessageType,
+          type: form.type as any,
         })
         ElMessage.success('消息发送成功')
       } else {
@@ -218,7 +218,7 @@ async function handleSend() {
           recipientIds: form.recipientIds,
           title: form.title,
           content: form.content,
-          type: form.type as MessageType,
+          type: form.type as any,
         }) as { count: number }
         ElMessage.success(`成功发送 ${result.count} 条消息`)
       }

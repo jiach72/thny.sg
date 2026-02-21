@@ -141,7 +141,7 @@
                   v-for="c in customers" 
                   :key="c.id" 
                   :value="c.id"
-                  :label="c.companyName"
+                  :label="(c as any).companyName || c.lead?.contactName || c.id"
                 />
               </el-select>
             </el-form-item>

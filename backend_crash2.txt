@@ -1,0 +1,78 @@
+
+> @tonghai/backend@1.0.0 start
+> node dist/index.js
+
+2026-02-21 13:09:48 [32minfo[39m: [websocket] WebSocket 服务已启动 {"service":"crm-backend"}
+2026-02-21 13:09:48 [32minfo[39m: 
+  ╔═══════════════════════════════════════════════╗
+  ║                                               ║
+  ║   🚀 TongHai CRM API Server                   ║
+  ║                                               ║
+  ║   Environment: development                   ║
+  ║   Port: 4000                                  ║
+  ║   API: http://localhost:4000/api/v1              ║
+  ║   WebSocket: ✅                                ║
+  ║                                               ║
+  ╚═══════════════════════════════════════════════╝
+   {"service":"crm-backend"}
+prisma:info Starting a postgresql pool with 21 connections.
+prisma:query SELECT 1
+❌ Redis 错误: 
+❌ Redis 错误: 
+❌ Redis 错误: 
+❌ Redis 错误: 
+❌ Redis 连接失败，已达最大重试次数
+2026-02-21 13:10:08 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:08 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:10:17 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:17 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+prisma:query SELECT 1
+2026-02-21 13:10:27 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:27 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:10:29 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:29 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:10:37 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:37 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+prisma:query SELECT 1
+2026-02-21 13:10:47 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:47 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:10:49 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:49 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:10:57 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:10:57 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+prisma:query SELECT 1
+2026-02-21 13:11:07 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:07 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:11:09 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:09 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:11:11 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:11 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:11:21 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:21 +0000] "GET /api/v1/health HTTP/1.1" 503 126 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+prisma:query SELECT 1
+2026-02-21 13:11:29 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:29 +0000] "GET /api/v1/health HTTP/1.1" 503 127 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:11:31 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:31 +0000] "GET /api/v1/health HTTP/1.1" 503 127 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:11:41 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:41 +0000] "GET /api/v1/health HTTP/1.1" 503 127 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+prisma:query SELECT 1
+2026-02-21 13:11:49 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:49 +0000] "GET /api/v1/health HTTP/1.1" 503 127 "-" "kube-probe/1.34" {"service":"crm-backend"}
+prisma:query SELECT 1
+2026-02-21 13:11:49 [32minfo[39m: 10.1.0.1 - - [21/Feb/2026:13:11:49 +0000] "GET /api/v1/health HTTP/1.1" 503 127 "-" "kube-probe/1.34" {"service":"crm-backend"}
+2026-02-21 13:11:49 [32minfo[39m: 
+🛑 接收到 SIGTERM 信号，准备进行平滑退出... {"service":"crm-backend"}
+2026-02-21 13:11:49 [32minfo[39m: ✅ HTTP 服务器已停止接受新连接 {"service":"crm-backend"}
+2026-02-21 13:11:49 [31merror[39m: 💥 平滑退出过程中发生错误: Connection is closed. {"service":"crm-backend","stack":"Error: Connection is closed.\n    at EventEmitter.sendCommand (/app/node_modules/ioredis/built/Redis.js:333:28)\n    at EventEmitter.quit (/app/node_modules/ioredis/built/utils/Commander.js:90:25)\n    at closeRedis (file:///app/backend/dist/config/redis.js:38:27)\n    at gracefulShutdown (file:///app/backend/dist/index.js:91:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}
+npm error Lifecycle script `start` failed with error:
+npm error code 1
+npm error path /app/backend
+npm error workspace @tonghai/backend@1.0.0
+npm error location /app/backend
+npm error command failed
+npm error command sh -c node dist/index.js
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.10.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.10.1
+npm notice To update run: npm install -g npm@11.10.1
+npm notice

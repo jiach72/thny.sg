@@ -411,7 +411,7 @@ function editArticle(article: NewsArticle) {
     coverImage: article.coverImage || '',
     author: article.author || '',
     sourceUrl: article.sourceUrl || '',
-    type: article.type,
+    type: article.type || 'COMPANY',
     tags: article.tags || [],
   }
   showArticleDialog.value = true

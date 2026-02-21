@@ -733,10 +733,10 @@ async function handleImport(options: any) {
     } else {
       ElMessage.error(response.message || '导入失败')
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     loading.value = false
     console.error('Import error:', error)
-    const errMsg = error.response?.data?.message || (error as Error).message || '导入失败，请检查文件格式'
+    const errMsg = error.response?.data?.message || error.message || '导入失败，请检查文件格式'
     ElMessage.error(errMsg)
   }
 }

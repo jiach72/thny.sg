@@ -1,7 +1,7 @@
 import { messageService } from './messageService.js'
 import { emailSenderService } from './emailSenderService.js'
 import { emailTemplateService } from './emailTemplateService.js'
-import { notifyUser, notifyUsers } from './websocketService.js'
+import { notifyUsers } from './websocketService.js'
 import { prisma } from '../config/index.js'
 import logger from '../config/logger.js'
 

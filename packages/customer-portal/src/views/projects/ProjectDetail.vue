@@ -14,22 +14,22 @@
         <div>
           <div class="flex items-center gap-3 mb-2">
             <span class="px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] uppercase tracking-wider text-text-muted">
-              {{ getProjectTypeLabel(project.projectType) }}
+              {{ getProjectTypeLabel((project as any).projectType as string) }}
             </span>
             <span 
               class="px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold"
-              :class="getStatusClass(project.status)"
+              :class="getStatusClass((project as any).status)"
             >
-              {{ getStatusLabel(project.status) }}
+              {{ getStatusLabel((project as any).status) }}
             </span>
           </div>
-          <h1 class="font-serif text-3xl text-text mb-2">{{ project.title }}</h1>
+          <h1 class="font-serif text-3xl text-text mb-2">{{ (project as any).title }}</h1>
           <div class="flex items-center gap-4 text-sm text-text-muted">
             <span class="flex items-center gap-1.5">
-              <component :is="Calendar" class="w-3.5 h-3.5" /> 开始于 {{ formatDate(project.startDate) }}
+              <component :is="Calendar" class="w-3.5 h-3.5" /> 开始于 {{ formatDate((project as any).startDate) }}
             </span>
-            <span class="flex items-center gap-1.5" v-if="project.estimatedEndDate">
-              <component :is="Clock" class="w-3.5 h-3.5" /> 预计 {{ formatDate(project.estimatedEndDate) }}
+            <span class="flex items-center gap-1.5" v-if="(project as any).estimatedEndDate">
+              <component :is="Clock" class="w-3.5 h-3.5" /> 预计 {{ formatDate((project as any).estimatedEndDate) }}
             </span>
           </div>
         </div>
@@ -54,9 +54,9 @@
       <div class="md:col-span-2 space-y-6">
         <h3 class="font-serif text-lg text-text">项目文档</h3>
         <div class="rounded-xl bg-glass/10 border border-white/5 overflow-hidden">
-          <div v-if="project.documents && project.documents.length > 0" class="divide-y divide-white/5">
+          <div v-if="(project as any).documents && (project as any).documents.length > 0" class="divide-y divide-white/5">
              <div 
-                v-for="doc in project.documents" 
+                v-for="doc in (project as any).documents" 
                 :key="doc.id"
                 class="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group"
              >
@@ -65,17 +65,17 @@
                    <component :is="FileText" class="w-5 h-5" />
                  </div>
                  <div>
-                   <div class="text-sm font-medium text-text">{{ doc.fileName }}</div>
-                   <div class="text-xs text-text-muted">{{ formatDate(doc.createdAt) }}</div>
+                   <div class="text-sm font-medium text-text">{{ (doc as any).fileName }}</div>
+                   <div class="text-xs text-text-muted">{{ formatDate((doc as any).createdAt) }}</div>
                  </div>
                </div>
                <button 
                  @click="handleDownload(doc)"
-                 :disabled="downloadingId === doc.id"
+                 :disabled="downloadingId === (doc as any).id"
                  class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors disabled:opacity-50"
                >
-                 <component :is="downloadingId === doc.id ? Loader2 : Download" :class="downloadingId === doc.id ? 'animate-spin w-4 h-4' : 'w-4 h-4'" />
-                 {{ downloadingId === doc.id ? '下载中...' : '下载' }}
+                 <component :is="downloadingId === (doc as any).id ? Loader2 : Download" :class="downloadingId === (doc as any).id ? 'animate-spin w-4 h-4' : 'w-4 h-4'" />
+                 {{ downloadingId === (doc as any).id ? '下载中...' : '下载' }}
                </button>
              </div>
           </div>
@@ -93,7 +93,7 @@
       <div>
          <h3 class="font-serif text-lg text-text mb-6">首席顾问</h3>
          <ConsultantCard 
-           :consultant="project.consultant"
+           :consultant="(project as any).consultant"
            role-label="项目负责人"
            @schedule-meeting="handleScheduleMeeting"
          />
@@ -137,7 +137,7 @@
     <div v-if="showMeetingDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-obsidian/80 backdrop-blur-sm" @click="showMeetingDialog = false"></div>
       <div class="relative w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-xl p-6 shadow-2xl">
-        <h3 class="text-xl font-serif text-text mb-4">预约会议: {{ project.consultant?.name }}</h3>
+        <h3 class="text-xl font-serif text-text mb-4">预约会议: {{ (project as any).consultant?.name }}</h3>
         
         <div class="space-y-4">
           <div>
@@ -191,8 +191,8 @@ onMounted(() => {
 })
 
 const steps = computed(() => {
-  if (!project.value?.tasks) return []
-  return project.value.tasks.map((task: any) => ({
+  if (!(project.value as any)?.tasks) return []
+  return (project.value as any).tasks.map((task: any) => ({
     id: task.id,
     title: task.title,
     status: mapTaskStatus(task.status),
@@ -260,7 +260,7 @@ async function handleDownload(doc: any) {
 }
 
 function handleScheduleMeeting() {
-  if (!project.value?.consultant) {
+  if (!(project.value as any)?.consultant) {
     ElMessage.warning('尚未指定项目顾问')
     return
   }
@@ -288,13 +288,13 @@ async function submitMeeting() {
       title: meetingForm.value.title,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
-      userId: project.value.consultant.id,
-      projectId: project.value.id
+      userId: (project.value as any).consultant.id,
+      projectId: (project.value as any).id
     })
     ElMessage.success('会议预约请求已发送')
     showMeetingDialog.value = false
-  } catch (error: unknown) {
-    ElMessage.error((error as Error).message || '预约失败')
+  } catch (error: any) {
+    ElMessage.error(error.message || '预约失败')
   } finally {
     isSubmittingMeeting.value = false
   }
@@ -306,8 +306,8 @@ async function submitContact() {
   submitting.value = true
   try {
      await messageApi.sendMessage({
-      projectId: project.value.id,
-      recipientId: project.value.consultant?.id,
+      projectId: (project.value as any).id,
+      recipientId: (project.value as any).consultant?.id,
       title: contactForm.title,
       content: contactForm.content
     })
