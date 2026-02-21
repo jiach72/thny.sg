@@ -124,6 +124,9 @@ jobs:
           script: |
             cd /var/www/tonghai
             
+            # 0. 确保当前用户有 docker 权限
+            sudo usermod -aG docker $USER || true
+            
             # 1. 生成 .env (逐行写入，避免 heredoc 缩进问题)
             echo "IMAGE_OWNER=$IMAGE_OWNER" > .env
             echo "JWT_SECRET=$JWT_SECRET" >> .env
@@ -136,16 +139,16 @@ jobs:
             cp -f docker-compose.prod.yml docker-compose.yml
             
             # 3. 登录 GHCR 并拉取最新镜像
-            echo "$DEPLOY_GHCR_TOKEN" | docker login ghcr.io -u "$IMAGE_OWNER" --password-stdin
+            echo "$DEPLOY_GHCR_TOKEN" | sudo docker login ghcr.io -u "$IMAGE_OWNER" --password-stdin
             echo "Pulling latest images..."
-            docker compose pull
+            sudo docker compose pull
             
             # 4. 重启服务
             echo "Recreating containers..."
-            docker compose up -d --remove-orphans
+            sudo docker compose up -d --remove-orphans
             
             # 5. 清理旧镜像
-            docker image prune -f
+            sudo docker image prune -f
             
             # 6. 等待后端容器健康
             echo "Waiting for backend to be ready..."
@@ -153,14 +156,14 @@ jobs:
             
             # 7. 数据库迁移
             echo "Running database migrations..."
-            docker compose exec -T backend npx prisma migrate deploy
+            sudo docker compose exec -T backend npx prisma migrate deploy
             
             # 8. 首次部署时播种初始数据
             echo "Checking if database needs seeding..."
-            USER_COUNT=$(docker compose exec -T postgres psql -U crm_user -d crm_db -tAc "SELECT COUNT(*) FROM \"User\";" 2>/dev/null || echo "0")
+            USER_COUNT=$(sudo docker compose exec -T postgres psql -U crm_user -d crm_db -tAc "SELECT COUNT(*) FROM \"User\";" 2>/dev/null || echo "0")
             if [ "$USER_COUNT" = "0" ] || [ -z "$USER_COUNT" ]; then
               echo "First deployment detected, seeding database..."
-              docker compose exec -T backend npx prisma db seed
+              sudo docker compose exec -T backend npx prisma db seed
             else
               echo "Database already has $USER_COUNT users, skipping seed."
             fi
@@ -186,5 +189,5 @@ jobs:
             done
             echo "❌ 健康检查失败，输出日志:"
             cd /var/www/tonghai
-            docker compose logs --tail=50 backend
+            sudo docker compose logs --tail=50 backend
             exit 1
