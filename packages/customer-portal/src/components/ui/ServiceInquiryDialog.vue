@@ -210,8 +210,8 @@ async function handleSubmit() {
     // 重置表单
     form.message = ''
     form.preferredContact = 'phone'
-  } catch (error: any) {
-    ElMessage.error(error.message || '提交失败，请稍后重试')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '提交失败，请稍后重试')
   } finally {
     submitting.value = false
   }

@@ -161,7 +161,7 @@ async function handleSubmit() {
       emit('success')
       close()
     } catch (error: any) {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error((error as Error).message || '操作失败')
     } finally {
       submitting.value = false
     }

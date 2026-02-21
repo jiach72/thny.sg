@@ -194,8 +194,8 @@ async function loadMessages() {
     const result = await portalApi.getMessages(params) as any
     messages.value = result.messages || []
     total.value = result.total || 0
-  } catch (error: any) {
-    ElMessage.error(error.message || '加载消息失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '加载消息失败')
   } finally {
     loading.value = false
   }
@@ -240,8 +240,8 @@ async function markAllRead() {
     messages.value.forEach(m => m.isRead = true)
     unreadCount.value = 0
     ElMessage.success('已全部标为已读')
-  } catch (error: any) {
-    ElMessage.error(error.message || '操作失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '操作失败')
   }
 }
 
@@ -261,9 +261,9 @@ async function deleteMessage() {
     messages.value = messages.value.filter(m => m.id !== selectedMessage.value.id)
     showDetail.value = false
     ElMessage.success('消息已删除')
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      ElMessage.error((error as Error).message || '删除失败')
     }
   }
 }

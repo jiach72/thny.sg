@@ -38,7 +38,7 @@ const handleUpload = async () => {
     emit('success')
   } catch (error: any) {
     console.error(error)
-    ElMessage.error(error.message || '导入失败')
+    ElMessage.error((error as Error).message || '导入失败')
   } finally {
     uploading.value = false
   }

@@ -88,13 +88,20 @@
 | `MessageList.vue` (portal) | 2 | Message 内联类型 |
 | `Dashboard.vue` (portal) | 2 | Todo + Consultant 内联类型 |
 
+#### apiClient 类型重载
+
+| 变更 | 文件 | 内容 |
+|------|------|------|
+| 重写类型声明 | `apiClient.ts` | 定义 `ApiClient` 接口，get/post/put/delete 返回 `Promise<T>` 而非 `AxiosResponse` |
+| 移除 typedApi | `apiClient.ts` | 不再需要——apiClient 本身支持泛型 |
+| 级联修复 | 4 个文件 | inquiryStore/appointmentStore 添加断言，NewsManagement/MessageSend 使用泛型 |
+
 ---
 
 ## 已知残留问题
 
 ### 未修复（低优先级）
-- `any` 类型剩余 ~20 处（主要是 Element Plus 内部类型、catch 块和 API 层）
-- apiClient TS 声明与运行时解包行为不一致（`AxiosResponse` vs 实际解包后的数据）— 需为 apiClient 添加类型重载
+- `any` 类型剩余 ~15 处（Element Plus 内部类型、少量 API 层 catch 块）
 - Dashboard "最新线索" 为空 — API 过滤条件可能排除已转化线索
 - InquiryList CSS `line-clamp` 兼容性警告 — 非功能性
 - SalesDashboard 团队绩效/预测分析 "暂无数据" — 数据量不足，属正常
@@ -130,10 +137,10 @@
 
 ## 发现的架构模式
 
-1. **apiClient 智能解包**: `apiClient.ts` 自动处理 `{ code, data }` 响应格式。**注意**：使用后不要再 `.data?.data` 双层解包。**已知问题**：TS 类型声明仍为 `AxiosResponse`，实际返回已解包数据。
-2. **typedApi 泛型**: `typedApi.get<T>()` 等方法通过泛型指定返回类型。
-3. **共享类型体系**: `packages/shared/types/` 现有 Lead/Project/User/Invoice/FaqItem 等 13 个共享 interface。
-4. **局部类型**: 页面级局部 interface（RssFeed/NewsArticle/CustomerOption/SentMessage 等）定义在各自 Vue 文件中。
+1. **apiClient 类型安全**: `ApiClient` 接口覆盖 get/post/put/delete/patch，返回 `Promise<T>`。支持 `apiClient.get<Lead[]>('/leads')` 或 `as Lead[]` 断言。
+2. **智能解包**: 响应拦截器自动处理 `{ code, data }` 结构。**注意**：不要 `.data?.data` 双层解包。
+3. **共享类型体系**: `packages/shared/types/` 现有 13 个共享 interface（Lead/Project/User/Invoice/FaqItem 等）。
+4. **局部类型**: 页面级 interface（RssFeed/NewsArticle/CustomerOption/SentMessage 等）定义在各自 Vue 文件中。
 5. **Store 模式**: Pinia store 已全部类型化，无剩余 `any`。
 6. **客户门户设计语言**: Tailwind-like 自定义类 + `lucide-vue-next` 图标。
 
@@ -141,6 +148,5 @@
 
 ## 下一步建议
 
-1. **提交本次修改**: P0-P3 优化 + SalesDashboard 修复 + TS 类型全量治理
-2. **apiClient 类型重载**: 为响应拦截器的解包行为添加 TS 重载声明，消除 `AxiosResponse` 类型不匹配
-3. **官网 Vite SSG 预渲染**: 安装 `vite-ssg` + `@unhead/vue`，实现静态 HTML 生成（建议新会话）
+1. **官网 Vite SSG 预渲染**: 安装 `vite-ssg` + `@unhead/vue`，实现静态 HTML 生成（建议新会话）
+2. **剩余 ~15 处 any 清理**: Element Plus 内部类型和少量 catch 块，低优先级

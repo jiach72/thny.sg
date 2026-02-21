@@ -266,7 +266,7 @@ async function loadTemplates() {
   try {
     templates.value = await emailTemplateApi.getTemplates()
   } catch (err: any) {
-    ElMessage.error(err.message || '加载失败')
+    ElMessage.error((err as Error).message || '加载失败')
   } finally {
     loading.value = false
   }
@@ -280,7 +280,7 @@ async function loadLogs() {
     logs.value = result.data
     logsPagination.value.total = result.pagination.total
   } catch (err: any) {
-    ElMessage.error(err.message || '加载失败')
+    ElMessage.error((err as Error).message || '加载失败')
   } finally {
     logsLoading.value = false
   }
@@ -385,7 +385,7 @@ async function submitForm() {
     dialogVisible.value = false
     loadTemplates()
   } catch (err: any) {
-    ElMessage.error(err.message || '操作失败')
+    ElMessage.error((err as Error).message || '操作失败')
   } finally {
     submitLoading.value = false
   }
@@ -398,7 +398,7 @@ async function toggleActive(template: EmailTemplate, isActive: boolean) {
     template.isActive = isActive
     ElMessage.success(isActive ? '模板已启用' : '模板已禁用')
   } catch (err: any) {
-    ElMessage.error(err.message || '操作失败')
+    ElMessage.error((err as Error).message || '操作失败')
   }
 }
 
@@ -409,7 +409,7 @@ async function deleteTemplateById(id: string) {
     ElMessage.success('模板已删除')
     loadTemplates()
   } catch (err: any) {
-    ElMessage.error(err.message || '删除失败')
+    ElMessage.error((err as Error).message || '删除失败')
   }
 }
 
@@ -421,7 +421,7 @@ async function seedTemplates() {
     ElMessage.success('默认模板已初始化')
     loadTemplates()
   } catch (err: any) {
-    ElMessage.error(err.message || '初始化失败')
+    ElMessage.error((err as Error).message || '初始化失败')
   } finally {
     seedLoading.value = false
   }

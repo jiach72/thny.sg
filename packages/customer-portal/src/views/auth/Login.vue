@@ -139,8 +139,8 @@ async function handleLogin() {
       ElMessage.success('Welcome back.') // Minimalist success message
       const redirect = route.query.redirect as string
       router.push(redirect || '/dashboard')
-    } catch (error: any) {
-      ElMessage.error(error.message || 'Authentication failed')
+    } catch (error: unknown) {
+      ElMessage.error((error as Error).message || 'Authentication failed')
     } finally {
       loading.value = false
     }

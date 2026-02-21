@@ -293,8 +293,8 @@ async function submitMeeting() {
     })
     ElMessage.success('会议预约请求已发送')
     showMeetingDialog.value = false
-  } catch (error: any) {
-    ElMessage.error(error.message || '预约失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '预约失败')
   } finally {
     isSubmittingMeeting.value = false
   }

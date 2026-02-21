@@ -355,7 +355,7 @@ async function handleSetup2FA() {
     const data: any = await authApi.generate2fa()
     qrCodeUrl.value = data.qrCodeUrl
     secretCode.value = data.secret
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(err.response?.data?.message || '无法生成认证信息')
     show2faDialog.value = false
   } finally {
@@ -374,7 +374,7 @@ async function confirmEnable2FA() {
     settings.twoFactorEnabled = true
     show2faDialog.value = false
     ElMessage.success('已成功启用安全验证')
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(err.response?.data?.message || '您输入的验证码有误')
   } finally {
     loading2fa.value = false
@@ -392,7 +392,7 @@ async function confirmDisable2FA() {
     settings.twoFactorEnabled = false
     showDisable2faDialog.value = false
     ElMessage.success('已解除双重认证')
-  } catch (err: any) {
+  } catch (err: unknown) {
     ElMessage.error(err.response?.data?.message || '您输入的验证码有误')
   } finally {
     loading2fa.value = false

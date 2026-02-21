@@ -9,11 +9,11 @@ import { ADMIN_LOGIN_PATH } from '@/config/security'
  * 因此方法返回的是业务数据 T 而非 AxiosResponse<T>
  */
 export interface ApiClient {
-    get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>
-    post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
-    put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
-    patch<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
-    delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>
+    get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+    post<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+    put<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+    patch<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>
+    delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
     // 保留底层能力，供需要完整 AxiosResponse 的场景使用
     defaults: AxiosRequestConfig
     interceptors: typeof _rawClient.interceptors

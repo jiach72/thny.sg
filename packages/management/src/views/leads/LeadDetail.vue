@@ -204,7 +204,7 @@ async function handleAddNote(note: string) {
     await leadStore.addNote(lead.value.id, note)
     ElMessage.success('备注已添加')
   } catch (error: any) {
-    ElMessage.error(error.message || '添加备注失败')
+    ElMessage.error((error as Error).message || '添加备注失败')
   }
 }
 
@@ -225,7 +225,7 @@ async function handleAssignConfirm(payload: { userId: string; reason: string }) 
     ElMessage.success('分配成功')
     showAssignDialog.value = false
   } catch (error: any) {
-    ElMessage.error(error.message || '分配失败')
+    ElMessage.error((error as Error).message || '分配失败')
   }
 }
 
@@ -318,7 +318,7 @@ async function handleRemoveTag(tag: string) {
     await leadStore.updateLead(lead.value.id, { tags: updatedTags })
     ElMessage.success(`已移除标签`)
   } catch (error: any) {
-    ElMessage.error(error.message || '移除标签失败')
+    ElMessage.error((error as Error).message || '移除标签失败')
   }
 }
 

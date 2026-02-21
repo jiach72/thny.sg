@@ -448,7 +448,7 @@ function refreshData() {
 // API 调用
 async function fetchStats() {
   try {
-    const response: any = await apiClient.get(`/faq-admin/stats`)
+    const response = await apiClient.get(`/faq-admin/stats`)
     
     // Normalize response: output is either response.data (if wrapped) or response itself
     const data = response.data || response
@@ -458,25 +458,25 @@ async function fetchStats() {
     } else if (response?.success) {
          stats.value = response.data
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching stats:', error)
   }
 }
 
 async function fetchCategories() {
   try {
-    const response: any = await apiClient.get(`/faq-admin/categories`)
+    const response = await apiClient.get(`/faq-admin/categories`)
     // Handle both {success:true, data:[]} and []
     const data = Array.isArray(response) ? response : (response.data || [])
     categories.value = data
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching categories:', error)
   }
 }
 
 async function fetchItems() {
   try {
-    const response: any = await apiClient.get(`/faq-admin/items`)
+    const response = await apiClient.get(`/faq-admin/items`)
     
     // Normalize data: raw array OR wrapped data
     let data: any[] = []
@@ -492,8 +492,8 @@ async function fetchItems() {
     } else {
         items.value = [...data]
     }
-  } catch (error: any) {
-    ElMessage.error(`获取列表失败: ${error.message || error}`)
+  } catch (error: unknown) {
+    ElMessage.error(`获取列表失败: ${(error as Error).message || error}`)
   }
 }
 
@@ -508,7 +508,7 @@ async function fetchSessions() {
       params.status = sessionStatus.value
     }
     
-    const response: any = await apiClient.get(`/faq-admin/sessions`, { params })
+    const response = await apiClient.get(`/faq-admin/sessions`, { params })
     // Handle both wrapped and unwrapped (though pagination usually implies wrapped)
     // If raw array, assume no pagination or simplified structure
     if (response.success && response.data) {
@@ -528,7 +528,7 @@ async function fetchSessions() {
 
 async function fetchUnrecognized() {
   try {
-    const response: any = await apiClient.get(`/faq-admin/unrecognized`)
+    const response = await apiClient.get(`/faq-admin/unrecognized`)
     const data = Array.isArray(response) ? response : (response.data || [])
     unrecognizedQuestions.value = data
   } catch (error) {
@@ -733,10 +733,10 @@ async function handleImport(options: any) {
     } else {
       ElMessage.error(response.message || '导入失败')
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     loading.value = false
     console.error('Import error:', error)
-    const errMsg = error.response?.data?.message || error.message || '导入失败，请检查文件格式'
+    const errMsg = error.response?.data?.message || (error as Error).message || '导入失败，请检查文件格式'
     ElMessage.error(errMsg)
   }
 }

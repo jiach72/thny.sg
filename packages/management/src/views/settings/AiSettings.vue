@@ -145,7 +145,7 @@ async function saveSettings() {
     // 保存成功后重新加载配置
     await fetchSettings()
   } catch (error: any) {
-    const errMsg = error.error || error.message || '保存失败'
+    const errMsg = error.error || (error as Error).message || '保存失败'
     console.error('保存 AI 配置失败:', error)
     ElMessage.error(`保存失败: ${errMsg}`)
   } finally {

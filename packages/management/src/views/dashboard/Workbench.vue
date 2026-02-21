@@ -283,7 +283,7 @@ async function loadData() {
     workload.value = workloadData
     overdueStats.value = overdueData
   } catch (err: any) {
-    ElMessage.error(err.message || '加载失败')
+    ElMessage.error((err as Error).message || '加载失败')
   } finally {
     loading.value = false
     workloadLoading.value = false
@@ -352,7 +352,7 @@ async function batchAssign() {
     ElMessage.success(`分配完成：成功 ${result.assigned} 条，跳过 ${result.skipped} 条`)
     loadData()
   } catch (err: any) {
-    ElMessage.error(err.message || '分配失败')
+    ElMessage.error((err as Error).message || '分配失败')
   } finally {
     assignLoading.value = false
   }
@@ -379,7 +379,7 @@ async function createSopTasks() {
       loadData()
     }
   } catch (err: any) {
-    ElMessage.error(err.message || '创建失败')
+    ElMessage.error((err as Error).message || '创建失败')
   } finally {
     sopLoading.value = false
   }

@@ -337,8 +337,8 @@ async function loadProfile() {
     if (data.familyMembers && Array.isArray(data.familyMembers)) {
       familyMembers.value = data.familyMembers
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '加载个人资料失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '加载个人资料失败')
   } finally {
     profileLoading.value = false
   }
@@ -356,8 +356,8 @@ async function handleSaveProfile() {
     if (user.value) {
       user.value.name = profileForm.name
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '保存失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '保存失败')
   } finally {
     savingProfile.value = false
   }
@@ -383,8 +383,8 @@ async function handleChangePassword() {
     passwordForm.currentPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
-  } catch (error: any) {
-    ElMessage.error(error.message || '更新失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '更新失败')
   } finally {
     changingPassword.value = false
   }
@@ -434,8 +434,8 @@ async function handleAddMember() {
     newMemberForm.name = ''
     newMemberForm.relationship = ''
     newMemberForm.isBeneficiary = false
-  } catch (error: any) {
-    ElMessage.error(error.message || '添加失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '添加失败')
   } finally {
     addingMember.value = false
   }
@@ -446,8 +446,8 @@ async function handleDeleteMember(memberId: string) {
     await portalApi.deleteFamilyMember(memberId)
     familyMembers.value = familyMembers.value.filter(m => m.id !== memberId)
     ElMessage.success('成员已删除')
-  } catch (error: any) {
-    ElMessage.error(error.message || '删除失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '删除失败')
   }
 }
 

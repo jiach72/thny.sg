@@ -240,8 +240,8 @@ async function submitForm() {
     }
     showAddDialog.value = false
     loadUsers()
-  } catch (error: any) {
-    ElMessage.error(error.message || '操作失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '操作失败')
   } finally {
     submitting.value = false
   }
@@ -256,9 +256,9 @@ async function toggleStatus(user: User) {
     await apiClient.put(`/users/${user.id}`, { status: newStatus })
     ElMessage.success(`${action}成功`)
     loadUsers()
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error((error as Error).message || '操作失败')
     }
   }
 }

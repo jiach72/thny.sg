@@ -242,8 +242,8 @@ async function loadTasks() {
   loading.value = true
   try {
     tasks.value = await schedulerApi.getTasks()
-  } catch (err: any) {
-    ElMessage.error(err.message || '加载失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '加载失败')
   } finally {
     loading.value = false
   }
@@ -340,8 +340,8 @@ async function toggleTask(task: ScheduledTask & { updating?: boolean }, enabled:
     await schedulerApi.updateTask(task.name, { enabled })
     task.enabled = enabled
     ElMessage.success(enabled ? '任务已启用' : '任务已禁用')
-  } catch (err: any) {
-    ElMessage.error(err.message || '操作失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '操作失败')
   } finally {
     task.updating = false
   }
@@ -376,8 +376,8 @@ async function triggerTask(task: ScheduledTask & { triggering?: boolean }) {
     }
     
     loadTasks()
-  } catch (err: any) {
-    ElMessage.error(err.message || '执行失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '执行失败')
   } finally {
     task.triggering = false
   }
@@ -410,8 +410,8 @@ async function runAllTasks() {
     }
     
     loadTasks()
-  } catch (err: any) {
-    ElMessage.error(err.message || '执行失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '执行失败')
   } finally {
     runAllLoading.value = false
   }
@@ -437,8 +437,8 @@ async function saveTaskConfig() {
     ElMessage.success('配置已保存')
     editDialogVisible.value = false
     loadTasks()
-  } catch (err: any) {
-    ElMessage.error(err.message || '保存失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '保存失败')
   } finally {
     saveLoading.value = false
   }
@@ -454,8 +454,8 @@ async function testConnection() {
     } else {
       ElMessage.error(result.message || '连接失败')
     }
-  } catch (err: any) {
-    ElMessage.error(err.message || '测试失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '测试失败')
   } finally {
     testingConnection.value = false
   }
@@ -481,8 +481,8 @@ async function sendTestEmail() {
     } else {
       ElMessage.error(result.error || '发送失败')
     }
-  } catch (err: any) {
-    ElMessage.error(err.message || '发送失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '发送失败')
   } finally {
     sendingTestEmail.value = false
   }
@@ -498,8 +498,8 @@ async function reinitEmail() {
     } else {
       ElMessage.error(result.message || '初始化失败')
     }
-  } catch (err: any) {
-    ElMessage.error(err.message || '初始化失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '初始化失败')
   } finally {
     reinitLoading.value = false
   }

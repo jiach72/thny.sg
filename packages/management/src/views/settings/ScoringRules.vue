@@ -220,8 +220,8 @@ async function loadRules() {
   loading.value = true
   try {
     rules.value = await scoringApi.getRules(showInactive.value)
-  } catch (err: any) {
-    ElMessage.error(err.message || '加载失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '加载失败')
   } finally {
     loading.value = false
   }
@@ -292,8 +292,8 @@ async function submitForm() {
     
     dialogVisible.value = false
     loadRules()
-  } catch (err: any) {
-    ElMessage.error(err.message || '操作失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '操作失败')
   } finally {
     submitLoading.value = false
   }
@@ -305,8 +305,8 @@ async function toggleActive(rule: ScoringRule, isActive: boolean) {
     await scoringApi.updateRule(rule.id, { isActive })
     rule.isActive = isActive
     ElMessage.success(isActive ? '规则已启用' : '规则已禁用')
-  } catch (err: any) {
-    ElMessage.error(err.message || '操作失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '操作失败')
   }
 }
 
@@ -316,8 +316,8 @@ async function deleteRuleById(id: string) {
     await scoringApi.deleteRule(id)
     ElMessage.success('规则已删除')
     loadRules()
-  } catch (err: any) {
-    ElMessage.error(err.message || '删除失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '删除失败')
   }
 }
 
@@ -327,8 +327,8 @@ async function batchUpdate() {
   try {
     const result = await scoringApi.batchUpdateScores()
     ElMessage.success(`评分更新完成：成功 ${result.updated} 条，失败 ${result.failed} 条`)
-  } catch (err: any) {
-    ElMessage.error(err.message || '批量更新失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '批量更新失败')
   } finally {
     batchLoading.value = false
   }
@@ -341,8 +341,8 @@ async function seedRules() {
     await scoringApi.seedDefaultRules()
     ElMessage.success('默认规则已初始化')
     loadRules()
-  } catch (err: any) {
-    ElMessage.error(err.message || '初始化失败')
+  } catch (err: unknown) {
+    ElMessage.error((err as Error).message || '初始化失败')
   } finally {
     seedLoading.value = false
   }

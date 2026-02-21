@@ -8,7 +8,7 @@ interface User {
     email: string
     role: string
     avatarUrl?: string
-    familyMembers?: any[]
+    familyMembers?: Record<string, unknown>[]
     riskGrade?: string
     phone?: string
     company?: string
@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
     async function login(payload: { email: string; password: string }) {
         loading.value = true
         try {
-            const data = await authApi.login(payload) as any
+            const data = await authApi.login(payload)
 
             accessToken.value = data.accessToken
             refreshToken.value = data.refreshToken
@@ -48,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (!accessToken.value) return null
 
         try {
-            const data = await authApi.getCurrentUser() as any
+            const data = await authApi.getCurrentUser()
             user.value = data
             return data
         } catch {
@@ -62,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
             throw new Error('No refresh token')
         }
 
-        const data = await authApi.refreshToken(refreshToken.value) as any
+        const data = await authApi.refreshToken(refreshToken.value)
         accessToken.value = data.accessToken
         localStorage.setItem('accessToken', data.accessToken)
 
@@ -84,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('refreshToken', newRefreshToken)
     }
 
-    function setUser(userData: any) {
+    function setUser(userData: Record<string, unknown>) {
         user.value = userData
     }
 

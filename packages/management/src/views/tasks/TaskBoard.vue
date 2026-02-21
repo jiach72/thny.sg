@@ -224,8 +224,8 @@ async function handleCreate() {
       showCreateDialog.value = false
       resetForm()
       taskStore.fetchBoard()
-    } catch (error: any) {
-      ElMessage.error(error.message || '创建失败')
+    } catch (error: unknown) {
+      ElMessage.error((error as Error).message || '创建失败')
     } finally {
       submitting.value = false
     }
@@ -242,8 +242,8 @@ async function handleDragChange(event: any, newStatus: TaskStatus) {
       // 调用 Store 的 moveTask 更新后端状态
       await taskStore.moveTask(task.id, newStatus)
       ElMessage.success('任务状态已更新')
-    } catch (error: any) {
-      ElMessage.error(error.message || '移动失败')
+    } catch (error: unknown) {
+      ElMessage.error((error as Error).message || '移动失败')
       // 如果失败，应该刷新看板以重置 UI (简单回滚)
       taskStore.fetchBoard()
     }
@@ -256,8 +256,8 @@ async function handleStatusChange(newStatus: TaskStatus) {
   try {
     await taskStore.updateTask(selectedTask.value.id, { status: newStatus })
     ElMessage.success('状态已更新')
-  } catch (error: any) {
-    ElMessage.error(error.message || '更新失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '更新失败')
   }
 }
 

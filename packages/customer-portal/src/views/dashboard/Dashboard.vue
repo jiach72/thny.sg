@@ -331,8 +331,8 @@ async function submitMeeting() {
     })
     ElMessage.success('会议预约请求已发送')
     showMeetingDialog.value = false
-  } catch (error: any) {
-    ElMessage.error(error.message || '预约失败，请稍后重试')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '预约失败，请稍后重试')
   } finally {
     isSubmittingMeeting.value = false
   }

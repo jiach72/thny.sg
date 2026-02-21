@@ -217,7 +217,7 @@ const handleSubmit = async (): Promise<void> => {
         }
       } catch (error: any) {
         console.error('Submission error:', error)
-        ElMessage.error(error.message || t('contact.form.errorMessage'))
+        ElMessage.error((error as Error).message || t('contact.form.errorMessage'))
       } finally {
         submitting.value = false
       }

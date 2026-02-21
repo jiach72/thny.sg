@@ -278,8 +278,8 @@ async function saveWorkflow() {
       edges: []
     })
     ElMessage.success('工作流保存成功')
-  } catch (error: any) {
-    ElMessage.error(error.message || '工作流保存失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '工作流保存失败')
   }
 }
 
@@ -303,8 +303,8 @@ async function testWorkflow() {
       '测试运行控制台',
       { type: 'success', dangerouslyUseHTMLString: true }
     )
-  } catch (error: any) {
-    ElMessage.error(error.message || '运行测试失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '运行测试失败')
   }
 }
 

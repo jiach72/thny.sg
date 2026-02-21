@@ -246,8 +246,8 @@ async function savePermissions() {
       permissionCodes: Array.from(selectedPermissions.value)
     })
     ElMessage.success('权限保存成功')
-  } catch (error: any) {
-    ElMessage.error(error.message || '保存失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '保存失败')
   } finally {
     saving.value = false
   }
@@ -266,8 +266,8 @@ async function createRole() {
     roleForm.name = ''
     roleForm.description = ''
     loadRoles()
-  } catch (error: any) {
-    ElMessage.error(error.message || '创建失败')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '创建失败')
   } finally {
     creatingRole.value = false
   }
