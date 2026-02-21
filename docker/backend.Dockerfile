@@ -41,7 +41,6 @@ WORKDIR /app/backend
 
 # 复制后端相关文件
 COPY --from=builder /app/backend/dist ./dist
-COPY --from=builder /app/backend/node_modules ./node_modules
 COPY --from=builder /app/backend/prisma ./prisma
 COPY --from=builder /app/backend/package.json ./
 

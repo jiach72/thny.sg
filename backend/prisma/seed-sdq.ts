@@ -1,10 +1,11 @@
+/* eslint-disable no-console */
 
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
-async function main() {
+async function main(): Promise<void> {
     console.log('🥜 开始生成苏大强测试数据...')
 
     const email = 'sdq@abc.com'

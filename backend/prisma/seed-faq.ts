@@ -1,8 +1,9 @@
+/* eslint-disable no-console */
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-async function main() {
+async function main(): Promise<void> {
     console.log('开始生成 FAQ 种子数据...')
 
     // 1. 清理现有数据 (可选，这里我们选择追加或更新)
