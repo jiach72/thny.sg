@@ -110,12 +110,21 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { useI18n } from 'vue-i18n'
 import { Avatar, Check, DocumentChecked, Connection, TrendCharts } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
+
+useHead({
+  title: () => (route.meta.title as string) || '关于我们 | 通海南洋',
+  meta: [
+    { name: 'description', content: () => (route.meta.description as string) || '' },
+  ],
+})
 
 const goToContact = (): void => {
   router.push('/contact')

@@ -121,6 +121,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { useI18n } from 'vue-i18n'
 import { User, Calendar, View, ArrowLeft, Link, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -130,6 +131,21 @@ import DOMPurify from 'dompurify'
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
+
+// SEO：动态标题——加载文章后更新为文章标题
+useHead({
+  title: () => article.value?.title
+    ? `${article.value.title} | 通海南洋`
+    : (route.meta.title as string) || '新闻详情 | 通海南洋',
+  meta: [
+    {
+      name: 'description',
+      content: () => article.value?.summary
+        || (route.meta.description as string)
+        || '',
+    },
+  ],
+})
 
 // 状态
 const loading = ref(true)

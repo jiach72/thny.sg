@@ -1,11 +1,7 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 
-// 默认 SEO 信息
-const DEFAULT_TITLE = '通海南洋 | 稳健出海 · 传承未来'
-const DEFAULT_DESC = '新加坡一站式企业落地、身份规划、财富架构与资产配置专业咨询服务'
-
-const routes: RouteRecordRaw[] = [
+export const routes: RouteRecordRaw[] = [
     {
         path: '/',
         component: DefaultLayout,
@@ -85,33 +81,3 @@ const routes: RouteRecordRaw[] = [
         ],
     },
 ]
-
-const router = createRouter({
-    history: createWebHistory(),
-    routes,
-    scrollBehavior() {
-        return { top: 0 }
-    },
-})
-
-// 动态更新文档 title 和 meta description
-router.afterEach((to) => {
-    const title = (to.meta?.title as string) || DEFAULT_TITLE
-    const description = (to.meta?.description as string) || DEFAULT_DESC
-
-    document.title = title
-
-    // 更新 <meta name="description">
-    let metaDesc = document.querySelector('meta[name="description"]')
-    if (metaDesc) {
-        metaDesc.setAttribute('content', description)
-    } else {
-        metaDesc = document.createElement('meta')
-        metaDesc.setAttribute('name', 'description')
-        metaDesc.setAttribute('content', description)
-        document.head.appendChild(metaDesc)
-    }
-})
-
-export default router
-

@@ -4,11 +4,17 @@ import { ref } from 'vue'
 type Locale = 'zh-TW' | 'zh-CN' | 'en'
 
 export const useLanguageStore = defineStore('language', () => {
-    const currentLocale = ref<Locale>((localStorage.getItem('locale') as Locale) || 'zh-TW')
+    const currentLocale = ref<Locale>(
+        (!import.meta.env.SSR
+            ? (localStorage.getItem('locale') as Locale)
+            : null) || 'zh-TW'
+    )
 
     function setLocale(locale: Locale): void {
         currentLocale.value = locale
-        localStorage.setItem('locale', locale)
+        if (!import.meta.env.SSR) {
+            localStorage.setItem('locale', locale)
+        }
     }
 
     return {
@@ -16,3 +22,4 @@ export const useLanguageStore = defineStore('language', () => {
         setLocale
     }
 })
+

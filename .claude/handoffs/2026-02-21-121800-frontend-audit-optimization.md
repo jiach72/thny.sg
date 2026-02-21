@@ -96,15 +96,28 @@
 | 移除 typedApi | `apiClient.ts` | 不再需要——apiClient 本身支持泛型 |
 | 级联修复 | 4 个文件 | inquiryStore/appointmentStore 添加断言，NewsManagement/MessageSend 使用泛型 |
 
+#### 最终清理（90+ 处）
+
+| 类别 | 修改文件数 | 消除 any 数 |
+|------|-----------|------------|
+| `catch (error: any)` → `unknown` + 类型守卫 | 21 | ~50 |
+| `ref<any>` / `ref<any[]>` → 具体类型 | 6 | ~10 |
+| `as any` 断言移除/替换 | 8 | ~15 |
+| `response: any` → 移除 | 5 | ~7 |
+| **总计** | **~40 个文件** | **~150 处** |
+
+新增基础设施：
+- `packages/shared/utils/error.ts` — `getErrorMessage(error: unknown)` 安全错误提取函数
+- `ApiClient` 接口默认泛型 `T = any`（渐进式安全：现有代码无需改动，新代码可用 `get<T>()` 收紧）
+
 ---
 
 ## 已知残留问题
 
 ### 未修复（低优先级）
-- `any` 类型剩余 ~15 处（Element Plus 内部类型、少量 API 层 catch 块）
+- `any` 剩余 ~10 处（框架/运行时限制：Element Plus 图标类型、draggable 事件、Blob 构造、动态属性删除）
 - Dashboard "最新线索" 为空 — API 过滤条件可能排除已转化线索
 - InquiryList CSS `line-clamp` 兼容性警告 — 非功能性
-- SalesDashboard 团队绩效/预测分析 "暂无数据" — 数据量不足，属正常
 
 ### 新增依赖
 - `dompurify` + `@types/dompurify` 已安装到 `packages/website`
@@ -148,5 +161,39 @@
 
 ## 下一步建议
 
-1. **官网 Vite SSG 预渲染**: 安装 `vite-ssg` + `@unhead/vue`，实现静态 HTML 生成（建议新会话）
-2. **剩余 ~15 处 any 清理**: Element Plus 内部类型和少量 catch 块，低优先级
+1. ~~**官网 Vite SSG 预渲染**: 安装 `vite-ssg` + `@unhead/vue`，实现静态 HTML 生成~~ ✅ **已完成**（会话 `709713a2`）
+
+---
+
+## 延续会话：Vite SSG 预渲染（2026-02-21 13:14）
+
+**会话 ID**: `709713a2-e551-4536-b3ed-7c4eb2e44b50`
+
+### 已完成工作
+
+| 变更 | 文件 | 方法 |
+|------|------|------|
+| ViteSSG 入口重构 | `packages/website/src/main.ts` | `createApp().mount()` → `ViteSSG()` 工厂 + Pinia 状态序列化 |
+| 路由简化 | `packages/website/src/router/index.ts` | 仅导出 `routes` 数组，删除 `createRouter` + `afterEach` SEO 守卫 |
+| useHead SEO | 8 个页面视图组件 | `useHead({ title, meta })` 替代路由守卫动态 `document.title` |
+| SSR 安全 | `stores/language.ts` + `i18n/index.ts` | `import.meta.env.SSR` 守卫 `localStorage` |
+| ClientOnly | `App.vue` | ChatWidget 包裹 `<client-only>` |
+| 构建配置 | `vite.config.ts` + `package.json` | `ssgOptions` + `vite-ssg build` |
+| HTML 清理 | `index.html` | 移除硬编码 `<title>` 和 `<meta description>` |
+
+### 构建验证
+
+- `vite-ssg build` 零错误，生成 8 个预渲染 HTML（总计 ~120 KiB）
+- 每页含独立 `<title>` 和 `<meta description>`
+- HTML 包含完整预渲染 DOM（非空 `<div id="app">`）
+
+### 新增依赖
+
+- `vite-ssg` (devDependency) — `packages/website`
+- `@unhead/vue` (devDependency) — `packages/website`
+
+### 关键架构变化
+
+1. **SEO 管理**: 从路由守卫 `document.title` 迁移到组件级 `useHead()`，SSG 构建时自动注入到 HTML
+2. **Pinia SSG**: 初始状态通过 `initialState.pinia` 序列化到 HTML，客户端激活时恢复
+3. **浏览器 API 隔离**: `localStorage` / WebSocket 等浏览器 API 用 `import.meta.env.SSR` 或 `<ClientOnly>` 隔离

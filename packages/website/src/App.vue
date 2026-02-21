@@ -1,7 +1,9 @@
 <template>
   <router-view />
-  <!-- 全局聊天机器人组件 -->
-  <ChatWidget />
+  <!-- 全局聊天机器人组件（仅客户端渲染） -->
+  <client-only>
+    <ChatWidget />
+  </client-only>
 </template>
 
 <script setup lang="ts">

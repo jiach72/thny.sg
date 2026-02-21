@@ -127,6 +127,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { useI18n } from 'vue-i18n'
 import { View, Document } from '@element-plus/icons-vue'
 import apiClient from '../api/apiClient'
@@ -134,6 +135,13 @@ import apiClient from '../api/apiClient'
 const { t, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
+
+useHead({
+  title: () => (route.meta.title as string) || '新闻资讯 | 通海南洋',
+  meta: [
+    { name: 'description', content: () => (route.meta.description as string) || '' },
+  ],
+})
 
 // 状态
 const loading = ref(false)

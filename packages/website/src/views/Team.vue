@@ -115,12 +115,21 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { useI18n } from 'vue-i18n'
 import { Avatar, Briefcase, User, Location } from '@element-plus/icons-vue'
 
 const { t, tm } = useI18n()
 const router = useRouter()
+const route = useRoute()
+
+useHead({
+  title: () => (route.meta.title as string) || '专家团队 | 通海南洋',
+  meta: [
+    { name: 'description', content: () => (route.meta.description as string) || '' },
+  ],
+})
 
 const goToContact = () => {
   router.push('/contact')

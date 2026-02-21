@@ -59,7 +59,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { useI18n } from 'vue-i18n'
 import { 
   Dish, 
@@ -73,6 +74,14 @@ import {
 
 const { tm } = useI18n()
 const router = useRouter()
+const route = useRoute()
+
+useHead({
+  title: () => (route.meta.title as string) || '行业方案 | 通海南洋',
+  meta: [
+    { name: 'description', content: () => (route.meta.description as string) || '' },
+  ],
+})
 
 const industryItems = computed(() => {
   return tm('industries.items')

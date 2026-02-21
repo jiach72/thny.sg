@@ -227,7 +227,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { 
   OfficeBuilding, 
   Check, 
@@ -242,7 +243,15 @@ import { useI18n } from 'vue-i18n'
 
 const { tm } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const activeSection = ref('corporate')
+
+useHead({
+  title: () => (route.meta.title as string) || '服务项目 | 通海南洋',
+  meta: [
+    { name: 'description', content: () => (route.meta.description as string) || '' },
+  ],
+})
 
 // Navigation Items
 const navItems = [

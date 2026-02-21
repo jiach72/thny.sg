@@ -142,6 +142,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Location, Message, Clock, Check } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -149,6 +151,14 @@ import { useI18n } from 'vue-i18n'
 import apiClient from '../api/apiClient'
 
 const { t, tm } = useI18n()
+const route = useRoute()
+
+useHead({
+  title: () => (route.meta.title as string) || '联系我们 | 通海南洋',
+  meta: [
+    { name: 'description', content: () => (route.meta.description as string) || '' },
+  ],
+})
 
 interface ContactForm {
   name: string

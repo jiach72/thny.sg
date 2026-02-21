@@ -158,7 +158,8 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
 import { 
   OfficeBuilding, 
   User, 
@@ -173,6 +174,14 @@ import type { Component } from 'vue'
 import HomeNews from '@/components/HomeNews.vue'
 
 const router = useRouter()
+const route = useRoute()
+
+useHead({
+  title: () => (route.meta.title as string) || '通海南洋 | 稳健出海 · 传承未来',
+  meta: [
+    { name: 'description', content: () => (route.meta.description as string) || '新加坡一站式企业落地、身份规划、财富架构与资产配置专业咨询服务' },
+  ],
+})
 
 interface ServiceItem {
   icon: Component
