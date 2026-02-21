@@ -21,7 +21,7 @@ export const useInquiryStore = defineStore('inquiry', () => {
     async function fetchInquiries(params: Record<string, unknown> = {}) {
         loading.value = true
         try {
-            const res = await inquiryApi.getInquiries(params)
+            const res = await inquiryApi.getInquiries(params) as { data: Inquiry[] }
             inquiries.value = res.data
             return res.data
         } finally {
@@ -30,7 +30,7 @@ export const useInquiryStore = defineStore('inquiry', () => {
     }
 
     async function updateInquiry(id: string, data: Partial<Inquiry>) {
-        const res = await inquiryApi.update(id, data)
+        const res = await inquiryApi.update(id, data) as { data: Inquiry }
         return res.data
     }
 

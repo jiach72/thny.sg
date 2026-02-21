@@ -169,7 +169,7 @@ const rules: FormRules = {
 async function loadCustomers() {
   loadingCustomers.value = true
   try {
-    const result = await messageApi.getCustomers()
+    const result = await messageApi.getCustomers() as CustomerOption[]
     customers.value = result || []
   } catch {
     customers.value = []

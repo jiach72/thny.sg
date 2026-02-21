@@ -21,7 +21,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
     async function fetchAppointments(params: Record<string, unknown> = {}) {
         loading.value = true
         try {
-            const res = await appointmentApi.getAppointments(params)
+            const res = await appointmentApi.getAppointments(params) as { data: Appointment[] }
             appointments.value = res.data
             return res.data
         } finally {
@@ -30,13 +30,13 @@ export const useAppointmentStore = defineStore('appointment', () => {
     }
 
     async function createAppointment(data: Omit<Appointment, 'id'>) {
-        const res = await appointmentApi.create(data)
+        const res = await appointmentApi.create(data) as { data: Appointment }
         // 简单追加到本地列表，或者重新 fetch
         return res.data
     }
 
     async function updateAppointment(id: string, data: Partial<Appointment>) {
-        const res = await appointmentApi.update(id, data)
+        const res = await appointmentApi.update(id, data) as { data: Appointment }
         return res.data
     }
 

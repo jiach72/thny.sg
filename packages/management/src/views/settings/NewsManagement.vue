@@ -376,7 +376,7 @@ async function fetchArticles() {
     if (filters.source) params.source = filters.source
     if (filters.search) params.search = filters.search
 
-    const response = await apiClient.get(`/news-admin/articles`, { params })
+    const response = await apiClient.get<{ articles: NewsArticle[]; pagination: { total: number; page: number; pageSize: number } }>(`/news-admin/articles`, { params })
     // apiClient 智能解包后 response 即为业务数据
     articles.value = response.articles
     pagination.value = { ...pagination.value, ...response.pagination }
@@ -390,7 +390,7 @@ async function fetchArticles() {
 // 获取统计数据
 async function fetchStats() {
   try {
-    const response = await apiClient.get(`/news-admin/stats`)
+    const response = await apiClient.get<typeof stats.value>(`/news-admin/stats`)
     // apiClient 智能解包后 response 即为业务数据
     stats.value = response
   } catch (error) {
