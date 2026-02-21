@@ -26,8 +26,8 @@ FROM nginx:alpine
 # 复制构建产物
 COPY --from=builder /app/packages/management/dist /usr/share/nginx/html
 
-# 复制 Nginx 配置 (可选，如果需要自定义)
-# COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+# 复制 SPA 专用 Nginx 配置
+COPY docker/nginx.spa.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
