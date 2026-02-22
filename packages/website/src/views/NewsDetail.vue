@@ -154,8 +154,9 @@ const popularArticles = ref<any[]>([])
 
 // 渲染内容（通过 DOMPurify 消毒防止 XSS，RSS 源内容可能含恶意脚本）
 const renderedContent = computed(() => {
-  if (!article.value?.content) return ''
-  const raw = article.value.content
+  const contentToRender = article.value?.content || article.value?.summary || ''
+  if (!contentToRender) return ''
+  const raw = contentToRender
     .replace(/\n/g, '<br/>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
   return DOMPurify.sanitize(raw)

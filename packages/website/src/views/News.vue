@@ -300,11 +300,12 @@ onMounted(() => {
   font-size: 3rem;
   margin: 0 0 16px;
   font-weight: 800;
+  color: white;
 }
 
 .hero-section .subtitle {
-  font-size: 18px;
-  opacity: 0.9;
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0;
 }
 
