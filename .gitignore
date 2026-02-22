@@ -25,3 +25,7 @@ coverage/
 # 构建缓存
 *.tsbuildinfo
 .cache/
+
+# 临时分析文件
+analyze.cjs
+eslint_report.json
