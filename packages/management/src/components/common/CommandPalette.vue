@@ -232,7 +232,8 @@ const mockResults: SearchResult[] = [
   { id: 'page-reports', title: '报表中心', subtitle: '数据分析和报表', category: 'page', route: '/reports' },
   { id: 'page-messages', title: '消息发送', subtitle: '客户消息管理', category: 'page', route: '/messages' },
   { id: 'page-invoices', title: '发票管理', subtitle: '发票和账单', category: 'page', route: '/settings/invoices' },
-  { id: 'page-users', title: '用户管理', subtitle: '管理系统用户', category: 'page', route: '/settings/users' },
+  { id: 'page-customers', title: '客户管理', subtitle: '管理客户信息与画像', category: 'page', route: '/customers' },
+  { id: 'page-users', title: '员工管理', subtitle: '管理系统内部员工', category: 'page', route: '/settings/users' },
   { id: 'page-roles', title: '角色权限', subtitle: '配置角色和权限', category: 'page', route: '/settings/roles' },
 ]
 

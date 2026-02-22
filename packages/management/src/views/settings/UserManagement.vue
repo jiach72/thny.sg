@@ -2,7 +2,7 @@
   <div class="user-management">
     <div class="page-header">
       <div class="page-header-left">
-        <h1 class="page-title">用户管理</h1>
+        <h1 class="page-title">员工管理</h1>
         <p class="page-subtitle">管理系统用户账号与权限分配</p>
       </div>
       <div class="page-header-right">

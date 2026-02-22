@@ -30,6 +30,11 @@
           <el-icon><User /></el-icon>
           <template #title>线索管理</template>
         </el-menu-item>
+
+        <el-menu-item index="/customers">
+          <el-icon><Avatar /></el-icon>
+          <template #title>客户管理</template>
+        </el-menu-item>
         
         <el-menu-item index="/projects">
           <el-icon><Briefcase /></el-icon>
@@ -72,7 +77,7 @@
           </el-menu-item>
           <el-menu-item index="/settings/users">
             <el-icon><UserFilled /></el-icon>
-            <span>用户管理</span>
+            <span>员工管理</span>
           </el-menu-item>
           <el-menu-item index="/settings/roles">
             <el-icon><Key /></el-icon>
@@ -206,6 +211,7 @@ import {
   Search,
   TrendCharts,
   Connection,
+  Avatar,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -218,8 +224,8 @@ const showCommandPalette = ref(false)
 
 const activeMenu = computed(() => {
   const path = route.path
-  // 处理详情页高亮
   if (path.startsWith('/leads/')) return '/leads'
+  if (path.startsWith('/customers/')) return '/customers'
   return path
 })
 

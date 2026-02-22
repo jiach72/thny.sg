@@ -41,6 +41,18 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '线索详情' },
             },
             {
+                path: 'customers',
+                name: 'CustomerList',
+                component: () => import('@/views/customers/CustomerList.vue'),
+                meta: { title: '客户管理' },
+            },
+            {
+                path: 'customers/:id',
+                name: 'CustomerDetail',
+                component: () => import('@/views/customers/CustomerDetail.vue'),
+                meta: { title: '客户详情' },
+            },
+            {
                 path: 'tasks',
                 name: 'TaskBoard',
                 component: () => import('@/views/tasks/TaskBoard.vue'),
@@ -74,7 +86,7 @@ const routes: RouteRecordRaw[] = [
                 path: 'settings/users',
                 name: 'UserManagement',
                 component: () => import('@/views/settings/UserManagement.vue'),
-                meta: { title: '用户管理' },
+                meta: { title: '员工管理' },
             },
             {
                 path: 'settings/roles',
@@ -87,12 +99,6 @@ const routes: RouteRecordRaw[] = [
                 name: 'MessageSend',
                 component: () => import('@/views/messages/MessageSend.vue'),
                 meta: { title: '消息发送' },
-            },
-            {
-                path: 'reports',
-                name: 'ReportCenter',
-                component: () => import('@/views/reports/ReportCenter.vue'),
-                meta: { title: '报表中心' },
             },
             {
                 path: 'settings/faq',
