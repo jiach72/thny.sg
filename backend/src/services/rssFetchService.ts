@@ -112,8 +112,23 @@ export const rssFetchService = {
         }
 
         try {
+            const response = await fetch(feed.url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const xmlText = await response.text();
+            // 修复由于 meta, link 标签未闭合导致 rss-parser 严格模式报错的问题
+            const cleanXml = xmlText.replace(/<meta([^>]+)(?!\/|\\\\\/)>/gi, '<meta$1 />').replace(/<link([^>]+)(?!\/|\\\\\/)>/gi, '<link$1 />');
+
             const parser = await getParser()
-            const result = await parser.parseURL(feed.url)
+            parser.options.xml2js = { ...parser.options.xml2js, strict: false };
+            const result = await parser.parseString(cleanXml)
 
             let newCount = 0
 
@@ -140,7 +155,7 @@ export const rssFetchService = {
                         author: item.creator || item.author,
                         type: 'INDUSTRY',
                         category: feed.category,
-                        status: 'DRAFT', // RSS 抓取的默认为草稿
+                        status: 'PUBLISHED', // 直接设为发布状态，以便在前端展示
                         rssFeedId: feed.id,
                         publishedAt: item.pubDate ? new Date(item.pubDate) : undefined,
                     })
@@ -224,8 +239,22 @@ export const rssFetchService = {
         error?: string
     }> {
         try {
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const xmlText = await response.text();
+            const cleanXml = xmlText.replace(/<meta([^>]+)(?!\/|\\\\\/)>/gi, '<meta$1 />').replace(/<link([^>]+)(?!\/|\\\\\/)>/gi, '<link$1 />');
+
             const parser = await getParser()
-            const result = await parser.parseURL(url)
+            parser.options.xml2js = { ...parser.options.xml2js, strict: false };
+            const result = await parser.parseString(cleanXml)
 
             return {
                 valid: true,

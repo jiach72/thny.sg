@@ -297,9 +297,9 @@ onMounted(() => {
 }
 
 .hero-section h1 {
-  font-size: 48px;
+  font-size: 3rem;
   margin: 0 0 16px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .hero-section .subtitle {
