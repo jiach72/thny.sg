@@ -250,7 +250,7 @@ async function fetchAll() {
 async function fetchStats() {
   try {
     const res = await apiClient.get('/customers/stats') as any
-    stats.value = res.data || res || {}
+    stats.value = res || {}
   } catch (e) {
     console.error('加载统计失败', e)
   }
@@ -268,10 +268,9 @@ async function fetchCustomers() {
     if (filters.sourceChannel) params.append('sourceChannel', filters.sourceChannel)
 
     const res = await apiClient.get(`/customers?${params}`) as any
-    const result = res.data || res
-    customers.value = result.data || []
-    if (result.pagination) {
-      pagination.total = result.pagination.total
+    customers.value = res?.data || []
+    if (res?.pagination) {
+      pagination.total = res.pagination.total
     }
   } catch (e) {
     console.error('加载客户列表失败', e)

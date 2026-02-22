@@ -378,7 +378,7 @@ async function fetchDetail() {
   loading.value = true
   try {
     const res = await apiClient.get(`/customers/${customerId.value}`) as any
-    customer.value = res.data || res
+    customer.value = res
     // 填充表单
     profileForm.contactName = customer.value.contactName || customer.value.lead?.contactName || ''
     profileForm.companyName = customer.value.companyName || customer.value.lead?.companyName || ''
@@ -404,7 +404,7 @@ async function fetchDetail() {
 async function fetchTimeline() {
   try {
     const res = await apiClient.get(`/customers/${customerId.value}/timeline`) as any
-    timeline.value = res.data || res || []
+    timeline.value = Array.isArray(res) ? res : []
   } catch (e) {
     console.error('加载时间线失败', e)
     timeline.value = []
