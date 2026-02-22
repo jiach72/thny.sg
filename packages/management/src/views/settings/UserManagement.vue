@@ -26,8 +26,8 @@
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="filters.status" placeholder="全部" clearable @change="loadUsers">
-            <el-option label="活跃" value="ACTIVE" />
-            <el-option label="停用" value="INACTIVE" />
+            <el-option label="已启用" value="ACTIVE" />
+            <el-option label="已停用" value="INACTIVE" />
             <el-option label="暂停" value="SUSPENDED" />
           </el-select>
         </el-form-item>
@@ -57,7 +57,7 @@
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'" size="small">
-              {{ row.status === 'ACTIVE' ? '活跃' : row.status === 'INACTIVE' ? '停用' : '暂停' }}
+              {{ row.status === 'ACTIVE' ? '已启用' : row.status === 'INACTIVE' ? '已停用' : '已暂停' }}
             </el-tag>
           </template>
         </el-table-column>

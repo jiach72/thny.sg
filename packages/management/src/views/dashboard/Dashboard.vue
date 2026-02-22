@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useLeadStore, useTaskStore, useAuthStore } from '@/stores'
+import { useLeadStore, useTaskStore, useAuthStore, useAppointmentStore } from '@/stores'
 import { Plus } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import LeadFormDialog from '../leads/components/LeadFormDialog.vue'
@@ -80,6 +80,7 @@ import DashboardSidebar from './components/DashboardSidebar.vue'
 const leadStore = useLeadStore()
 const taskStore = useTaskStore()
 const authStore = useAuthStore()
+const appointmentStore = useAppointmentStore()
 
 const { stats: taskStats } = storeToRefs(taskStore)
 
@@ -103,7 +104,11 @@ const handleCreateSuccess = () => {
 
 onMounted(async () => {
     await Promise.all([
+        leadStore.fetchStats(),
+        leadStore.fetchLeads(),
         taskStore.fetchStats(),
+        taskStore.fetchTasks(),
+        appointmentStore.fetchAppointments(),
     ])
 })
 </script>

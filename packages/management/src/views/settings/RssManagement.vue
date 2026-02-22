@@ -215,9 +215,9 @@ async function fetchFeeds() {
   loading.value = true
   try {
     const data = await apiClient.get('/news-admin/feeds') as RssFeed[] | { data: RssFeed[] }
-    // apiClient 智能解包后 data 即为业务数组
-    const feedList = Array.isArray(data) ? data : []
-    feeds.value = feedList.map((f) => ({ ...f, fetching: false }))
+    // 兼容 { success, data: [...] } 和直接数组两种返回格式
+    const feedList = Array.isArray(data) ? data : (data as any)?.data || []
+    feeds.value = feedList.map((f: RssFeed) => ({ ...f, fetching: false }))
     stats.value.totalFeeds = feeds.value.length
     stats.value.activeFeeds = feeds.value.filter((f) => f.isActive).length
   } catch (error) {
@@ -237,10 +237,11 @@ async function testFeed() {
   testing.value = true
   testResult.value = null
   try {
-    const data = await apiClient.post('/news-admin/feeds/test', {
+    const resp = await apiClient.post('/news-admin/feeds/test', {
       url: feedForm.value.url,
-    })
-    testResult.value = data as RssTestResult
+    }) as any
+    // 兼容 { success, data: { valid, ... } } 格式
+    testResult.value = (resp?.data || resp) as RssTestResult
   } catch (error) {
     testResult.value = { valid: false, error: '测试失败' }
   } finally {

@@ -28,6 +28,9 @@ router.get('/', async (req, res) => {
 
         if (roleCode) {
             where.role = { code: roleCode }
+        } else {
+            // 默认排除 CUSTOMER 角色，仅显示内部员工
+            where.role = { code: { not: 'CUSTOMER' } }
         }
 
         if (status) {

@@ -33,7 +33,7 @@ export const documentService = {
      * 上传文档
      */
     async uploadDocument(data: {
-        projectId: string
+        projectId: string | null
         fileName: string
         filePath: string
         fileType: string

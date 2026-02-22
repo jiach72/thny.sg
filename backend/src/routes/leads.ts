@@ -155,8 +155,8 @@ router.post(
     optionalAuth,
     [
         body('name').notEmpty().withMessage('姓名不能为空'),
-        body('email').optional().isEmail(),
-        body('phone').optional().isString(),
+        body('email').optional({ values: 'falsy' }).isEmail(),
+        body('phone').optional({ values: 'falsy' }).isString(),
     ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {

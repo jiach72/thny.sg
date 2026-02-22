@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB 单文件限制
 })
 
 const router = Router()
@@ -105,15 +105,26 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
         }
 
         const { projectId } = req.body
-        if (!projectId) {
-            return res.status(400).json({ message: 'projectId is required' })
-        }
-
         const userId = req.user!.id
         const userRole = req.user!.role
 
-        // 校验项目归属权限（管理员跳过）
-        if (userRole !== 'ADMIN') {
+        // 检查用户总存储空间（100MB 限额）
+        const MAX_TOTAL_STORAGE = 100 * 1024 * 1024 // 100MB
+        const usedStorage = await prisma.document.aggregate({
+            where: { uploadedById: userId },
+            _sum: { fileSize: true },
+        })
+        const currentUsage = usedStorage._sum.fileSize || 0
+        if (currentUsage + req.file.size > MAX_TOTAL_STORAGE) {
+            // 清理已上传的文件
+            fs.unlinkSync(req.file.path)
+            return res.status(413).json({
+                message: `存储空间不足。已使用 ${(currentUsage / 1024 / 1024).toFixed(1)}MB / 100MB，无法上传 ${(req.file.size / 1024 / 1024).toFixed(1)}MB 的文件`,
+            })
+        }
+
+        // 如果指定了 projectId，校验项目归属权限（管理员跳过）
+        if (projectId && userRole !== 'ADMIN') {
             const project = await prisma.project.findFirst({
                 where: {
                     id: projectId,
@@ -129,7 +140,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
         }
 
         const doc = await documentService.uploadDocument({
-            projectId,
+            projectId: projectId || null,
             fileName: req.file.originalname,
             filePath: req.file.path,
             fileSize: req.file.size,

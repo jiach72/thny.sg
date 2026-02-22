@@ -211,6 +211,11 @@ model Customer {
   companyInfo   Json?     @map("company_info")
   kycStatus     KycStatus @default(PENDING) @map("kyc_status")
   riskGrade     RiskGrade @default(LOW) @map("risk_grade")
+  // 客户画像增强字段
+  birthday      DateTime? @db.Date
+  occupation    String?
+  interests     String[]  // 兴趣爱好标签
+  profileNotes  String?   @map("profile_notes") @db.Text // 顾问备注
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   deletedAt     DateTime? @map("deleted_at") // 软删除字段
