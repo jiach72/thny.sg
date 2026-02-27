@@ -254,9 +254,11 @@ export const authService = {
             }
 
             const accessToken = this.generateAccessToken(user)
+            const newRefreshToken = this.generateRefreshToken(user)
 
             return {
                 accessToken,
+                refreshToken: newRefreshToken,
                 expiresIn: 900,
             }
         } catch (error) {
@@ -394,6 +396,130 @@ export const authService = {
                 role: updatedUser.role,
                 avatarUrl: updatedUser.avatarUrl,
             },
+        }
+    },
+
+    /**
+     * 忘记密码 — 生成重置 token 并发送邮件
+     * 防枚举攻击：无论邮箱是否存在，都返回相同消息
+     */
+    async forgotPassword(email: string) {
+        const user = await prisma.user.findUnique({ where: { email } })
+
+        if (user && user.status === 'ACTIVE') {
+            // 生成带有加密随机的 reset token
+            const { randomBytes } = await import('crypto')
+            const resetToken = randomBytes(32).toString('hex')
+            const expiry = new Date(Date.now() + 60 * 60 * 1000) // 1 小时有效
+
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    setupToken: resetToken,
+                    setupTokenExpiry: expiry,
+                },
+            })
+
+            // 发送重置邮件（不阻塞请求）
+            try {
+                const { emailTemplateService } = await import('./emailTemplateService.js')
+                const resetUrl = `${config.managementUrl}/reset-password?token=${resetToken}`
+                await emailTemplateService.sendEmail({
+                    recipient: user.email,
+                    subject: '通海南洋 — 密码重置',
+                    body: `
+                        <h2>密码重置请求</h2>
+                        <p>您好 ${user.name}，</p>
+                        <p>我们收到了您的密码重置请求。请点击以下链接设置新密码：</p>
+                        <p><a href="${resetUrl}" style="background:#1e3a5f;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;">重置密码</a></p>
+                        <p>此链接将在 1 小时后失效。如非本人操作，请忽略此邮件。</p>
+                        <p>— 通海南洋团队</p>
+                    `,
+                })
+            } catch {
+                // 邮件发送失败不阻塞流程，错误已由 emailService 内部记录
+            }
+        }
+
+        // 始终返回相同消息（防止用户枚举）
+        return {
+            success: true,
+            message: '如果该邮箱已注册，您将收到一封密码重置邮件',
+        }
+    },
+
+    /**
+     * 重置密码 — 验证 token 并设置新密码
+     */
+    async resetPassword(token: string, newPassword: string) {
+        const user = await prisma.user.findFirst({
+            where: {
+                setupToken: token,
+                setupTokenExpiry: { gt: new Date() },
+            },
+        })
+
+        if (!user) {
+            throw new BadRequestError('重置链接无效或已过期，请重新申请')
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 12)
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                passwordHash,
+                setupToken: null,
+                setupTokenExpiry: null,
+            },
+        })
+
+        return {
+            success: true,
+            message: '密码已重置成功，请用新密码登录',
+        }
+    },
+
+    /**
+     * 获取系统初始化状态
+     */
+    async getSetupStatus() {
+        // 检查是否有关联 ADMIN 角色的有效用户
+        const adminCount = await prisma.user.count({
+            where: { role: { code: 'ADMIN' } }
+        })
+        return { isInitialized: adminCount > 0 }
+    },
+
+    /**
+     * 首次系统启动：创建超级管理员
+     */
+    async setupFirstAdmin({ email, password, name }: RegisterInput) {
+        // 安全强校验：防止重复初始化
+        const status = await this.getSetupStatus()
+        if (status.isInitialized) {
+            throw new BadRequestError('系统已初始化超级管理员过，禁止再次执行此操作。')
+        }
+
+        const adminRole = await prisma.role.findUnique({ where: { code: 'ADMIN' } })
+        if (!adminRole) {
+            throw new Error('系统异常：未找到 ADMIN 角色定义，请确保已经运行了角色的种子脚本。')
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12)
+        const user = await prisma.user.create({
+            data: {
+                email,
+                name,
+                passwordHash,
+                roleId: adminRole.id,
+                status: 'ACTIVE',
+            },
+        })
+
+        return {
+            success: true,
+            user: { id: user.id, name: user.name, email: user.email }
         }
     },
 }

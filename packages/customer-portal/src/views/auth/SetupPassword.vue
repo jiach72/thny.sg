@@ -93,6 +93,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Lock, Check, Warning } from '@element-plus/icons-vue'
 import { authApi } from '@/api'
 import { useAuthStore } from '@/stores/authStore'
+import type { User } from '@tonghai/shared'
 
 const route = useRoute()
 const router = useRouter()
@@ -109,7 +110,7 @@ const form = reactive({
   confirmPassword: ''
 })
 
-const validateConfirmPassword = (_rule: any, value: string, callback: (error?: string | Error) => void) => {
+const validateConfirmPassword = (_rule: unknown, value: string, callback: (error?: string | Error) => void): void => {
   if (value !== form.password) {
     callback(new Error('两次输入的密码不一致'))
   } else {
@@ -137,11 +138,11 @@ onMounted(async () => {
 
   try {
     const response = await authApi.validateSetupToken(token)
-    if (response.data.valid) {
+    if (response?.valid) {
       tokenValid.value = true
       userInfo.value = {
-        name: response.data.name,
-        email: response.data.email
+        name: response.name,
+        email: response.email
       }
     }
   } catch {
@@ -151,7 +152,7 @@ onMounted(async () => {
   }
 })
 
-const handleSetup = async () => {
+const handleSetup = async (): Promise<void> => {
   if (!formRef.value) return
 
   await formRef.value.validate(async (valid) => {
@@ -162,18 +163,19 @@ const handleSetup = async () => {
       const token = route.query.token as string
       const response = await authApi.setupPassword(token, form.password)
       
-      if (response.data.success) {
+      if (response?.success) {
         // 自动登录
-        authStore.setTokens(response.data.accessToken, response.data.refreshToken)
-        authStore.setUser(response.data.user)
+        authStore.setTokens(response.accessToken, response.refreshToken)
+        authStore.setUser(response.user as unknown as User)
         
         ElMessage.success('密码设置成功，即将跳转...')
         setTimeout(() => {
           router.push('/dashboard')
         }, 1000)
       }
-    } catch (error: any) {
-      ElMessage.error(error.response?.data?.message || '设置密码失败')
+    } catch (error: unknown) {
+      const errObj = error as { response?: { data?: { message?: string } } }
+      ElMessage.error(errObj.response?.data?.message || '设置密码失败')
     } finally {
       loading.value = false
     }

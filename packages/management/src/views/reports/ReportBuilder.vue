@@ -54,7 +54,7 @@
               <div class="report-actions">
                 <el-button text :icon="Download" @click.stop="exportReport(report)">导出</el-button>
                 <el-button text :icon="Edit" @click.stop="editReport(report)">编辑</el-button>
-                <el-button text type="danger" :icon="Delete" @click.stop="deleteReport(report)">删除</el-button>
+                <el-button text type="danger" v-permission="['reports:manage']" :icon="Delete" @click.stop="deleteReport(report)">删除</el-button>
               </div>
             </div>
           </div>

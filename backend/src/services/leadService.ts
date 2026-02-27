@@ -1,5 +1,7 @@
 import { prisma } from '../config/index.js'
 import { NotFoundError, ConflictError } from '../middlewares/index.js'
+import { scoringService } from './scoringService.js'
+import { webhookService } from './webhookService.js'
 import type { LeadStatus, Prisma } from '@prisma/client'
 
 interface CreateLeadInput {
@@ -149,6 +151,42 @@ export const leadService = {
     },
 
     /**
+     * 防重检测 (智能检索现存线索或客户)
+     */
+    async checkDuplicates(email?: string, phone?: string, excludeLeadId?: string) {
+        if (!email && !phone) return { leads: [], customers: [] }
+
+        const orConditions = []
+        if (email) orConditions.push({ email })
+        if (phone) orConditions.push({ phone })
+
+        // 检测系统内的重复线索
+        const leadWhere: Prisma.LeadWhereInput = { OR: orConditions }
+        if (excludeLeadId) {
+            leadWhere.id = { not: excludeLeadId }
+        }
+
+        const duplicateLeads = await prisma.lead.findMany({
+            where: leadWhere,
+            select: { id: true, contactName: true, email: true, phone: true, status: true, assignedTo: { select: { name: true } } }
+        })
+
+        // 检测系统内已有的正式客户
+        const duplicateCustomers = await prisma.customer.findMany({
+            where: {
+                OR: orConditions
+            },
+            select: { id: true, contactName: true, email: true, phone: true }
+        })
+
+        return {
+            hasDuplicates: duplicateLeads.length > 0 || duplicateCustomers.length > 0,
+            leads: duplicateLeads,
+            customers: duplicateCustomers
+        }
+    },
+
+    /**
      * 创建线索
      */
     async createLead(data: CreateLeadInput, creatorId?: string) {
@@ -203,6 +241,9 @@ export const leadService = {
             })
         }
 
+        // Webhook 推送
+        webhookService.emit('lead.created', lead).catch(console.error)
+
         return lead
     },
 
@@ -252,6 +293,13 @@ export const leadService = {
                 },
             })
         }
+        // 活动后自动重新评分 (fire-and-forget，不阻塞主流程)
+        scoringService.updateLeadScore(id).catch((err: Error) => {
+            console.warn(`⚠️ 线索 ${id} 自动评分失败:`, err.message)
+        })
+
+        // Webhook 推送
+        webhookService.emit('lead.updated', lead).catch(console.error)
 
         return lead
     },
@@ -277,6 +325,10 @@ export const leadService = {
             include: {
                 actor: { select: { id: true, name: true, avatarUrl: true } }
             }
+        })
+        // 活动后自动重新评分 (fire-and-forget)
+        scoringService.updateLeadScore(id).catch((err: Error) => {
+            console.warn(`⚠️ 线索 ${id} 备注后自动评分失败:`, err.message)
         })
 
         return activity
@@ -320,6 +372,9 @@ export const leadService = {
                 description: `将线索分配给 ${assignee.name}`,
             },
         })
+
+        // Webhook 推送
+        webhookService.emit('lead.assigned', updated).catch(console.error)
 
         return updated
     },
@@ -422,7 +477,7 @@ export const leadService = {
      * 将线索转化为客户
      * 创建 Customer 记录和关联的 User 账号（带首次登录设置密码 token）
      */
-    async convertToCustomer(leadId: string, operatorId: string) {
+    async convertToCustomer(leadId: string, operatorId: string, overrides?: { email?: string; phone?: string }) {
         const lead = await prisma.lead.findUnique({ where: { id: leadId } })
 
         if (!lead) {
@@ -433,14 +488,17 @@ export const leadService = {
             throw new ConflictError('该线索已转化为客户')
         }
 
-        if (!lead.email) {
+        const targetEmail = overrides?.email || lead.email
+        const targetPhone = overrides?.phone || lead.phone
+
+        if (!targetEmail) {
             throw new ConflictError('线索缺少邮箱，无法创建客户账号')
         }
 
         // 检查是否已存在同邮箱的用户
-        const existingUser = await prisma.user.findUnique({ where: { email: lead.email } })
+        const existingUser = await prisma.user.findUnique({ where: { email: targetEmail } })
         if (existingUser) {
-            throw new ConflictError('该邮箱已存在用户账号')
+            throw new ConflictError(`该邮箱 (${targetEmail}) 已存在用户账号`)
         }
 
         // 生成首次登录设置密码的 token
@@ -460,7 +518,7 @@ export const leadService = {
 
             const user = await tx.user.create({
                 data: {
-                    email: lead.email!,
+                    email: targetEmail,
                     name: lead.contactName,
                     passwordHash: hashedPassword,
                     roleId: customerRole.id,
@@ -477,8 +535,8 @@ export const leadService = {
                     userId: user.id,
                     companyName: lead.companyName,
                     contactName: lead.contactName,
-                    email: lead.email,
-                    phone: lead.phone,
+                    email: targetEmail,
+                    phone: targetPhone,
                 },
             })
 
@@ -502,6 +560,33 @@ export const leadService = {
 
             return { user, customer, setupToken }
         })
+
+        // 发送客户门户激活邮件
+        try {
+            const { config } = await import('../config/index.js')
+            const { emailTemplateService } = await import('./emailTemplateService.js')
+            // 对客户角色使用 portal 域名
+            const setupUrl = `${config.cors.origins[2] || 'https://portal.thny.sg'}/setup-password?token=${result.setupToken}`
+
+            await emailTemplateService.sendEmail({
+                recipient: targetEmail,
+                subject: '欢迎加入通海 - 您的客户门户账号已创建',
+                body: `
+                    <h2>欢迎加入通海</h2>
+                    <p>尊敬的 ${lead.contactName}，</p>
+                    <p>您的通海客户门户账号已成功创建。请点击以下链接设置您的登录密码：</p>
+                    <p><a href="${setupUrl}" style="background:#1e3a5f;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;">激活账号并设置密码</a></p>
+                    <p>设置完毕后，您可以登录门户查看您的项目进度、下载文档以及与您的沟通记录。</p>
+                    <p>此链接将在 7 天后失效。</p>
+                    <p>— 通海控股团队</p>
+                `,
+            })
+        } catch (error) {
+            console.error('Failed to send customer activation email:', error)
+        }
+
+        // Webhook 推送
+        webhookService.emit('lead.converted', result.customer).catch(console.error)
 
         return {
             success: true,

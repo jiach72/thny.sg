@@ -31,7 +31,14 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./
 
+# 创建上传目录并设置权限
+RUN mkdir -p /app/uploads && chown -R node:node /app
+
+# 以非 root 用户运行（安全加固）
+USER node
+
 EXPOSE 4000
 
 # 启动命令
 CMD ["npm", "run", "start"]
+

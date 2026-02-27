@@ -40,6 +40,54 @@ router.get(
 )
 
 /**
+ * PUT /messages/:id/read - 标记消息为已读
+ */
+router.put(
+    '/:id/read',
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await messageService.markAsRead(req.params.id, req.user!.id)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * PUT /messages/read-all - 批量标记所有消息为已读
+ */
+router.put(
+    '/read-all',
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await messageService.markAllAsRead(req.user!.id)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * DELETE /messages/:id - 删除我的消息
+ */
+router.delete(
+    '/:id',
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await messageService.delete(req.params.id, req.user!.id)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
  * POST /messages/send - 发送站内消息（管理端使用）
  */
 router.post(

@@ -1,5 +1,16 @@
 import { prisma } from '../config/index.js'
 
+// ==================== 时间常量 (消除魔法数字) ====================
+const MS_PER_DAY = 1000 * 60 * 60 * 24
+/** 跟进提醒窗口：7 天未联系的线索需要跟进 */
+const FOLLOW_UP_WINDOW_DAYS = 7
+const FOLLOW_UP_WINDOW_MS = FOLLOW_UP_WINDOW_DAYS * MS_PER_DAY
+/** 逾期阈值：14 天未联系的线索视为逾期 */
+const OVERDUE_LEAD_DAYS = 14
+const OVERDUE_LEAD_WINDOW_MS = OVERDUE_LEAD_DAYS * MS_PER_DAY
+/** 生日提醒：提前 7 天提示客户生日 */
+const BIRTHDAY_REMINDER_DAYS = 7
+
 interface AssignmentStats {
     userId: string
     userName: string
@@ -10,7 +21,7 @@ interface AssignmentStats {
 
 interface FollowUpItem {
     id: string
-    type: 'LEAD' | 'TASK' | 'APPOINTMENT'
+    type: 'LEAD' | 'TASK' | 'APPOINTMENT' | 'EVENT'
     title: string
     description: string | null
     priority: string
@@ -273,7 +284,7 @@ export const workflowService = {
      * 获取用户的跟进待办清单
      */
     async getFollowUpList(userId: string, filters?: {
-        type?: 'LEAD' | 'TASK' | 'ALL'
+        type?: 'LEAD' | 'TASK' | 'APPOINTMENT' | 'EVENT' | 'ALL'
         priority?: string
         overdue?: boolean
     }): Promise<FollowUpItem[]> {
@@ -288,7 +299,7 @@ export const workflowService = {
                     status: { notIn: ['CONVERTED', 'LOST'] },
                     OR: [
                         { lastContactedAt: null },
-                        { lastContactedAt: { lt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } } // 7天未联系
+                        { lastContactedAt: { lt: new Date(now.getTime() - FOLLOW_UP_WINDOW_MS) } } // 超过跟进窗口未联系
                     ]
                 },
                 select: {
@@ -312,7 +323,7 @@ export const workflowService = {
                     title: `跟进: ${lead.contactName}`,
                     description: lead.companyName,
                     priority: priority,
-                    dueDate: lead.lastContactedAt ? new Date(lead.lastContactedAt.getTime() + 7 * 24 * 60 * 60 * 1000) : null,
+                    dueDate: lead.lastContactedAt ? new Date(lead.lastContactedAt.getTime() + FOLLOW_UP_WINDOW_MS) : null,
                     status: lead.status,
                     assignedTo: null
                 })
@@ -424,6 +435,52 @@ export const workflowService = {
             items.push(item)
         }
 
+        // 获取即将到来的客户生日 (未来 7 天内)
+        if (!filters?.type || filters.type === 'EVENT' || filters.type === 'ALL') {
+            const customersWithBirthday = await prisma.customer.findMany({
+                where: {
+                    birthday: { not: null },
+                    lead: { assignedToId: userId }
+                },
+                select: { id: true, contactName: true, companyName: true, birthday: true }
+            })
+
+            for (const customer of customersWithBirthday) {
+                if (!customer.birthday) continue
+                const bMonth = customer.birthday.getUTCMonth()
+                const bDate = customer.birthday.getUTCDate()
+
+                const today = new Date()
+                const thisYearBirthday = new Date(today.getFullYear(), bMonth, bDate)
+
+                // If birthday has passed this year, look at next year
+                if (thisYearBirthday.getTime() < new Date(today.setHours(0, 0, 0, 0)).getTime()) {
+                    thisYearBirthday.setFullYear(today.getFullYear() + 1)
+                }
+
+                const diffTime = thisYearBirthday.getTime() - new Date().getTime()
+                const diffDays = Math.ceil(diffTime / MS_PER_DAY)
+
+                if (diffDays <= BIRTHDAY_REMINDER_DAYS && diffDays >= 0) {
+                    items.push({
+                        id: `birthday-${customer.id}`,
+                        type: 'EVENT',
+                        title: `客户生日: ${customer.contactName}`,
+                        description: `${diffDays === 0 ? '今天' : diffDays + ' 天后'}是客户的生日，记得送上祝福。`,
+                        priority: 'MEDIUM',
+                        dueDate: thisYearBirthday,
+                        status: 'PENDING',
+                        assignedTo: null,
+                        relatedEntity: {
+                            type: 'CUSTOMER',
+                            id: customer.id,
+                            name: customer.contactName || '未知'
+                        }
+                    })
+                }
+            }
+        }
+
         // 按优先级和时间排序
         const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 }
         items.sort((a, b) => {
@@ -467,7 +524,7 @@ export const workflowService = {
                 where: {
                     ...where,
                     status: { notIn: ['CONVERTED', 'LOST'] },
-                    lastContactedAt: { lt: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) } // 14天未联系
+                    lastContactedAt: { lt: new Date(now.getTime() - OVERDUE_LEAD_WINDOW_MS) } // 超过逾期阈值未联系
                 }
             }),
             prisma.task.count({

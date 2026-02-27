@@ -107,8 +107,8 @@ export const useLeadStore = defineStore('lead', () => {
         total.value--
     }
 
-    async function convertToCustomer(id: string) {
-        const result = await leadApi.convertToCustomer(id)
+    async function convertToCustomer(id: string, overrides?: { email?: string, phone?: string }) {
+        const result = await leadApi.convertToCustomer(id, overrides)
         // 更新本地线索状态
         const index = leads.value.findIndex(l => l.id === id)
         if (index !== -1) {
@@ -118,6 +118,10 @@ export const useLeadStore = defineStore('lead', () => {
             currentLead.value = { ...currentLead.value, status: 'CONVERTED' }
         }
         return result
+    }
+
+    async function checkDuplicates(payload: { email?: string; phone?: string; excludeLeadId?: string }) {
+        return await leadApi.checkDuplicates(payload)
     }
 
     function setFilters(newFilters: LeadFilters) {
@@ -153,6 +157,7 @@ export const useLeadStore = defineStore('lead', () => {
         assignLead,
         deleteLead,
         convertToCustomer,
+        checkDuplicates,
         setFilters,
         setPage,
     }

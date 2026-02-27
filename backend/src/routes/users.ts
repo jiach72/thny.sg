@@ -96,10 +96,10 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
     try {
         const { name, email, password, roleId, department } = req.body
 
-        if (!name || !email || !password || !roleId) {
+        if (!name || !email || !roleId) {
             return res.status(400).json({
                 success: false,
-                message: '姓名、邮箱、密码和角色为必填项'
+                message: '姓名、邮箱和角色为必填项'
             })
         }
 
@@ -109,7 +109,20 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
             return res.status(409).json({ success: false, message: '该邮箱已被注册' })
         }
 
-        const passwordHash = await bcrypt.hash(password, 12)
+        let passwordHash: string
+        let setupToken: string | null = null
+        let setupTokenExpiry: Date | null = null
+
+        if (password) {
+            passwordHash = await bcrypt.hash(password, 12)
+        } else {
+            // 生成临时密码和 setupToken 以供邀请
+            const crypto = await import('crypto')
+            const tempPassword = crypto.randomBytes(16).toString('hex')
+            passwordHash = await bcrypt.hash(tempPassword, 12)
+            setupToken = crypto.randomBytes(32).toString('hex')
+            setupTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7天有效
+        }
 
         const user = await prisma.user.create({
             data: {
@@ -118,14 +131,42 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
                 passwordHash,
                 roleId,
                 department,
+                setupToken,
+                setupTokenExpiry,
             },
             select: {
                 id: true,
                 name: true,
                 email: true,
                 role: { select: { code: true, name: true } },
+                setupToken: true,
             },
         })
+
+        // 发送邀请邮件
+        if (setupToken) {
+            try {
+                const { config } = await import('../config/index.js')
+                const { emailTemplateService } = await import('../services/emailTemplateService.js')
+                // 确保使用 management 端点 (origins[0] 通常是前端，[1] 可能是管理端，这里我们用更可靠的逻辑或者取环境变量)
+                const adminUrl = process.env.VITE_ADMIN_URL || config.cors.origins.find(u => u.includes('admin') || u.includes('crm')) || 'http://localhost:5173'
+                const setupUrl = `${adminUrl}/reset-password?token=${setupToken}`
+                await emailTemplateService.sendEmail({
+                    recipient: user.email,
+                    subject: '通海南洋 — 邀请您加入系统',
+                    body: `
+                        <h2>欢迎加入通海南洋 CRM</h2>
+                        <p>您好 ${user.name}，</p>
+                        <p>管理员已为您创建了系统账号。请点击以下链接设置您的密码即可登录：</p>
+                        <p><a href="${setupUrl}" style="background:#1e3a5f;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;">设置密码</a></p>
+                        <p>此链接将在 7 天后失效。</p>
+                        <p>— 通海南洋团队</p>
+                    `,
+                })
+            } catch (error) {
+                console.error('Failed to send invitation email:', error)
+            }
+        }
 
         res.status(201).json({ success: true, data: user })
     } catch (error: any) {

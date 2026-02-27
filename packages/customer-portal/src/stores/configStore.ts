@@ -6,7 +6,7 @@ export const useConfigStore = defineStore('config', () => {
     const isPrivacyMode = ref(localStorage.getItem('isPrivacyMode') === 'true')
 
     // Actions
-    function togglePrivacy() {
+    function togglePrivacy(): void {
         isPrivacyMode.value = !isPrivacyMode.value
         localStorage.setItem('isPrivacyMode', String(isPrivacyMode.value))
     }

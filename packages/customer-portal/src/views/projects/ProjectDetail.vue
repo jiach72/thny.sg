@@ -12,9 +12,9 @@
       
       <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <div class="flex items-center gap-3 mb-2">
+          <div class="flex items-center gap-3 mb-2" v-if="project.projectType">
             <span class="px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] uppercase tracking-wider text-text-muted">
-              {{ getProjectTypeLabel((project as any).projectType as string) }}
+              {{ getProjectTypeLabel(project.projectType as string) }}
             </span>
             <span 
               class="px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold"
@@ -25,7 +25,7 @@
           </div>
           <h1 class="font-serif text-3xl text-text mb-2">{{ (project as any).title }}</h1>
           <div class="flex items-center gap-4 text-sm text-text-muted">
-            <span class="flex items-center gap-1.5">
+            <span class="flex items-center gap-1.5" v-if="(project as any).startDate">
               <component :is="Calendar" class="w-3.5 h-3.5" /> 开始于 {{ formatDate((project as any).startDate) }}
             </span>
             <span class="flex items-center gap-1.5" v-if="(project as any).estimatedEndDate">
@@ -54,9 +54,9 @@
       <div class="md:col-span-2 space-y-6">
         <h3 class="font-serif text-lg text-text">项目文档</h3>
         <div class="rounded-xl bg-glass/10 border border-white/5 overflow-hidden">
-          <div v-if="(project as any).documents && (project as any).documents.length > 0" class="divide-y divide-white/5">
+          <div v-if="project.documents && project.documents.length > 0" class="divide-y divide-white/5">
              <div 
-                v-for="doc in (project as any).documents" 
+                v-for="doc in project.documents" 
                 :key="doc.id"
                 class="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group"
              >
@@ -65,17 +65,17 @@
                    <component :is="FileText" class="w-5 h-5" />
                  </div>
                  <div>
-                   <div class="text-sm font-medium text-text">{{ (doc as any).fileName }}</div>
-                   <div class="text-xs text-text-muted">{{ formatDate((doc as any).createdAt) }}</div>
+                   <div class="text-sm font-medium text-text">{{ doc.fileName }}</div>
+                   <div class="text-xs text-text-muted">{{ formatDate(doc.createdAt) }}</div>
                  </div>
                </div>
                <button 
                  @click="handleDownload(doc)"
-                 :disabled="downloadingId === (doc as any).id"
+                 :disabled="downloadingId === doc.id"
                  class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors disabled:opacity-50"
                >
-                 <component :is="downloadingId === (doc as any).id ? Loader2 : Download" :class="downloadingId === (doc as any).id ? 'animate-spin w-4 h-4' : 'w-4 h-4'" />
-                 {{ downloadingId === (doc as any).id ? '下载中...' : '下载' }}
+                 <component :is="downloadingId === doc.id ? Loader2 : Download" :class="downloadingId === doc.id ? 'animate-spin w-4 h-4' : 'w-4 h-4'" />
+                 {{ downloadingId === doc.id ? '下载中...' : '下载' }}
                </button>
              </div>
           </div>
@@ -93,7 +93,7 @@
       <div>
          <h3 class="font-serif text-lg text-text mb-6">首席顾问</h3>
          <ConsultantCard 
-           :consultant="(project as any).consultant"
+           :consultant="project.consultant"
            role-label="项目负责人"
            @schedule-meeting="handleScheduleMeeting"
          />
@@ -137,7 +137,7 @@
     <div v-if="showMeetingDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-obsidian/80 backdrop-blur-sm" @click="showMeetingDialog = false"></div>
       <div class="relative w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-xl p-6 shadow-2xl">
-        <h3 class="text-xl font-serif text-text mb-4">预约会议: {{ (project as any).consultant?.name }}</h3>
+        <h3 class="text-xl font-serif text-text mb-4">预约会议: {{ project.consultant?.name || '首席顾问' }}</h3>
         
         <div class="space-y-4">
           <div>
@@ -168,9 +168,11 @@ import {
   ArrowLeft, Calendar, Clock, MessageCircle, FileText, Download, Loader2
 } from 'lucide-vue-next'
 import { useProjectStore } from '@/stores/projectStore'
-import { messageApi, documentApi, portalApi } from '@/api'
+import { portalApi, documentApi } from '@/api'
+import type { PortalDocument } from '@tonghai/shared'
 import CaseTracker from '@/components/ui/CaseTracker.vue'
 import ConsultantCard from '@/components/ui/ConsultantCard.vue'
+import { formatDate, getStatusLabel, getStatusClass } from '@/utils/formatters'
 
 const route = useRoute()
 const projectStore = useProjectStore()
@@ -191,42 +193,19 @@ onMounted(() => {
 })
 
 const steps = computed(() => {
-  if (!(project.value as any)?.tasks) return []
-  return (project.value as any).tasks.map((task: any) => ({
+  if (!project.value?.tasks) return []
+  return project.value.tasks.map(task => ({
     id: task.id,
     title: task.title,
     status: mapTaskStatus(task.status),
-    date: task.completedAt ? formatDate(task.completedAt) : (task.dueDate ? `截止 ${formatDate(task.dueDate)}` : null)
+    date: task.completedAt ? formatDate(task.completedAt) : ((task as { dueDate?: string }).dueDate ? `截止 ${formatDate((task as { dueDate?: string }).dueDate || null)}` : undefined)
   }))
 })
 
-function mapTaskStatus(status: string) {
+function mapTaskStatus(status: string): 'completed' | 'current' | 'pending' {
   if (status === 'DONE') return 'completed'
   if (status === 'IN_PROGRESS') return 'current'
   return 'pending'
-}
-
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function getStatusLabel(status: string): string {
-  const map: Record<string, string> = {
-    PLANNING: '规划中',
-    ACTIVE: '进行中',
-    ON_HOLD: '暂停',
-    COMPLETED: '已完成',
-    ARCHIVED: '已归档'
-  }
-  return map[status] || status
-}
-
-function getStatusClass(status: string): string {
-  if (status === 'ACTIVE') return 'bg-green-500/10 text-green-400'
-  if (status === 'COMPLETED') return 'bg-blue-500/10 text-blue-400'
-  if (status === 'ON_HOLD') return 'bg-amber-500/10 text-amber-400'
-  return 'bg-white/5 text-text-muted'
 }
 
 function getProjectTypeLabel(type: string): string {
@@ -239,18 +218,20 @@ function getProjectTypeLabel(type: string): string {
   return map[type] || type || '服务项目'
 }
 
-async function handleDownload(doc: any) {
+async function handleDownload(doc: PortalDocument): Promise<void> {
   downloadingId.value = doc.id
   try {
-    ElMessage.info('正在解密并下载...')
+    ElMessage.info('正在请求下载...')
     const response = await documentApi.downloadDocument(doc.id)
-    const url = window.URL.createObjectURL(new Blob([response as any]))
+    const blob = new Blob([response as any], { type: (doc as any).fileType || 'application/octet-stream' })
+    const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.setAttribute('download', doc.fileName)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
     ElMessage.success('下载完成')
   } catch {
     ElMessage.error('下载失败')
@@ -259,8 +240,8 @@ async function handleDownload(doc: any) {
   }
 }
 
-function handleScheduleMeeting() {
-  if (!(project.value as any)?.consultant) {
+function handleScheduleMeeting(): void {
+  if (!project.value?.consultant) {
     ElMessage.warning('尚未指定项目顾问')
     return
   }
@@ -273,7 +254,7 @@ function handleScheduleMeeting() {
   showMeetingDialog.value = true
 }
 
-async function submitMeeting() {
+async function submitMeeting(): Promise<void> {
   if (!meetingForm.value.title.trim() || !meetingForm.value.date) {
     ElMessage.warning('请填写会议主题及预估时间')
     return
@@ -284,38 +265,41 @@ async function submitMeeting() {
   
   isSubmittingMeeting.value = true
   try {
-    await portalApi.bookAppointment({
-      title: meetingForm.value.title,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      userId: (project.value as any).consultant.id,
-      projectId: (project.value as any).id
-    })
-    ElMessage.success('会议预约请求已发送')
-    showMeetingDialog.value = false
-  } catch (error: any) {
-    ElMessage.error(error.message || '预约失败')
+    if (project.value && project.value.consultant) {
+      await portalApi.bookAppointment({
+        title: meetingForm.value.title,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        userId: project.value.consultant.id,
+        projectId: project.value.id
+      })
+      ElMessage.success('会议预约请求已发送')
+      showMeetingDialog.value = false
+    }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : '预约失败'
+    ElMessage.error(msg)
   } finally {
     isSubmittingMeeting.value = false
   }
 }
 
-async function submitContact() {
+async function submitContact(): Promise<void> {
   if (!contactForm.title || !contactForm.content) return
   
   submitting.value = true
   try {
-     await messageApi.sendMessage({
-      projectId: (project.value as any).id,
-      recipientId: (project.value as any).consultant?.id,
-      title: contactForm.title,
-      content: contactForm.content
-    })
-    ElMessage.success('消息已发送')
-    showContactDialog.value = false
-    contactForm.title = ''
-    contactForm.content = ''
-  } catch {
+    if (project.value && project.value.consultant) {
+      await portalApi.createInquiry({
+        serviceType: 'PROJECT_INQUIRY',
+        message: contactForm.title + '\n' + contactForm.content,
+      })
+      ElMessage.success('消息已发送')
+      showContactDialog.value = false
+      contactForm.title = ''
+      contactForm.content = ''
+    }
+  } catch (err: unknown) {
     ElMessage.error('发送失败')
   } finally {
     submitting.value = false

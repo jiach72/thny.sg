@@ -10,6 +10,8 @@
           muted 
           loop 
           playsinline
+          poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%231e3a5f'/%3E%3Cstop offset='40%25' stop-color='%232d5a87'/%3E%3Cstop offset='100%25' stop-color='%234a7cae'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1920' height='1080'/%3E%3C/svg%3E"
+          preload="auto"
         >
           <source src="/Singapore_Skyline_Sunset_Loop.mp4" type="video/mp4" />
         </video>
@@ -160,18 +162,8 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
 import { useHead } from '@unhead/vue'
-import { 
-  OfficeBuilding, 
-  User, 
-  TrendCharts, 
-  House,
-  Connection,
-  Document,
-  Service,
-  Message
-} from '@element-plus/icons-vue'
-import type { Component } from 'vue'
 import HomeNews from '@/components/HomeNews.vue'
+import { services, steps, reasons } from './homeData'
 
 const router = useRouter()
 const route = useRoute()
@@ -181,40 +173,33 @@ useHead({
   meta: [
     { name: 'description', content: () => (route.meta.description as string) || '新加坡一站式企业落地、身份规划、财富架构与资产配置专业咨询服务' },
   ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: '通海南洋 TongHai Nanyang',
+        url: 'https://thny.sg',
+        logo: 'https://thny.sg/logo.png',
+        description: '新加坡一站式企业落地、身份规划、财富架构与资产配置专业咨询服务',
+        contactPoint: {
+          '@type': 'ContactPoint',
+          email: 'admin@thny.sg',
+          contactType: 'customer service',
+          availableLanguage: ['Chinese', 'English'],
+        },
+        address: {
+          '@type': 'PostalAddress',
+          addressCountry: 'SG',
+        },
+        sameAs: [
+          'https://wa.me/6590001234',
+        ],
+      }),
+    },
+  ],
 })
-
-interface ServiceItem {
-  icon: Component
-}
-
-interface StepItem {
-  step: number
-}
-
-interface ReasonItem {
-  icon: Component
-}
-
-const services: ServiceItem[] = [
-  { icon: OfficeBuilding },
-  { icon: User },
-  { icon: TrendCharts },
-  { icon: House }
-]
-
-const steps: StepItem[] = [
-  { step: 1 },
-  { step: 2 },
-  { step: 3 },
-  { step: 4 }
-]
-
-const reasons: ReasonItem[] = [
-  { icon: Connection },
-  { icon: Document },
-  { icon: Service },
-  { icon: Message }
-]
 
 const goToServices = (): void => {
   router.push('/services')

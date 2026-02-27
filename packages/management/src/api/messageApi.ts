@@ -43,6 +43,34 @@ export const messageApi = {
     getCustomers() {
         return apiClient.get('/messages/customers')
     },
+
+    /**
+     * 获取当前用户的收件箱消息（分页）
+     */
+    getMyMessages(page = 1, limit = 20, isRead?: boolean) {
+        return apiClient.get('/messages/mine', { params: { page, limit, isRead } })
+    },
+
+    /**
+     * 将单条消息标记为已读
+     */
+    markAsRead(id: string) {
+        return apiClient.put(`/messages/${id}/read`)
+    },
+
+    /**
+     * 批量标记所有消息为已读
+     */
+    markAllAsRead() {
+        return apiClient.put('/messages/read-all')
+    },
+
+    /**
+     * 删除我的消息
+     */
+    deleteMessage(id: string) {
+        return apiClient.delete(`/messages/${id}`)
+    },
 }
 
 export default messageApi

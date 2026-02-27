@@ -128,9 +128,11 @@
 
     <!-- 表格视图 -->
     <div v-if="viewMode === 'table'" class="table-container">
+      <!-- 骨架屏加载 -->
+      <el-skeleton v-if="loading && leads.length === 0" :rows="8" animated class="skeleton-table" />
       <el-table
+        v-else
         ref="leadTableRef"
-        v-loading="loading"
         :data="leads"
         class="lead-table"
         row-class-name="lead-row"
@@ -188,9 +190,7 @@
 
         <el-table-column label="评分" width="80" align="center" sortable sort-by="score">
           <template #default="{ row }">
-            <div class="score-ring" :class="getScoreClass(row.score)">
-              {{ row.score }}
-            </div>
+            <ScoreRing :score="row.score || 0" :size="32" :strokeWidth="4" />
           </template>
         </el-table-column>
 
@@ -254,6 +254,10 @@
 
     <!-- 卡片视图 -->
     <div v-else class="card-view">
+      <!-- 空状态 -->
+      <el-empty v-if="!loading && leads.length === 0" description="暂无线索数据" :image-size="200">
+        <el-button type="primary" @click="handleCreate">新建第一条线索</el-button>
+      </el-empty>
       <div v-for="lead in leads" :key="lead.id" class="lead-card" @click="handleRowClick(lead)">
         <div class="card-header">
           <el-avatar :size="48">{{ lead.contactName?.[0] }}</el-avatar>
@@ -276,7 +280,7 @@
           </div>
         </div>
         <div class="card-footer">
-          <div class="score-ring small" :class="getScoreClass(lead.score)">{{ lead.score }}</div>
+          <ScoreRing :score="lead.score || 0" :size="32" :strokeWidth="4" />
           <span class="card-date">{{ formatDate(lead.createdAt) }}</span>
         </div>
       </div>
@@ -297,7 +301,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showAssignDialog = false">取消</el-button>
-          <el-button type="primary" @click="confirmBatchAssign" :disabled="!assignTarget">确认分配</el-button>
+          <el-button type="primary" v-permission="['leads:update']" @click="confirmBatchAssign" :disabled="!assignTarget">确认分配</el-button>
         </div>
       </template>
     </el-dialog>
@@ -328,6 +332,11 @@
       :lead="editingLead"
       @success="handleSuccess"
     />
+    <LeadConvertDialog
+      v-model:visible="showConvertDialog"
+      :lead="convertingLead"
+      @success="handleSuccess"
+    />
     <LeadImportDialog ref="importDialogRef" @success="handleSuccess" />
   </div>
 </template>
@@ -344,6 +353,7 @@ import {
 import { useLeadStore } from '@/stores'
 import type { Lead } from '@tonghai/shared/types'
 import LeadFormDialog from './components/LeadFormDialog.vue'
+import LeadConvertDialog from './components/LeadConvertDialog.vue'
 import LeadImportDialog from '@/components/LeadImportDialog.vue'
 import { userApi } from '@/api/userApi'
 
@@ -352,7 +362,9 @@ const leadStore = useLeadStore()
 const { leads, loading, total, page, limit } = storeToRefs(leadStore)
 
 const showCreateDialog = ref(false)
+const showConvertDialog = ref(false)
 const editingLead = ref<Lead | null>(null)
+const convertingLead = ref<Lead | null>(null)
 const viewMode = ref<'table' | 'card'>('table')
 const assignees = ref<{ id: string; name: string }[]>([])
 const leadTableRef = ref()
@@ -501,19 +513,9 @@ function handleEdit(lead: Lead) {
   showCreateDialog.value = true
 }
 
-async function handleConvert(lead: Lead) {
-  try {
-    await ElMessageBox.confirm(
-      `确定要将线索 "${lead.contactName}" 转化为客户吗？`,
-      '转化确认',
-      { type: 'success', confirmButtonText: '确认转化' }
-    )
-    await leadStore.convertToCustomer(lead.id)
-    ElMessage.success('转化成功')
-    leadStore.fetchLeads()
-  } catch {
-    // 用户取消
-  }
+function handleConvert(lead: Lead) {
+  convertingLead.value = lead
+  showConvertDialog.value = true
 }
 
 async function handleDelete(lead: Lead) {
@@ -693,11 +695,7 @@ function getSourceLabel(source: string): string {
   return map[source] || source
 }
 
-function getScoreClass(score: number): string {
-  if (score >= 80) return 'high'
-  if (score >= 50) return 'medium'
-  return 'low'
-}
+
 </script>
 
 <style scoped>
@@ -1116,5 +1114,25 @@ function getScoreClass(score: number): string {
 .slide-up-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* 微交互: 表格行悬停左侧指示条 */
+:deep(.el-table__body tr:hover > td:first-child) {
+  box-shadow: inset 3px 0 0 0 var(--color-primary);
+}
+
+/* 微交互: "新线索" 状态脉冲动画 */
+.status-badge.new {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
+}
+
+/* 微交互: 卡片视图列表过渡动画 */
+.card-view .lead-card {
+  transition: all 0.3s ease;
 }
 </style>

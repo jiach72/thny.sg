@@ -179,7 +179,7 @@
             <el-table-column label="服务需求" prop="serviceNeeds" />
             <el-table-column label="操作" width="120">
               <template #default="{ $index }">
-                <el-button text size="small" type="danger" @click="removeFamilyMember($index)">删除</el-button>
+                <el-button text size="small" type="danger" v-permission="['customers:update']" @click="removeFamilyMember($index)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>

@@ -1,4 +1,4 @@
-import { getRedis } from '../config/redis.js'
+import { getRedis, isRedisConnected } from '../config/redis.js'
 import logger from '../config/logger.js'
 
 /**
@@ -14,6 +14,8 @@ export const cacheService = {
      * @returns 解析后的 JSON 对象，或 null
      */
     async get<T = unknown>(key: string): Promise<T | null> {
+        if (!isRedisConnected) return null
+
         try {
             const redis = getRedis()
             const data = await redis.get(this.PREFIX + key)
@@ -36,6 +38,8 @@ export const cacheService = {
      * @param ttlSeconds 过期时间（秒），默认 300 秒（5 分钟）
      */
     async set(key: string, value: unknown, ttlSeconds: number = 300): Promise<void> {
+        if (!isRedisConnected) return
+
         try {
             const redis = getRedis()
             const data = JSON.stringify(value)
@@ -53,6 +57,8 @@ export const cacheService = {
      * 删除缓存
      */
     async del(key: string): Promise<void> {
+        if (!isRedisConnected) return
+
         try {
             const redis = getRedis()
             await redis.del(this.PREFIX + key)
@@ -67,16 +73,35 @@ export const cacheService = {
 
     /**
      * 按前缀批量失效缓存
+     * 使用 SCAN 迭代器替代 KEYS 命令，避免生产环境 Redis 阻塞
      * @param pattern 匹配模式，如 'dashboard:*'
      */
     async invalidatePattern(pattern: string): Promise<number> {
+        if (!isRedisConnected) return 0
+
         try {
             const redis = getRedis()
-            const keys = await redis.keys(this.PREFIX + pattern)
-            if (keys.length === 0) return 0
+            const fullPattern = this.PREFIX + pattern
+            let deleted = 0
+            let cursor = '0'
 
-            const deleted = await redis.del(...keys)
-            logger.info('批量失效缓存', { pattern, count: deleted, context: 'cacheService' })
+            // 使用 SCAN 迭代器分批扫描（每批 100 个 key）
+            do {
+                const [nextCursor, keys] = await redis.scan(
+                    cursor,
+                    'MATCH', fullPattern,
+                    'COUNT', 100
+                )
+                cursor = nextCursor
+
+                if (keys.length > 0) {
+                    deleted += await redis.del(...keys)
+                }
+            } while (cursor !== '0')
+
+            if (deleted > 0) {
+                logger.info('批量失效缓存', { pattern, count: deleted, context: 'cacheService' })
+            }
             return deleted
         } catch (error) {
             logger.error('批量失效缓存失败', {

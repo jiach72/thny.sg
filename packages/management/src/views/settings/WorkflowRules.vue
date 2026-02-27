@@ -77,7 +77,7 @@
             </div>
             <div class="rule-actions">
               <el-button text :icon="Edit" @click="editRule(rule)">编辑</el-button>
-              <el-button text type="danger" :icon="Delete" @click="deleteRule(rule)">删除</el-button>
+              <el-button text type="danger" v-permission="['settings:manage']" :icon="Delete" @click="deleteRule(rule)">删除</el-button>
             </div>
           </div>
           

@@ -5,7 +5,7 @@
 - Project: `c:\Users\jiach\Documents\AntigravityCode\thny.sg`
 - Branch: main (或本地工作区)
 - Session duration: 约 2 小时
-
+- harvey@global.com Test@123456
 ## Current State Summary
 
 通海南洋 CRM 2.0 后端的 Phase 1 (基础强化) 和 Phase 2 (功能补齐) 已全面完成。后端现已具备强制环境变量验证、完善的核心模块 Repository 架构、跨渠道统一通知分发引擎 (WS/内置消息/邮件)、防穿透的 Redis 缓存层，以及全量的 Excel 数据导出能力。原 `docs` 目录下的过往架构蓝图和由于实际进度更新而失效的需求文档已经被清理干净，本交接文档与 `docs/PROJECT_HANDOFF.md` 为当前系统能力与上下文的唯一真实数据源。

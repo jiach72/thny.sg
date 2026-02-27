@@ -27,6 +27,8 @@ jobs:
         run: npm ci --legacy-peer-deps
       - name: Lint Codebase
         run: npm run lint
+      - name: Backend Unit Tests
+        run: cd packages/backend && npm run test -- --run || cd backend && npm run test -- --run
       - name: Dependency Audit
         run: npm audit --audit-level=high || true
 

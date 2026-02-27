@@ -19,7 +19,8 @@ export const documentService = {
                         }
                     }
                 },
-                accessLevel: { in: ['PUBLIC', 'TEAM'] } // 门户可见级别
+                accessLevel: { in: ['PUBLIC', 'TEAM'] }, // 门户可见级别
+                deletedAt: null
             },
             include: {
                 project: { select: { title: true } },
@@ -66,7 +67,17 @@ export const documentService = {
      */
     async getDocumentById(id: string) {
         return prisma.document.findUnique({
-            where: { id }
+            where: { id, deletedAt: null }
+        })
+    },
+
+    /**
+     * 软删除文档
+     */
+    async deleteDocument(id: string) {
+        return prisma.document.update({
+            where: { id },
+            data: { deletedAt: new Date() }
         })
     }
 }

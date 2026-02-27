@@ -31,21 +31,7 @@
               </div>
             </template>
             <div class="chart-container">
-              <div
-                v-for="item in funnelData"
-                :key="item.stage"
-                class="funnel-item"
-              >
-                <div class="funnel-label">
-                  <span>{{ stageLabels[item.stage] || item.stage }}</span>
-                  <span class="funnel-count">{{ item.count }}</span>
-                </div>
-                <el-progress
-                  :percentage="item.percentage"
-                  :color="stageColors[item.stage]"
-                  :stroke-width="20"
-                />
-              </div>
+              <div ref="funnelChartRef" style="width: 100%; height: 300px;"></div>
             </div>
           </el-card>
         </el-col>
@@ -59,44 +45,54 @@
               </div>
             </template>
             <div class="chart-container">
-              <el-table :data="trendData" stripe style="width: 100%">
-                <el-table-column prop="period" label="期间" width="120" />
-                <el-table-column prop="total" label="总线索数" />
-                <el-table-column prop="converted" label="已转化" />
-                <el-table-column label="转化率">
-                  <template #default="{ row }">
-                    <el-tag :type="row.conversionRate >= 20 ? 'success' : 'warning'">
-                      {{ row.conversionRate }}%
-                    </el-tag>
-                  </template>
-                </el-table-column>
-              </el-table>
+              <div ref="trendChartRef" style="width: 100%; height: 300px;"></div>
             </div>
           </el-card>
         </el-col>
       </el-row>
 
-      <!-- 第二行：渠道 + 团队 -->
+      <!-- 投资回报与渠道 (合并排版) -->
       <el-row :gutter="20" class="chart-row">
+        <!-- 营收走势图 -->
         <el-col :xs="24" :lg="12">
           <el-card shadow="hover">
             <template #header>
               <div class="card-header">
-                <span>渠道效果</span>
+                <span>营收走势</span>
+                <el-tag type="success" size="small">实收金额 (SGD)</el-tag>
+              </div>
+            </template>
+            <div class="chart-container">
+              <div ref="revenueChartRef" style="width: 100%; height: 300px;"></div>
+            </div>
+          </el-card>
+        </el-col>
+
+        <!-- 渠道 ROI 数据表 -->
+        <el-col :xs="24" :lg="12">
+          <el-card shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>渠道 ROI (投资回报与质量)</span>
                 <el-tag type="info" size="small">各来源渠道</el-tag>
               </div>
             </template>
             <div class="chart-container">
               <el-table :data="channelData" stripe style="width: 100%">
                 <el-table-column prop="channel" label="渠道" />
-                <el-table-column prop="leadCount" label="线索数" width="90" />
-                <el-table-column prop="convertedCount" label="转化数" width="90" />
-                <el-table-column label="转化率" width="90">
+                <el-table-column prop="leadCount" label="线索" width="60" />
+                <el-table-column prop="convertedCount" label="转化" width="60" />
+                <el-table-column label="留存率" width="80">
                   <template #default="{ row }">
-                    {{ row.conversionRate }}%
+                    <span :style="{ color: row.conversionRate >= 10 ? '#67C23A' : '#F56C6C' }">{{ row.conversionRate }}%</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="平均评分" width="90">
+                <el-table-column label="总营收 (SGD)" width="120">
+                  <template #default="{ row }">
+                    <strong>S$ {{ row.revenue?.toLocaleString() || '0' }}</strong>
+                  </template>
+                </el-table-column>
+                <el-table-column label="线索均值" width="90">
                   <template #default="{ row }">
                     <el-rate
                       :model-value="row.avgScore / 20"
@@ -109,7 +105,10 @@
             </div>
           </el-card>
         </el-col>
+      </el-row>
 
+      <!-- 团队绩效与底栏 -->
+      <el-row :gutter="20" class="chart-row">
         <el-col :xs="24" :lg="12">
           <el-card shadow="hover">
             <template #header>
@@ -184,13 +183,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, shallowRef } from 'vue'
 import { analyticsApi } from '@/api/analyticsApi'
 import { ElMessage } from 'element-plus'
+import echarts from '@/utils/echarts'
 
 interface FunnelItem { stage: string; count: number; percentage: number }
 interface TrendItem { period: string; total: number; converted: number; conversionRate: number }
-interface ChannelItem { channel: string; leadCount: number; convertedCount: number; conversionRate: number; avgScore: number }
+interface RevenueItem { period: string; revenue: number }
+interface ChannelItem { channel: string; leadCount: number; convertedCount: number; conversionRate: number; avgScore: number; revenue: number }
 interface TeamItem { userId: string; name: string; avatarUrl: string | null; total: number; converted: number; conversionRate: number }
 interface ForecastResult { forecast: Array<{ period: string; predictedLeads: number; predictedConversions: number; confidence: number }>; basedOnMonths: number; message?: string }
 
@@ -198,9 +199,18 @@ const dateRange = ref<[Date, Date]>()
 const loading = ref(false)
 const funnelData = ref<FunnelItem[]>([])
 const trendData = ref<TrendItem[]>([])
+const revenueData = ref<RevenueItem[]>([])
 const channelData = ref<ChannelItem[]>([])
 const teamData = ref<TeamItem[]>([])
 const forecastData = ref<ForecastResult>({ forecast: [], basedOnMonths: 0 })
+
+// ECharts Refs
+const funnelChartRef = ref<HTMLElement | null>(null)
+const trendChartRef = ref<HTMLElement | null>(null)
+const revenueChartRef = ref<HTMLElement | null>(null)
+const funnelChartInstance = shallowRef<any>(null)
+const trendChartInstance = shallowRef<any>(null)
+const revenueChartInstance = shallowRef<any>(null)
 
 const stageLabels: Record<string, string> = {
   NEW: '新线索',
@@ -209,15 +219,6 @@ const stageLabels: Record<string, string> = {
   IN_PROGRESS: '进行中',
   CONVERTED: '已转化',
   LOST: '已流失',
-}
-
-const stageColors: Record<string, string> = {
-  NEW: '#409EFF',
-  CONTACTED: '#67C23A',
-  QUALIFIED: '#E6A23C',
-  IN_PROGRESS: '#F56C6C',
-  CONVERTED: '#909399',
-  LOST: '#C0C4CC',
 }
 
 const dateShortcuts = [
@@ -233,9 +234,10 @@ async function refreshData() {
       ? { startDate: dateRange.value[0].toISOString(), endDate: dateRange.value[1].toISOString() }
       : {}
 
-    const [funnel, trend, channel, team, forecast] = await Promise.all([
+    const [funnel, trend, revenue, channel, team, forecast] = await Promise.all([
       analyticsApi.getSalesFunnel(params),
       analyticsApi.getTrend({ period: 'month', months: 6 }),
+      analyticsApi.getRevenueTrend({ period: 'month', months: 6 }),
       analyticsApi.getChannels(params),
       analyticsApi.getTeamPerformance(params),
       analyticsApi.getForecast({ months: 3 }),
@@ -243,14 +245,171 @@ async function refreshData() {
 
     funnelData.value = Array.isArray(funnel) ? funnel : (funnel as any)?.data || []
     trendData.value = Array.isArray(trend) ? trend : (trend as any)?.data || []
+    revenueData.value = Array.isArray(revenue) ? revenue : (revenue as any)?.data || []
     channelData.value = Array.isArray(channel) ? channel : (channel as any)?.data || []
     teamData.value = Array.isArray(team) ? team : (team as any)?.data || []
     forecastData.value = (forecast as any)?.data || forecast || { forecast: [], basedOnMonths: 0 }
+
+    await nextTick()
+    renderCharts()
   } catch (error: unknown) {
     ElMessage.error(error instanceof Error ? error.message : '加载分析数据失败')
   } finally {
     loading.value = false
   }
+}
+
+function renderCharts() {
+  // 渲染漏斗图
+  if (funnelChartRef.value) {
+    if (!funnelChartInstance.value) {
+      funnelChartInstance.value = echarts.init(funnelChartRef.value)
+    }
+    const safeFunnelData = funnelData.value.filter(item => item.count > 0).map(item => ({
+      name: stageLabels[item.stage] || item.stage,
+      value: item.count
+    }))
+    
+    funnelChartInstance.value.setOption({
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b} : {c}'
+      },
+      series: [
+        {
+          name: '漏斗分析',
+          type: 'funnel',
+          left: '10%',
+          top: 30,
+          bottom: 30,
+          width: '80%',
+          min: 0,
+          max: funnelData.value.length ? Math.max(...funnelData.value.map(d => d.count)) : 100,
+          minSize: '0%',
+          maxSize: '100%',
+          sort: 'descending',
+          gap: 2,
+          label: {
+            show: true,
+            position: 'inside',
+            formatter: '{b} ({c})'
+          },
+          itemStyle: {
+            borderColor: '#fff',
+            borderWidth: 1
+          },
+          data: safeFunnelData
+        }
+      ]
+    })
+  }
+
+  // 渲染趋势图
+  if (trendChartRef.value) {
+    if (!trendChartInstance.value) {
+      trendChartInstance.value = echarts.init(trendChartRef.value)
+    }
+    const xAxisData = trendData.value.map(item => item.period)
+    const totalData = trendData.value.map(item => item.total)
+    const convertedData = trendData.value.map(item => item.converted)
+
+    trendChartInstance.value.setOption({
+      tooltip: {
+        trigger: 'axis'
+      },
+      legend: {
+        data: ['总线索量', '转化量']
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: xAxisData
+      },
+      yAxis: {
+        type: 'value'
+      },
+      series: [
+        {
+          name: '总线索量',
+          type: 'line',
+          smooth: true,
+          itemStyle: { color: '#409EFF' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(64,158,255,0.3)' },
+              { offset: 1, color: 'rgba(64,158,255,0.05)' }
+            ])
+          },
+          data: totalData
+        },
+        {
+          name: '转化量',
+          type: 'line',
+          smooth: true,
+          itemStyle: { color: '#67C23A' },
+          data: convertedData
+        }
+      ]
+    })
+  }
+
+  // 渲染营收趋势图
+  if (revenueChartRef.value) {
+    if (!revenueChartInstance.value) {
+      revenueChartInstance.value = echarts.init(revenueChartRef.value)
+    }
+    const rXAxisData = revenueData.value.map(item => item.period)
+    const rYAxisData = revenueData.value.map(item => item.revenue)
+
+    revenueChartInstance.value.setOption({
+      tooltip: {
+        trigger: 'axis',
+        formatter: '{b} <br/>实收: S$ {c}'
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: rXAxisData
+      },
+      yAxis: {
+        type: 'value',
+        name: 'SGD'
+      },
+      series: [
+        {
+          name: '营收 (实收)',
+          type: 'line',
+          smooth: true,
+          itemStyle: { color: '#E6A23C' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(230,162,60,0.3)' },
+              { offset: 1, color: 'rgba(230,162,60,0.05)' }
+            ])
+          },
+          data: rYAxisData
+        }
+      ]
+    })
+  }
+}
+
+const handleResize = () => {
+  funnelChartInstance.value?.resize()
+  trendChartInstance.value?.resize()
+  revenueChartInstance.value?.resize()
 }
 
 onMounted(() => {
@@ -260,6 +419,14 @@ onMounted(() => {
   start.setDate(start.getDate() - 30)
   dateRange.value = [start, end]
   refreshData()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  funnelChartInstance.value?.dispose()
+  trendChartInstance.value?.dispose()
+  revenueChartInstance.value?.dispose()
 })
 </script>
 

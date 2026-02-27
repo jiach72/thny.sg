@@ -3,9 +3,10 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/projectStore'
 import { storeToRefs } from 'pinia'
-import { Edit, Delete } from '@element-plus/icons-vue'
+import { Edit, Delete, Download, Upload } from '@element-plus/icons-vue'
 import ProjectForm from '@/components/projects/ProjectForm.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import apiClient from '@/api/apiClient'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,6 +84,51 @@ function getPriorityLabel(p: string): string {
   const map: Record<string, string> = { LOW: '低', MEDIUM: '中', HIGH: '高', CRITICAL: '紧急' }
   return map[p] || p
 }
+
+// 文档上传
+const uploadLoading = ref(false)
+const handleUploadRequest = async (options: any) => {
+  uploadLoading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', options.file)
+    formData.append('projectId', projectId)
+    await apiClient.post('/documents/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    ElMessage.success('文档上传成功')
+    projectStore.fetchProjectById(projectId) // 刷新当前项目获取最新文档列表
+  } catch (error: any) {
+    ElMessage.error(error?.message || '上传失败')
+  } finally {
+    uploadLoading.value = false
+  }
+}
+
+// 文档下载
+const handleDownload = async (doc: any) => {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/documents/${doc.id}/download`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error(response.status === 404 ? '文件不存在' : '下载失败')
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = doc.fileName || 'download'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (err: any) {
+    ElMessage.error(err?.message || '下载失败')
+  }
+}
 </script>
 
 <template>
@@ -96,7 +142,7 @@ function getPriorityLabel(p: string): string {
           <template #extra>
             <div class="flex items-center">
               <el-button :icon="Edit" @click="handleEdit">编辑</el-button>
-              <el-button type="danger" :icon="Delete" @click="handleDelete" plain>删除</el-button>
+              <el-button type="danger" v-permission="['projects:delete']" :icon="Delete" @click="handleDelete" plain>删除</el-button>
             </div>
           </template>
         </el-page-header>
@@ -177,6 +223,17 @@ function getPriorityLabel(p: string): string {
              <el-empty v-else description="该项目暂无任务" />
           </el-tab-pane>
           <el-tab-pane label="文档文件" name="documents">
+             <div class="mb-4 flex justify-between">
+               <h3>项目相关文件</h3>
+               <el-upload
+                 action="#"
+                 :show-file-list="false"
+                 :http-request="handleUploadRequest"
+                 :disabled="uploadLoading"
+               >
+                 <el-button type="primary" :loading="uploadLoading" :icon="Upload">上传文档</el-button>
+               </el-upload>
+             </div>
              <div v-if="currentProject.documents?.length">
                <el-table :data="currentProject.documents" style="width: 100%">
                  <el-table-column prop="fileName" label="文件名称" />
@@ -184,6 +241,13 @@ function getPriorityLabel(p: string): string {
                  <el-table-column prop="createdAt" label="上传时间">
                    <template #default="{ row }">
                      {{ new Date(row.createdAt).toLocaleDateString() }}
+                   </template>
+                 </el-table-column>
+                 <el-table-column label="操作" width="120">
+                   <template #default="{ row }">
+                     <el-button type="primary" link :icon="Download" @click="handleDownload(row)">
+                       下载
+                     </el-button>
                    </template>
                  </el-table-column>
                </el-table>

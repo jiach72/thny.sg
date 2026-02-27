@@ -149,7 +149,7 @@
     <div class="table-footer">
       <div class="batch-actions" v-if="selectedIds.length > 0">
         <span>已选 {{ selectedIds.length }} 项</span>
-        <el-button type="danger" size="small" @click="batchDelete">批量删除</el-button>
+        <el-button type="danger" v-permission="['news:delete']" size="small" @click="batchDelete">批量删除</el-button>
       </div>
       <el-pagination
         v-if="pagination.total > 0"

@@ -1,5 +1,6 @@
 import { prisma } from '../config/index.js'
 import { Prisma } from '@prisma/client'
+import { webhookService } from './webhookService.js'
 
 export const projectService = {
     // 获取项目列表（支持分页、筛选）
@@ -122,10 +123,9 @@ export const projectService = {
                     orderBy: { dueDate: 'asc' }
                 },
                 documents: {
+                    where: { deletedAt: null },
                     orderBy: { createdAt: 'desc' },
-                    include: {
-                        uploadedBy: { select: { name: true } }
-                    }
+                    include: { uploadedBy: { select: { id: true, name: true } } }
                 }
             }
         })
@@ -142,7 +142,7 @@ export const projectService = {
         budget?: number
         currency?: string
     }) {
-        return prisma.project.create({
+        const project = await prisma.project.create({
             data: {
                 title: data.title,
                 description: data.description,
@@ -155,6 +155,8 @@ export const projectService = {
                 status: 'PLANNING'
             }
         })
+        webhookService.emit('project.created', project).catch(console.error)
+        return project
     },
 
     // 更新项目
@@ -167,10 +169,12 @@ export const projectService = {
 
     // 更新项目状态（看板拖拽用）
     async updateStatus(id: string, status: string) {
-        return prisma.project.update({
+        const project = await prisma.project.update({
             where: { id },
             data: { status: status as any }
         })
+        webhookService.emit('project.statusChanged', project).catch(console.error)
+        return project
     },
 
     // 删除项目

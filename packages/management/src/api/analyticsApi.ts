@@ -16,6 +16,11 @@ export const analyticsApi = {
         return apiClient.get('/analytics/trend', { params })
     },
 
+    /** 获取营收趋势 */
+    getRevenueTrend(params: { period?: string; months?: number } = {}) {
+        return apiClient.get('/analytics/revenue-trend', { params })
+    },
+
     /** 获取渠道效果 */
     getChannels(params: DateRangeParams) {
         return apiClient.get('/analytics/channels', { params })

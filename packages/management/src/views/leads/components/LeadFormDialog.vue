@@ -15,10 +15,10 @@
         <el-input v-model="form.contactName" placeholder="请输入联系人姓名" />
       </el-form-item>
       <el-form-item label="邮箱" prop="email">
-        <el-input v-model="form.email" placeholder="请输入邮箱" />
+        <el-input v-model="form.email" placeholder="请输入邮箱" @blur="handleCheckDuplicates" />
       </el-form-item>
       <el-form-item label="电话" prop="phone">
-        <el-input v-model="form.phone" placeholder="请输入电话" />
+        <el-input v-model="form.phone" placeholder="请输入电话" @blur="handleCheckDuplicates" />
       </el-form-item>
       <el-form-item label="公司" prop="companyName">
         <el-input v-model="form.companyName" placeholder="请输入公司名称" />
@@ -58,6 +58,34 @@
         />
       </el-form-item>
     </el-form>
+
+    <Transition name="el-fade-in-linear">
+      <div v-if="duplicateWarning" class="duplicate-warning">
+        <el-alert
+          title="系统发现可能重复的档案"
+          type="warning"
+          :closable="false"
+          show-icon
+        >
+          <template #default>
+            <div class="duplicate-list">
+              <p>如果继续创建，可能会引起联系人冲突。您确定要创建一个独立的新线索吗？</p>
+              <ul>
+                <li v-for="c in duplicates.customers" :key="'c_'+c.id">
+                  <el-tag size="small" type="success" effect="plain">客户</el-tag>
+                  {{ c.contactName }} ({{ c.email || '无邮箱' }} / {{ c.phone || '无电话' }})
+                </li>
+                <li v-for="l in duplicates.leads" :key="'l_'+l.id">
+                  <el-tag size="small" type="info" effect="plain">线索</el-tag>
+                  {{ l.contactName }} (负责人: {{ l.assignedTo?.name || '公海' }})
+                </li>
+              </ul>
+            </div>
+          </template>
+        </el-alert>
+      </div>
+    </Transition>
+
     <template #footer>
       <el-button @click="close">取消</el-button>
       <el-button type="primary" :loading="submitting" @click="handleSubmit">
@@ -126,6 +154,12 @@ watch(
   }
 )
 
+const duplicateWarning = ref(false)
+const duplicates = reactive({
+  leads: [] as any[],
+  customers: [] as any[]
+})
+
 function resetForm() {
   Object.assign(form, {
     contactName: '',
@@ -137,6 +171,32 @@ function resetForm() {
     sourceChannel: 'website_form',
     inquiryMessage: '',
   })
+  duplicateWarning.value = false
+}
+
+async function handleCheckDuplicates() {
+  if (!form.email && !form.phone) {
+    duplicateWarning.value = false
+    return
+  }
+  
+  try {
+    const res = await leadStore.checkDuplicates({
+      email: form.email || undefined,
+      phone: form.phone || undefined,
+      excludeLeadId: props.lead ? props.lead.id : undefined
+    })
+    
+    if (res.hasDuplicates) {
+      duplicates.leads = res.leads
+      duplicates.customers = res.customers
+      duplicateWarning.value = true
+    } else {
+      duplicateWarning.value = false
+    }
+  } catch (error) {
+    console.warn('查重失败', error)
+  }
 }
 
 function close() {
@@ -168,3 +228,29 @@ async function handleSubmit() {
   })
 }
 </script>
+
+<style scoped>
+.duplicate-warning {
+  margin-top: 16px;
+}
+
+.duplicate-list {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.duplicate-list p {
+  margin: 0 0 8px 0;
+  color: var(--el-color-warning-dark-2);
+}
+
+.duplicate-list ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.duplicate-list li {
+  margin-bottom: 4px;
+}
+</style>

@@ -223,7 +223,7 @@
     <!-- 启用 2FA 弹窗 -->
     <el-dialog v-model="show2faDialog" title="设置双重安全认证" width="400px" custom-class="glass-dialog" :close-on-click-modal="false">
       <div v-loading="generating2fa" class="text-center py-2 space-y-4">
-        <p class="text-sm text-text-muted">使用身份验证应用 (Google Authenticator、Authy等) 扫描二维码：</p>
+        <p class="text-sm text-text-muted">使用身份验证应用 (Microsoft Authenticator、Authy 等 TOTP 应用) 扫描二维码：</p>
         <div class="bg-white p-2 rounded-lg inline-block mx-auto mb-2 border border-white/20">
           <img v-if="qrCodeUrl" :src="qrCodeUrl" class="w-48 h-48 mx-auto" alt="2FA QR Code" />
         </div>
@@ -319,9 +319,9 @@ onMounted(async () => {
   
   // 拉取远端账户信息获取真实的 2FA 状况
   try {
-    const data: any = await authApi.getCurrentUser()
+    const data = await authApi.getCurrentUser()
     if (data) {
-        settings.twoFactorEnabled = !!data.twoFactorEnabled
+        settings.twoFactorEnabled = !!(data as { twoFactorEnabled?: boolean }).twoFactorEnabled
     }
   } catch(e) {
     console.warn('Failed to fetch 2FA status:', e)
@@ -331,7 +331,7 @@ onMounted(async () => {
 // 保存提示定时器（防止内存泄漏）
 let savingTimer: ReturnType<typeof setTimeout> | null = null
 
-function handleSettingsChange() {
+function handleSettingsChange(): void {
   // 保存到本地存储
   localStorage.setItem('portal_settings', JSON.stringify(settings))
   
@@ -344,7 +344,7 @@ function handleSettingsChange() {
   }, 2000)
 }
 
-async function handleSetup2FA() {
+async function handleSetup2FA(): Promise<void> {
   if (settings.twoFactorEnabled) {
     showDisable2faDialog.value = true
     verificationCode.value = ''
@@ -354,18 +354,19 @@ async function handleSetup2FA() {
     generating2fa.value = true
     show2faDialog.value = true
     verificationCode.value = ''
-    const data: any = await authApi.generate2fa()
-    qrCodeUrl.value = data.qrCodeUrl
+    const data = await authApi.generate2fa()
+    qrCodeUrl.value = data.qrCode
     secretCode.value = data.secret
-  } catch (err: any) {
-    ElMessage.error(err.response?.data?.message || '无法生成认证信息')
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '无法生成认证信息'
+    ElMessage.error(msg)
     show2faDialog.value = false
   } finally {
     generating2fa.value = false
   }
 }
 
-async function confirmEnable2FA() {
+async function confirmEnable2FA(): Promise<void> {
   if (!verificationCode.value || verificationCode.value.length !== 6) {
     ElMessage.warning('请输入6位数字安全码')
     return
@@ -376,14 +377,15 @@ async function confirmEnable2FA() {
     settings.twoFactorEnabled = true
     show2faDialog.value = false
     ElMessage.success('已成功启用安全验证')
-  } catch (err: any) {
-    ElMessage.error(err.response?.data?.message || '您输入的验证码有误')
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '您输入的验证码有误'
+    ElMessage.error(msg)
   } finally {
     loading2fa.value = false
   }
 }
 
-async function confirmDisable2FA() {
+async function confirmDisable2FA(): Promise<void> {
   if (!verificationCode.value || verificationCode.value.length !== 6) {
     ElMessage.warning('请输入6位数字安全码以确认取消操作')
     return
@@ -394,23 +396,24 @@ async function confirmDisable2FA() {
     settings.twoFactorEnabled = false
     showDisable2faDialog.value = false
     ElMessage.success('已解除双重认证')
-  } catch (err: any) {
-    ElMessage.error(err.response?.data?.message || '您输入的验证码有误')
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '您输入的验证码有误'
+    ElMessage.error(msg)
   } finally {
     loading2fa.value = false
   }
 }
 
-function handleLogoutAllDevices() {
+function handleLogoutAllDevices(): void {
   ElMessage.success('已登出所有其他设备')
 }
 
-async function handleExportData() {
+async function handleExportData(): Promise<void> {
   try {
     ElMessage.info('正在生成数据导出，请稍候...')
     const response = await portalApi.exportMyData()
     // 注意 responseType 为 blob，所以返回的本身就是文件流内容
-    const url = window.URL.createObjectURL(new Blob([response as any]))
+    const url = window.URL.createObjectURL(response)
     const link = document.createElement('a')
     link.href = url
     link.setAttribute('download', `个人数据与账单_${new Date().toISOString().split('T')[0]}.xlsx`)
@@ -418,7 +421,7 @@ async function handleExportData() {
     link.click()
     document.body.removeChild(link)
     ElMessage.success('导出成功')
-  } catch (error) {
+  } catch (error: unknown) {
     ElMessage.error('导出失败，请先稍等再重试')
   }
 }

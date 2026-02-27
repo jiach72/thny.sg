@@ -65,9 +65,9 @@
               <p class="text-sm text-text-muted line-clamp-2 mb-2">{{ msg.content || '无内容' }}</p>
               
               <div class="flex items-center gap-3 text-xs">
-                <span v-if="(msg as any).sender" class="text-text-secondary">来自: {{ (msg as any).sender.name || '系统' }}</span>
-                <span v-if="(msg as any).project" class="px-2 py-0.5 rounded bg-white/5 text-text-muted border border-white/10">
-                  {{ (msg as any).project.title }}
+                <span v-if="msg.sender" class="text-text-secondary">来自: {{ msg.sender.name || '系统' }}</span>
+                <span v-if="msg.project" class="px-2 py-0.5 rounded bg-white/5 text-text-muted border border-white/10">
+                  {{ msg.project.title }}
                 </span>
               </div>
             </div>
@@ -112,9 +112,9 @@
     <el-dialog v-model="showDetail" :title="selectedMessage?.title" width="600px" class="!bg-obsidian !border-white/10 !text-text rounded-xl">
       <div v-if="selectedMessage" class="space-y-6">
         <div class="flex items-center gap-4 pb-4 border-b border-white/10">
-          <el-avatar :size="40" class="ring-2 ring-white/10">{{ (selectedMessage as any).sender?.name?.[0] }}</el-avatar>
+          <el-avatar :size="40" class="ring-2 ring-white/10">{{ selectedMessage.sender?.name?.[0] }}</el-avatar>
           <div class="flex-1">
-            <div class="font-medium text-text">{{ (selectedMessage as any).sender?.name || '系统' }}</div>
+            <div class="font-medium text-text">{{ selectedMessage.sender?.name || '系统' }}</div>
             <div class="text-xs text-text-muted">{{ formatDateTime(selectedMessage.createdAt) }}</div>
           </div>
           <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider bg-white/5 text-text-muted border border-white/10">
@@ -126,9 +126,9 @@
           {{ selectedMessage.content }}
         </div>
 
-        <div v-if="(selectedMessage as any).project" class="pt-4 border-t border-white/10">
-          <button @click="goToProject((selectedMessage as any).project.id)" class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors">
-            <component :is="Folder" class="w-4 h-4" /> 查看项目: {{ (selectedMessage as any).project.title }}
+        <div v-if="selectedMessage.project" class="pt-4 border-t border-white/10">
+          <button @click="goToProject(selectedMessage.project.id)" class="flex items-center gap-2 text-sm text-wealth hover:text-white transition-colors">
+            <component :is="Folder" class="w-4 h-4" /> 查看项目: {{ selectedMessage.project.title }}
           </button>
         </div>
       </div>
@@ -154,23 +154,25 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import type { Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Bell, Folder, FileText as Document, CreditCard, MessageSquare as ChatLineRound } from 'lucide-vue-next'
 import { portalApi } from '@/api'
+import type { PortalMessage } from '@tonghai/shared'
 
 const router = useRouter()
 
 const loading = ref(false)
 const activeTab = ref('all')
-const messages = ref<Array<{ id: string; title: string; content: string; type: string; isRead: boolean; createdAt: string; relatedId?: string }>>([])
+const messages = ref<PortalMessage[]>([])
 const page = ref(1)
 const limit = ref(20)
 const total = ref(0)
 const unreadCount = ref(0)
 
 const showDetail = ref(false)
-const selectedMessage = ref<{ id: string; title: string; content: string; type: string; isRead: boolean; createdAt: string } | null>(null)
+const selectedMessage = ref<PortalMessage | null>(null)
 
 const tabs = [
   { id: 'all', label: '全部消息' },
@@ -180,10 +182,10 @@ const tabs = [
 ]
 
 // 加载消息
-async function loadMessages() {
+async function loadMessages(): Promise<void> {
   loading.value = true
   try {
-    const params: any = { page: page.value, limit: limit.value }
+    const params: Record<string, string | number | boolean> = { page: page.value, limit: limit.value }
     
     if (activeTab.value === 'unread') {
       params.isRead = false
@@ -191,9 +193,9 @@ async function loadMessages() {
       params.type = activeTab.value
     }
 
-    const result = await portalApi.getMessages(params) as any
-    messages.value = result.messages || []
-    total.value = result.total || 0
+    const result = await portalApi.getMessages(params as Parameters<typeof portalApi.getMessages>[0])
+    messages.value = result.data || []
+    total.value = result.pagination?.total || 0
   } catch (error: unknown) {
     ElMessage.error((error as Error).message || '加载消息失败')
   } finally {
@@ -202,23 +204,23 @@ async function loadMessages() {
 }
 
 // 加载未读数量
-async function loadUnreadCount() {
+async function loadUnreadCount(): Promise<void> {
   try {
-    const result = await portalApi.getUnreadCount() as any
-    unreadCount.value = result.unreadCount || 0
+    const result = await portalApi.getUnreadCount()
+    unreadCount.value = result.count || 0
   } catch {
     // 忽略
   }
 }
 
-function handleTabChange(tabId: string) {
+function handleTabChange(tabId: string): void {
   activeTab.value = tabId
   page.value = 1
   loadMessages()
 }
 
 // 打开消息
-async function openMessage(msg: any) {
+async function openMessage(msg: PortalMessage): Promise<void> {
   selectedMessage.value = msg
   showDetail.value = true
 
@@ -234,7 +236,7 @@ async function openMessage(msg: any) {
 }
 
 // 全部标为已读
-async function markAllRead() {
+async function markAllRead(): Promise<void> {
   try {
     await portalApi.markAllMessagesAsRead()
     messages.value.forEach(m => m.isRead = true)
@@ -246,7 +248,7 @@ async function markAllRead() {
 }
 
 // 删除消息
-async function deleteMessage() {
+async function deleteMessage(): Promise<void> {
   if (!selectedMessage.value) return
 
   try {
@@ -258,7 +260,7 @@ async function deleteMessage() {
       cancelButtonClass: '!text-text-muted hover:!text-text'
     })
     await portalApi.deleteMessage(selectedMessage.value.id)
-    messages.value = messages.value.filter(m => m.id !== (selectedMessage.value as any).id)
+    messages.value = messages.value.filter(m => m.id !== selectedMessage.value?.id)
     showDetail.value = false
     ElMessage.success('消息已删除')
   } catch (error: unknown) {
@@ -268,7 +270,7 @@ async function deleteMessage() {
   }
 }
 
-function goToProject(projectId: string) {
+function goToProject(projectId: string): void {
   showDetail.value = false
   router.push(`/projects/${projectId}`)
 }
@@ -302,8 +304,8 @@ function getTypeLabel(type: string): string {
   return map[type] || type
 }
 
-function getIcon(type: string) {
-  const map: Record<string, any> = {
+function getIcon(type: string): Component {
+  const map: Record<string, Component> = {
     SYSTEM: Bell,
     PROJECT: Folder,
     DOCUMENT: Document,
@@ -312,7 +314,7 @@ function getIcon(type: string) {
   return map[type] || ChatLineRound
 }
 
-function getTypeColor(type: string) {
+function getTypeColor(type: string): string {
   const map: Record<string, string> = {
     SYSTEM: 'bg-blue-500/10 text-blue-400',
     PROJECT: 'bg-green-500/10 text-green-400',

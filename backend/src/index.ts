@@ -1,18 +1,35 @@
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
+import * as Sentry from '@sentry/node'
+import { nodeProfilingIntegration } from '@sentry/profiling-node'
 import { createServer } from 'http'
 import swaggerUi from 'swagger-ui-express'
 import { config } from './config/index.js'
 import { swaggerSpec } from './config/swagger.js'
 import routes from './routes/index.js'
 import { errorHandler } from './middlewares/index.js'
+import { apiRateLimiter } from './middlewares/rateLimiter.js'
 import { initWebSocket } from './services/websocketService.js'
 import logger from './config/logger.js'
 import morgan from 'morgan'
 import { prisma } from './config/index.js'
 import { closeRedis } from './config/redis.js'
+import { emailSenderService } from './services/emailSenderService.js'
+import { apiVersionMiddleware } from './middlewares/index.js'
 
 const app = express()
+
+// Sentry 初始化 (必须尽早引入)
+Sentry.init({
+    dsn: process.env.SENTRY_DSN || '',
+    integrations: [
+        nodeProfilingIntegration(),
+    ],
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+})
+
 const httpServer = createServer(app)
 
 // 配置 Morgan 将 HTTP 请求切片输出到 Winston 日志器
@@ -21,15 +38,24 @@ app.use(morgan('combined', { stream: { write: (message) => logger.info(message.t
 // 初始化 WebSocket
 initWebSocket(httpServer)
 
+// 反向代理配置（让 rate limiter 获取真实客户 IP 而非 Nginx 内网 IP）
+app.set('trust proxy', 1)
+
 // CORS 配置
 app.use(cors({
     origin: config.cors.origins,
     credentials: true,
 }))
 
+// 解析 Cookie（httpOnly refreshToken 存储需要）
+app.use(cookieParser())
+
 // 解析 JSON
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// 注入自定义 API 版本与降级提示中间件
+app.use('/api', apiVersionMiddleware)
 
 // Swagger API 文档（仅开发环境）
 if (config.nodeEnv !== 'production') {
@@ -44,6 +70,9 @@ if (config.nodeEnv !== 'production') {
     })
 }
 
+// 全局 API 限流（每分钟 100 次请求/IP）
+app.use('/api/v1', apiRateLimiter)
+
 // API 路由
 app.use('/api/v1', routes)
 
@@ -55,14 +84,19 @@ app.use((req, res) => {
     })
 })
 
-// 错误处理
+// Sentry 错误捕获中间件，应在自定义报错处理器前
+Sentry.setupExpressErrorHandler(app);
+
+// 自定义错误处理 (ErrorHandler 会接收被 Sentry 过滤后的流)
 app.use(errorHandler)
 
 // 启动服务器
 const PORT = config.port
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-    logger.info(`
+// 启动前初始化关联组件
+emailSenderService.initialize().then(() => {
+    httpServer.listen(PORT, '0.0.0.0', () => {
+        logger.info(`
   ╔═══════════════════════════════════════════════╗
   ║                                               ║
   ║   🚀 TongHai CRM API Server                   ║
@@ -71,9 +105,17 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   ║   Port: ${String(PORT).padEnd(38)}║
   ║   API: http://localhost:${PORT}/api/v1${' '.repeat(14)}║
   ║   WebSocket: ✅                                ║
+  ║   SMTP/Email: ✅                               ║
   ║                                               ║
   ╚═══════════════════════════════════════════════╝
   `)
+    })
+}).catch((err) => {
+    logger.error('邮件服务初始化失败', err)
+    // 即便邮件服务失败，继续启动应用
+    httpServer.listen(PORT, '0.0.0.0', () => {
+        logger.info(`Server started on port ${PORT} (Email Disabled)`)
+    })
 })
 
 // ==================== 平滑退出 (Graceful Shutdown) ====================

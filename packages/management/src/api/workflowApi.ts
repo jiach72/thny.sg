@@ -11,8 +11,8 @@ export interface AssignmentStats {
 }
 
 export interface FollowUpItem {
-    type: 'LEAD' | 'TASK' | 'APPOINTMENT'
     id: string
+    type: 'LEAD' | 'TASK' | 'APPOINTMENT' | 'EVENT'
     title: string
     description?: string
     priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
@@ -23,6 +23,11 @@ export interface FollowUpItem {
         id: string
         contactName: string
         companyName?: string
+    }
+    relatedEntity?: {
+        type: string
+        id: string
+        name: string
     }
 }
 

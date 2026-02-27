@@ -23,25 +23,29 @@ function checkPermission(el: HTMLElement, binding: DirectiveBinding) {
     const authStore = useAuthStore()
     const { value } = binding
 
+    // 安全取值：permissions 可能是 Ref 或普通数组
+    const perms: string[] = Array.isArray(authStore.permissions)
+        ? authStore.permissions
+        : []
+
     // ADMIN 拥有所有权限
-    if (authStore.user?.role === 'ADMIN' || authStore.permissions.includes('*')) {
+    if (authStore.user?.role === 'ADMIN' || perms.includes('*')) {
         return
     }
 
     let hasPermission = false
 
     if (typeof value === 'string') {
-        // 单个权限
-        hasPermission = authStore.permissions.includes(value)
+        hasPermission = perms.includes(value)
     } else if (Array.isArray(value)) {
-        // 满足任意一个即可
-        hasPermission = value.some(p => authStore.permissions.includes(p))
+        hasPermission = value.some((p: string) => perms.includes(p))
     }
 
     if (!hasPermission) {
-        // 移除元素或隐藏
-        el.parentNode?.removeChild(el)
-        // 或者使用隐藏: el.style.display = 'none'
+        // 隐藏元素而非移除，避免响应式更新时找不到节点
+        el.style.display = 'none'
+    } else {
+        el.style.display = ''
     }
 }
 

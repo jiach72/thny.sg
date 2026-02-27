@@ -1,0 +1,8 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# 禁止爬虫访问 API 路径
+Disallow: /api/
+
+Sitemap: https://thny.sg/sitemap.xml

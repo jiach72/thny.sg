@@ -112,7 +112,7 @@
               @confirm="deleteInvoiceById(row.id)"
             >
               <template #reference>
-                <el-button type="danger" link @click.stop>删除</el-button>
+                <el-button type="danger" v-permission="['invoices:delete']" link @click.stop>删除</el-button>
               </template>
             </el-popconfirm>
           </template>

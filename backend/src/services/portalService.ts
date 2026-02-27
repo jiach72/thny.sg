@@ -139,6 +139,7 @@ export const portalService = {
                     orderBy: { createdAt: 'desc' },
                     include: {
                         documents: {
+                            where: { deletedAt: null },
                             take: 5,
                             orderBy: { createdAt: 'desc' },
                         },
@@ -188,7 +189,8 @@ export const portalService = {
                 },
                 documents: {
                     where: {
-                        accessLevel: { in: ['PUBLIC', 'TEAM'] }
+                        accessLevel: { in: ['PUBLIC', 'TEAM'] },
+                        deletedAt: null
                     },
                     orderBy: { createdAt: 'desc' },
                     include: {
@@ -230,6 +232,7 @@ export const portalService = {
             where: {
                 project: { customerId: customer.id },
                 accessLevel: 'TEAM', // 需要客户查看的
+                deletedAt: null
             },
             take: 10,
             orderBy: { createdAt: 'desc' },
@@ -238,19 +241,52 @@ export const portalService = {
                 fileName: true,
                 createdAt: true,
                 project: {
-                    select: { title: true },
+                    select: { id: true, title: true },
+                },
+            },
+        })
+
+        // 获取待支付账单
+        const pendingInvoices = await prisma.invoice.findMany({
+            where: {
+                customerId: customer.id,
+                status: 'PENDING',
+                deletedAt: null
+            },
+            take: 10,
+            orderBy: { dueDate: 'asc' },
+            select: {
+                id: true,
+                invoiceNumber: true,
+                totalAmount: true,
+                currency: true,
+                dueDate: true,
+                project: {
+                    select: { title: true, id: true },
                 },
             },
         })
 
         // 转换为通知格式
-        return pendingDocuments.map((doc) => ({
+        const docNotifications = pendingDocuments.map((doc) => ({
             id: doc.id,
             type: 'document',
             title: '新文档待查看',
             description: `${(doc.project?.title || 'Unknown')} - ${doc.fileName}`,
             createdAt: doc.createdAt,
+            projectId: doc.project?.id
         }))
+
+        const invoiceNotifications = pendingInvoices.map((inv) => ({
+            id: inv.id,
+            type: 'invoice',
+            title: '待支付账单',
+            description: `${(inv.project?.title || 'Unknown')} - #${inv.invoiceNumber} (${Number(inv.totalAmount).toLocaleString()} ${inv.currency})`,
+            createdAt: inv.dueDate,
+            projectId: inv.project?.id
+        }))
+
+        return [...docNotifications, ...invoiceNotifications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
 
     /**
@@ -284,7 +320,28 @@ export const portalService = {
             where: {
                 project: { customerId: customer.id },
                 accessLevel: 'TEAM',
+                deletedAt: null
             },
+        })
+
+        // 抽取客户所有活跃项目相关的重大关键任务(Milestones)用作时间线展示
+        const upcomingMilestones = await prisma.task.findMany({
+            where: {
+                projectId: { in: customer.projects.map(p => p.id) },
+                status: { not: 'DONE' },
+                dueDate: { not: null }
+            },
+            take: 5,
+            orderBy: { dueDate: 'asc' },
+            select: {
+                id: true,
+                title: true,
+                dueDate: true,
+                status: true,
+                project: {
+                    select: { id: true, title: true }
+                }
+            }
         })
 
         return {
@@ -292,10 +349,63 @@ export const portalService = {
             activeProjects,
             completedProjects,
             pendingDocuments,
+            upcomingMilestones,
         }
     },
 
-    // ==================== 服务咨询 ====================
+    // ==================== 服务咨询及预约 ====================
+
+    /**
+     * 客户自助预约面谈
+     */
+    async bookAppointment(customerIdOrUserId: string, data: {
+        title: string
+        description?: string
+        startTime: string
+        endTime: string
+        userId: string // 预约目标（通常为专属顾问）
+        projectId?: string
+    }) {
+        const _customer = await prisma.customer.findFirst({
+            where: { userId: customerIdOrUserId },
+        })
+
+        if (!_customer) {
+            throw new NotFoundError('客户资料不全，无法发起预订')
+        }
+
+        const start = new Date(data.startTime)
+        const end = new Date(data.endTime)
+        const now = new Date()
+
+        if (start < now || end <= start) {
+            throw new Error('预约时间无效（不能预约过去的时间或时段错误）')
+        }
+
+        // 复用后端的日程防冲突逻辑
+        const { appointmentService } = await import('./appointmentService.js')
+        await appointmentService.checkConflict(data.userId, start, end)
+
+        // 插入记录
+        const newAppt = await prisma.appointment.create({
+            data: {
+                title: data.title,
+                description: data.description || '自助门户预约',
+                startTime: start,
+                endTime: end,
+                type: 'MEETING',
+                status: 'SCHEDULED',
+                userId: data.userId, // 绑定到指定顾问
+                customerId: _customer.id,
+            }
+        })
+
+        return {
+            success: true,
+            message: '预约成功',
+            appointment: newAppt
+        }
+    },
 
     /**
      * 创建服务咨询
@@ -464,14 +574,26 @@ export const portalService = {
             throw new NotFoundError('客户信息不存在')
         }
 
-        // 保存到 Customer 的 metadata 字段（如果存在）或创建专门字段
-        // 这里使用一个简单方案：将偏好存储为 JSON
+        // 将通知偏好序列化后存入 profileNotes 的 JSON 段落
+        // TODO: 后续迭代应在 Customer 模型中增加独立的 preferences Json? 字段
+        const existingNotes = customer.profileNotes || ''
+        const prefMarker = '<!-- PREFERENCES -->'
+        const prefJson = JSON.stringify(preferences)
+        const prefBlock = `${prefMarker}\n${prefJson}\n${prefMarker}`
+
+        // 替换已有的 preferences 块或追加
+        let updatedNotes: string
+        if (existingNotes.includes(prefMarker)) {
+            const regex = new RegExp(`${prefMarker}[\\s\\S]*?${prefMarker}`)
+            updatedNotes = existingNotes.replace(regex, prefBlock)
+        } else {
+            updatedNotes = existingNotes ? `${existingNotes}\n\n${prefBlock}` : prefBlock
+        }
+
         await prisma.customer.update({
             where: { id: customer.id },
             data: {
-                // 假设 Customer 模型有 preferences 字段或使用其他方式存储
-                // 如果模型没有该字段，这里会报错，需要在 schema 中添加
-                // 暂时使用 notes 字段存储（不推荐，仅演示）
+                profileNotes: updatedNotes,
             },
         })
 
@@ -479,6 +601,178 @@ export const portalService = {
             success: true,
             message: '偏好已保存',
             preferences,
+        }
+    },
+
+    // ==================== 账单发票 (从路由层提取) ====================
+
+    /**
+     * 获取客户的发票列表
+     */
+    async getInvoices(userId: string, options: { page?: number; limit?: number; status?: string }) {
+        const page = options.page || 1
+        const limit = options.limit || 20
+
+        const profile = await this.getProfile(userId)
+        if (!profile.customerId) {
+            return { invoices: [], total: 0, page, limit, totalPages: 0 }
+        }
+
+        const where: { customerId: string; deletedAt: null; status?: string } = {
+            customerId: profile.customerId,
+            deletedAt: null,
+        }
+        if (options.status) {
+            where.status = options.status
+        }
+
+        const [invoices, total] = await Promise.all([
+            prisma.invoice.findMany({
+                where,
+                orderBy: { issueDate: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    project: { select: { id: true, title: true } },
+                },
+            }),
+            prisma.invoice.count({ where }),
+        ])
+
+        return { invoices, total, page, limit, totalPages: Math.ceil(total / limit) }
+    },
+
+    /**
+     * 获取指定发票详情及付款记录
+     */
+    async getInvoiceById(userId: string, invoiceId: string) {
+        const profile = await this.getProfile(userId)
+        if (!profile.customerId) throw new NotFoundError('用户非客户')
+
+        const invoice = await prisma.invoice.findFirst({
+            where: {
+                id: invoiceId,
+                customerId: profile.customerId,
+                deletedAt: null,
+            },
+            include: {
+                project: { select: { id: true, title: true } },
+                payments: { orderBy: { paymentDate: 'desc' } },
+            },
+        })
+
+        if (!invoice) throw new NotFoundError('账单未找到')
+        return invoice
+    },
+
+    // ==================== 文档档案 (从路由层提取) ====================
+
+    /**
+     * 获取客户可见的文档列表
+     */
+    async getDocuments(userId: string, options: { page?: number; limit?: number }) {
+        const page = options.page || 1
+        const limit = options.limit || 20
+
+        const profile = await this.getProfile(userId)
+        if (!profile.customerId) {
+            return { documents: [], total: 0, page, limit, totalPages: 0 }
+        }
+
+        const where = {
+            project: { customerId: profile.customerId },
+            accessLevel: { in: ['TEAM' as const, 'PUBLIC' as const] },
+            deletedAt: null,
+        }
+
+        const [documents, total] = await Promise.all([
+            prisma.document.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                include: {
+                    project: { select: { id: true, title: true } },
+                    signatureRequests: {
+                        where: { status: 'PENDING' },
+                        select: { id: true, status: true, title: true },
+                    },
+                },
+            }),
+            prisma.document.count({ where }),
+        ])
+
+        return { documents, total, page, limit, totalPages: Math.ceil(total / limit) }
+    },
+
+    /**
+     * 签署文档
+     */
+    async signDocument(userId: string, documentId: string, signatureData: string) {
+        const profile = await this.getProfile(userId)
+        if (!profile.customerId) throw new NotFoundError('仅正式客户可签署文档')
+
+        const pendingReq = await prisma.signatureRequest.findFirst({
+            where: {
+                documentId,
+                project: { customerId: profile.customerId },
+                status: 'PENDING',
+            },
+        })
+
+        if (!pendingReq) throw new NotFoundError('没有需要该客户签署的申请')
+
+        const updated = await prisma.signatureRequest.update({
+            where: { id: pendingReq.id },
+            data: {
+                status: 'SIGNED',
+                // @ts-ignore — signedAt 在 schema 扩展但 prisma 类型未刷新
+                signedAt: new Date(),
+                signatureUrl: signatureData,
+            },
+        })
+
+        return { success: true, request: updated }
+    },
+
+    // ==================== FAQ 知识库 (从路由层提取) ====================
+
+    /**
+     * 获取 FAQ 分类及其条目
+     */
+    async getFaqs() {
+        return prisma.faqCategory.findMany({
+            where: { isActive: true },
+            orderBy: { sortOrder: 'asc' },
+            include: {
+                items: {
+                    where: { isActive: true },
+                    orderBy: { sortOrder: 'asc' },
+                    select: {
+                        id: true,
+                        question: true,
+                        questionEn: true,
+                        answer: true,
+                        answerEn: true,
+                        viewCount: true,
+                    },
+                },
+            },
+        })
+    },
+
+    /**
+     * 标记 FAQ 条目为有帮助
+     */
+    async markFaqHelpful(faqId: string): Promise<{ success: boolean }> {
+        try {
+            await prisma.faqItem.update({
+                where: { id: faqId },
+                data: { helpfulCount: { increment: 1 } },
+            })
+            return { success: true }
+        } catch {
+            return { success: false }
         }
     },
 }

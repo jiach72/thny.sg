@@ -77,7 +77,7 @@ export const leadApi = {
     /**
      * 将线索转化为客户
      */
-    convertToCustomer(id: string): Promise<{
+    convertToCustomer(id: string, overrides?: { email?: string, phone?: string }): Promise<{
         success: boolean
         message: string
         customerId: string
@@ -85,7 +85,18 @@ export const leadApi = {
         setupToken: string
         setupUrl: string
     }> {
-        return apiClient.post(`/leads/${id}/convert`)
+        return apiClient.post(`/leads/${id}/convert`, overrides)
+    },
+
+    /**
+     * 撞库检测
+     */
+    checkDuplicates(payload: { email?: string; phone?: string; excludeLeadId?: string }): Promise<{
+        hasDuplicates: boolean
+        leads: any[]
+        customers: any[]
+    }> {
+        return apiClient.post('/leads/check-duplicates', payload)
     },
 
     /**

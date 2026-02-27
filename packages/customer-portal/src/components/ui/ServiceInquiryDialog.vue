@@ -100,6 +100,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
+import type { Component } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Globe, GraduationCap, Briefcase, Landmark } from 'lucide-vue-next'
 import { portalApi } from '@/api'
@@ -110,7 +111,7 @@ type ServiceType = 'immigration' | 'education' | 'business' | 'realestate'
 interface ServiceConfig {
   name: string
   description: string
-  icon: any
+  icon: Component
   iconBg: string
 }
 
@@ -186,7 +187,7 @@ watch(() => props.modelValue, (val) => {
 const serviceConfig = computed(() => serviceConfigs[props.serviceType])
 const dialogTitle = computed(() => `咨询${serviceConfig.value.name}`)
 
-async function handleSubmit() {
+async function handleSubmit(): Promise<void> {
   if (!form.message.trim()) {
     ElMessage.warning('请填写咨询内容')
     return

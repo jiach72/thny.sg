@@ -78,13 +78,13 @@ defineProps<{
   steps: Step[]
 }>()
 
-function getNodeClass(status: string) {
+function getNodeClass(status: string): string {
   if (status === 'completed') return 'bg-wealth border-wealth text-obsidian'
   if (status === 'current') return 'bg-obsidian border-wealth text-wealth'
   return 'bg-obsidian border-white/20 text-text-muted'
 }
 
-function getIcon(status: string) {
+function getIcon(status: string): typeof Check {
   if (status === 'completed') return Check
   if (status === 'current') return Loader2
   return Circle

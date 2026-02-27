@@ -6,7 +6,7 @@
         <h1 class="font-serif text-3xl text-text mb-2">
           <span class="text-wealth">{{ timeGreeting }}</span>，{{ userName }}
         </h1>
-        <p class="text-sm text-text-muted">这是您的资产管理概览</p>
+        <p class="text-sm text-text-muted">{{ $t('dashboard.overview') }}</p>
       </div>
       
       <!-- 统计卡片 (桌面端) -->
@@ -14,12 +14,12 @@
         <div class="px-6 py-3 rounded-lg bg-glass/20 border border-white/5 text-center min-w-[120px]">
           <div v-if="!statsLoading" class="text-2xl font-serif text-text">{{ stats.activeProjects }}</div>
           <div v-else class="h-8 w-12 mx-auto bg-white/10 rounded animate-pulse"></div>
-          <div class="text-[10px] uppercase tracking-wider text-text-muted">进行中项目</div>
+          <div class="text-[10px] uppercase tracking-wider text-text-muted">{{ $t('dashboard.activeProjects') }}</div>
         </div>
         <div class="px-6 py-3 rounded-lg bg-glass/20 border border-white/5 text-center min-w-[120px]">
           <div v-if="!statsLoading" class="text-2xl font-serif text-text">{{ stats.pendingDocuments }}</div>
           <div v-else class="h-8 w-12 mx-auto bg-white/10 rounded animate-pulse"></div>
-          <div class="text-[10px] uppercase tracking-wider text-text-muted">待处理文档</div>
+          <div class="text-[10px] uppercase tracking-wider text-text-muted">{{ $t('dashboard.pendingDocuments') }}</div>
         </div>
       </div>
     </div>
@@ -38,15 +38,15 @@
         <!-- 项目区域 -->
         <div>
            <div class="flex items-center justify-between mb-4">
-             <h3 class="text-sm uppercase tracking-wider text-text-muted font-bold">进行中的项目</h3>
+             <h3 class="text-sm uppercase tracking-wider text-text-muted font-bold">{{ $t('dashboard.activeProjects') }}</h3>
              <button @click="$router.push('/projects')" class="bg-transparent text-xs font-medium text-wealth hover:text-white transition-colors border-b border-wealth/30 hover:border-wealth pb-0.5">
                查看全部
              </button>
            </div>
            
-           <div v-if="projects && projects.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <div v-if="typedProjects && typedProjects.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div 
-               v-for="project in (projects as any[])" 
+               v-for="project in typedProjects" 
                :key="project.id"
                class="group relative p-6 rounded-xl bg-glass/20 border border-white/5 hover:bg-glass/30 hover:border-wealth/30 transition-all duration-300 cursor-pointer overflow-hidden"
                @click="$router.push(`/projects/${project.id}`)"
@@ -152,16 +152,43 @@
       <!-- 右侧 (侧边栏) -->
       <div class="space-y-8">
         <!-- 行动中心 -->
-        <div class="hidden lg:block">
+        <div class="hidden lg:block relative z-20">
            <ActionCenter :items="todos" @action="handleActionClick" />
         </div>
 
+        <!-- 当前进度时间线 (里程碑) -->
+        <div class="rounded-xl bg-glass/20 border border-white/5 p-6 relative z-10">
+           <h3 class="font-serif text-lg text-text mb-4 flex items-center gap-2">
+             <component :is="Clock" class="w-5 h-5 text-wealth" />
+             近期关键进度
+           </h3>
+           
+           <div v-if="loadingMilestones" class="space-y-4">
+             <div v-for="i in 3" :key="i" class="h-12 bg-white/5 rounded animate-pulse"></div>
+           </div>
+           
+           <div v-else-if="milestones && milestones.length > 0" class="relative border-l border-white/10 ml-3 space-y-6">
+             <div v-for="ms in milestones" :key="ms.id" class="relative pl-6">
+               <div class="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-obsidian border-2 border-wealth shadow-[0_0_10px_rgba(214,181,110,0.5)]"></div>
+               <p class="text-[10px] text-wealth font-bold tracking-wider mb-1">{{ formatDate(ms.dueDate) }}</p>
+               <h4 class="text-sm font-medium text-text mt-0.5 leading-snug">{{ ms.title }}</h4>
+               <p class="text-xs text-text-muted mt-1 truncate">{{ ms.project?.title }}</p>
+             </div>
+           </div>
+           
+           <div v-else class="text-center py-6 border border-dashed border-white/10 rounded-lg">
+             <p class="text-xs text-text-muted">暂无临近的里程碑</p>
+           </div>
+        </div>
+
         <!-- 顾问卡片 -->
-        <ConsultantCard 
-          :consultant="consultant"
-          role-label="您的专属顾问"
-          @schedule-meeting="handleScheduleMeeting"
-        />
+        <div class="relative z-10">
+          <ConsultantCard 
+            :consultant="consultant"
+            role-label="您的专属顾问"
+            @schedule-meeting="handleScheduleMeeting"
+          />
+        </div>
       </div>
 
     </div>
@@ -171,7 +198,7 @@
       v-model="showServiceDialog"
       :service-type="selectedServiceType"
       :user-name="user?.name || ''"
-      :user-phone="user?.phone || ''"
+      :user-phone="(user as any)?.phone || ''"
       :user-email="user?.email || ''"
       @success="handleInquirySuccess"
     />
@@ -179,26 +206,86 @@
     <!-- 预约顾问对话框 -->
     <div v-if="showMeetingDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-obsidian/80 backdrop-blur-sm" @click="showMeetingDialog = false"></div>
-      <div class="relative w-full max-w-md bg-[#1c1c1c] border border-white/10 rounded-xl p-6 shadow-2xl">
-        <h3 class="text-xl font-serif text-text mb-4">预约会议: {{ consultant?.name }}</h3>
+      <div class="relative w-full max-w-2xl flex flex-col md:flex-row bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
         
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs text-text-muted mb-1">会议主题</label>
-            <input v-model="meetingForm.title" type="text" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-wealth/50" placeholder="例如：讨论业务细节">
-          </div>
-          <div>
-            <label class="block text-xs text-text-muted mb-1">预计开始时间</label>
-            <input v-model="meetingForm.date" type="datetime-local" class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-wealth/50">
-          </div>
+        <!-- 左侧日历选择 -->
+        <div class="p-6 md:w-1/2 border-b md:border-b-0 md:border-r border-white/10 bg-black/20">
+           <h3 class="text-lg font-serif text-text mb-4">选择日期</h3>
+           <VDatePicker 
+              v-model="meetingForm.date" 
+              mode="date" 
+              :min-date="new Date()"
+              is-dark
+              color="orange"
+              class="!bg-transparent !border-0 text-text v-calendar-custom" 
+           />
         </div>
 
-        <div class="mt-6 flex gap-3 justify-end">
-          <button @click="showMeetingDialog = false" class="px-4 py-2 text-sm text-text-muted hover:text-text transition-colors">取消</button>
-          <button @click="submitMeeting" :disabled="isSubmittingMeeting" class="px-4 py-2 bg-wealth text-obsidian text-sm font-bold rounded hover:bg-[#B49248] transition-colors disabled:opacity-50">提交预约</button>
+        <!-- 右侧时间与主题 -->
+        <div class="p-6 md:w-1/2 flex flex-col bg-glass/10">
+           <h3 class="text-lg font-serif text-text mb-4 flex items-center gap-2">
+             <component :is="Clock" class="w-4 h-4 text-wealth" />
+             可用时段与主题
+           </h3>
+           
+           <div class="space-y-6 flex-1">
+             <div>
+               <label class="block text-xs text-text-muted mb-2">选择时段组别</label>
+               <div class="grid grid-cols-2 gap-2">
+                 <button 
+                    v-for="slot in ['09:00', '10:30', '14:00', '15:30', '17:00']" 
+                    :key="slot"
+                    class="py-2 border rounded text-sm transition-colors text-center"
+                    :class="meetingForm.timeSlot === slot ? 'bg-wealth text-obsidian border-wealth font-bold' : 'border-white/10 text-text hover:border-wealth/50'"
+                    @click="meetingForm.timeSlot = slot"
+                 >
+                   {{ slot }}
+                 </button>
+               </div>
+             </div>
+
+             <div>
+               <label class="block text-xs text-text-muted mb-2">会议主题 (简述)</label>
+               <input v-model="meetingForm.title" type="text" class="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-text text-sm focus:outline-none focus:border-wealth/50 transition-colors" placeholder="例如：讨论续签业务细节">
+             </div>
+           </div>
+
+           <div class="mt-8 flex gap-3 justify-end">
+             <button @click="showMeetingDialog = false" class="px-4 py-2 text-sm text-text-muted hover:text-text transition-colors">取消</button>
+             <button @click="submitMeeting" :disabled="isSubmittingMeeting || !meetingForm.date || !meetingForm.timeSlot" class="px-6 py-2 bg-gradient-to-r from-wealth to-[#B49248] text-obsidian text-sm font-bold rounded shadow-lg shadow-wealth/20 hover:shadow-wealth/40 transition-all disabled:opacity-50 disabled:grayscale">提交预约</button>
+           </div>
         </div>
       </div>
     </div>
+
+    <!-- 首次登录入驻向导 (Onboarding) -->
+    <el-dialog v-model="showOnboarding" title="全新开启您的卓越旅程" width="600px" custom-class="bg-[#1c1c1c] border border-white/10 shadow-2xl rounded-2xl p-0" :show-close="false" :close-on-click-modal="false" :close-on-press-escape="false">
+      <div class="px-6 py-4 space-y-6">
+         <!-- 进度指示 -->
+         <div class="flex gap-2 mb-8">
+            <div class="h-1.5 flex-1 rounded-full bg-wealth shadow-[0_0_8px_rgba(214,181,110,0.4)]"></div>
+            <div class="h-1.5 flex-1 rounded-full bg-white/10"></div>
+            <div class="h-1.5 flex-1 rounded-full bg-white/10"></div>
+         </div>
+
+         <div class="text-center space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-wealth to-[#B49248] text-obsidian mx-auto flex items-center justify-center shadow-lg shadow-wealth/20 mb-6">
+              <component :is="Globe" class="w-8 h-8" />
+            </div>
+            <h2 class="text-2xl font-serif text-text">欢迎入驻 Tonghai Customer Portal</h2>
+            <p class="text-sm text-text-muted leading-relaxed max-w-sm mx-auto">
+              这是为您专属辟出的数字空间。在这里，您可以全天候检阅业务进程、下载绝密档案档、签批文件，以及预约我们专家顾问团队的面谈。
+            </p>
+         </div>
+      </div>
+      <template #footer>
+         <div class="flex justify-center pt-2 pb-6">
+            <button @click="finishOnboarding" class="px-8 py-3 bg-gradient-to-r from-wealth to-[#B49248] text-obsidian text-sm font-bold rounded shadow-lg shadow-wealth/20 hover:shadow-wealth/40 transition-all">
+               现在开始探索
+            </button>
+         </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -209,36 +296,87 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores'
 import { useProjectStore } from '@/stores/projectStore'
 import { portalApi } from '@/api'
-import { Folder, Globe, GraduationCap, Briefcase, Landmark } from 'lucide-vue-next'
+import type { Milestone } from '@tonghai/shared'
+import { Folder, Globe, GraduationCap, Briefcase, Landmark, Clock } from 'lucide-vue-next'
 import ActionCenter from '@/components/ui/ActionCenter.vue'
 import ConsultantCard from '@/components/ui/ConsultantCard.vue'
 import ServiceInquiryDialog from '@/components/ui/ServiceInquiryDialog.vue'
+import { useI18n } from 'vue-i18n'
+import { DatePicker as VDatePicker } from 'v-calendar'
+import { formatDate, getStatusLabel } from '@/utils/formatters'
+import 'v-calendar/dist/style.css'
+
+export interface ActionItem {
+  id: string
+  type: 'document' | 'project' | 'invoice' | 'message'
+  title: string
+  description: string
+  createdAt: string
+  projectId?: string
+  priority?: 'high' | 'normal' | 'low'
+  isRead?: boolean
+}
+
+export interface Consultant {
+  id: string
+  name: string
+  avatar?: string
+  contactNumber?: string
+  title?: string
+}
+
+export interface ProjectItem {
+  id: string
+  title: string
+  status: string
+  progress: number
+  completionPercentage?: number
+  createdAt: string
+  consultant?: Consultant
+}
+
+export interface DashboardStats {
+  activeProjects: number
+  pendingDocuments: number
+  upcomingMilestones?: Milestone[]
+}
 
 type ServiceType = 'immigration' | 'education' | 'business' | 'realestate'
+
+const { t } = useI18n()
 
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 const projectStore = useProjectStore()
 const { projects } = storeToRefs(projectStore)
 
-const todos = ref<any[]>([])
+const todos = ref<ActionItem[]>([])
 const stats = ref({
   activeProjects: 0,
   pendingDocuments: 0
 })
+const milestones = ref<Milestone[]>([])
 const statsLoading = ref(true)
+const loadingMilestones = ref(true)
+
 // 顾问卡片与预约
-const consultant = ref<any | null>(null)
+const consultant = ref<Consultant | null>(null)
 const showMeetingDialog = ref(false)
 const isSubmittingMeeting = ref(false)
 const meetingForm = ref({
   title: '',
-  date: ''
+  date: new Date() as Date | null,
+  timeSlot: ''
+})
+
+const typedProjects = computed<ProjectItem[]>(() => {
+  return (projects.value || []) as unknown as ProjectItem[]
 })
 
 // 服务咨询对话框
 const showServiceDialog = ref(false)
 const selectedServiceType = ref<ServiceType>('immigration')
+const showOnboarding = ref(false)
 
 // 计算属性
 const userName = computed(() => {
@@ -248,9 +386,9 @@ const userName = computed(() => {
 
 const timeGreeting = computed(() => {
   const hour = new Date().getHours()
-  if (hour < 12) return '早上好'
-  if (hour < 18) return '下午好'
-  return '晚上好'
+  if (hour < 12) return t('common.welcome') + ' (Morning)'
+  if (hour < 18) return t('common.welcome') + ' (Afternoon)'
+  return t('common.welcome') + ' (Evening)'
 })
 
 // 生命周期
@@ -260,65 +398,96 @@ onMounted(async () => {
 })
 
 // 方法
-async function loadDashboardData() {
+async function loadDashboardData(): Promise<void> {
   try {
-    const [notifications, dashboardStats] = await Promise.all([
+    const responses = await Promise.all([
       portalApi.getNotifications(),
       portalApi.getDashboardStats()
-    ]) as any[]
+    ])
+    
+    const notifications = responses[0] as unknown as ActionItem[]
+    const dashboardStats = responses[1] as unknown as DashboardStats
     
     todos.value = Array.isArray(notifications) ? notifications : []
     stats.value = dashboardStats || { activeProjects: 0, pendingDocuments: 0 }
     
-    // 从第一个项目获取顾问信息（如果有）
-    if (projects.value?.length > 0 && (projects.value[0] as any).consultant) {
-      consultant.value = (projects.value[0] as any).consultant
+    // 从 Stats 提取时间线
+    if (dashboardStats && dashboardStats.upcomingMilestones) {
+      milestones.value = dashboardStats.upcomingMilestones
     }
+    
+    // 从第一个项目获取顾问信息（如果有）
+    if (typedProjects.value.length > 0 && typedProjects.value[0].consultant) {
+      consultant.value = typedProjects.value[0].consultant
+    }
+    
+    // 触发 Onboarding 检查
+    checkOnboarding()
   } catch (err) {
     console.error('加载数据失败', err)
   } finally {
     statsLoading.value = false
+    loadingMilestones.value = false
   }
 }
 
-function openServiceInquiry(type: ServiceType) {
+function checkOnboarding(): void {
+  const hasSeen = localStorage.getItem('thny_onboarding_seen')
+  if (!hasSeen && typedProjects.value.length === 0) {
+    showOnboarding.value = true
+  }
+}
+
+function finishOnboarding(): void {
+  localStorage.setItem('thny_onboarding_seen', 'true')
+  showOnboarding.value = false
+}
+
+function openServiceInquiry(type: ServiceType): void {
   selectedServiceType.value = type
   showServiceDialog.value = true
 }
 
-function handleActionClick(_item: any) {
+function handleActionClick(_item: unknown): void {
   // ActionCenter 组件已处理跳转逻辑
 }
 
-function handleInquirySuccess() {
+function handleInquirySuccess(): void {
   ElMessage.success('咨询已提交')
 }
 
-function handleScheduleMeeting() {
+function handleScheduleMeeting(): void {
   if (!consultant.value) {
     ElMessage.warning('尚未指定专属顾问')
     return
   }
+  
+  // 初始化预订表单
   meetingForm.value.title = ''
-  // 默认填充明天同时刻
+  
   const tmr = new Date()
   tmr.setDate(tmr.getDate() + 1)
-  tmr.setMinutes(tmr.getMinutes() - tmr.getTimezoneOffset())
-  meetingForm.value.date = tmr.toISOString().slice(0, 16)
+  tmr.setHours(0, 0, 0, 0)
+  
+  meetingForm.value.date = tmr
+  meetingForm.value.timeSlot = '10:30'
   showMeetingDialog.value = true
 }
 
-async function submitMeeting() {
+async function submitMeeting(): Promise<void> {
   if (!meetingForm.value.title.trim()) {
     ElMessage.warning('请填写会议主题')
     return
   }
-  if (!meetingForm.value.date) {
-    ElMessage.warning('请选择预计时间')
+  if (!meetingForm.value.date || !meetingForm.value.timeSlot) {
+    ElMessage.warning('请选择预约日期与时段')
     return
   }
   
+  const [hours, minutes] = meetingForm.value.timeSlot.split(':').map(Number)
   const startTime = new Date(meetingForm.value.date)
+  startTime.setHours(hours, minutes, 0, 0)
+  
   const endTime = new Date(startTime.getTime() + 60 * 60 * 1000) // 默认1小时
   
   isSubmittingMeeting.value = true
@@ -331,25 +500,25 @@ async function submitMeeting() {
     })
     ElMessage.success('会议预约请求已发送')
     showMeetingDialog.value = false
-  } catch (error: any) {
-    ElMessage.error(error.message || '预约失败，请稍后重试')
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || '预约失败，请稍后重试')
   } finally {
     isSubmittingMeeting.value = false
   }
 }
-
-function getStatusLabel(status: string): string {
-  const map: Record<string, string> = {
-    PLANNING: '规划中',
-    ACTIVE: '进行中',
-    ON_HOLD: '暂停',
-    COMPLETED: '已完成'
-  }
-  return map[status] || status
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN', { month: 'short', year: 'numeric' })
-}
 </script>
+
+<style scoped>
+.v-calendar-custom {
+  --vc-font-family: inherit;
+  --vc-bg: transparent;
+  --vc-border: transparent;
+}
+:deep(.vc-header) {
+  margin-bottom: 1rem;
+}
+:deep(.vc-nav-popover-container) {
+  background: #1c1c1c;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+</style>

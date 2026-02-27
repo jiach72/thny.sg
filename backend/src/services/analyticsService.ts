@@ -90,6 +90,7 @@ export const analyticsService = {
         const leads = await prisma.lead.findMany({
             where: { ...where, deletedAt: null },
             select: {
+                id: true,
                 sourceChannel: true,
                 status: true,
                 score: true,
@@ -97,13 +98,49 @@ export const analyticsService = {
         })
 
         // 按渠道分组
-        const channelData = new Map<string, { count: number; converted: number; totalScore: number }>()
+        const channelData = new Map<string, { count: number; converted: number; totalScore: number; revenue: number }>()
+
+        // 预查渠道带来的营收 (通过 Lead -> Customer -> Project -> Invoice)
+        // Prisma 不好直接全链聚合，改为按转化成功的线索查
+        const convertedLeads = leads.filter(l => l.status === 'CONVERTED')
+        const convertedLeadIds = convertedLeads.map(l => l.id)
+
+        const leadRevenueMap = new Map<string, number>()
+        if (convertedLeadIds.length > 0) {
+            const customers = await prisma.customer.findMany({
+                where: { leadId: { in: convertedLeadIds } },
+                select: {
+                    leadId: true,
+                    projects: {
+                        select: {
+                            invoices: {
+                                where: { status: { in: ['PAID', 'PARTIAL'] } },
+                                select: { paidAmount: true }
+                            }
+                        }
+                    }
+                }
+            })
+
+            for (const customer of customers) {
+                let rev = 0
+                for (const proj of customer.projects) {
+                    for (const inv of proj.invoices) {
+                        rev += Number(inv.paidAmount || 0)
+                    }
+                }
+                leadRevenueMap.set(customer.leadId, rev)
+            }
+        }
 
         for (const lead of leads) {
             const channel = lead.sourceChannel || 'unknown'
-            const current = channelData.get(channel) || { count: 0, converted: 0, totalScore: 0 }
+            const current = channelData.get(channel) || { count: 0, converted: 0, totalScore: 0, revenue: 0 }
             current.count++
-            if (lead.status === 'CONVERTED') current.converted++
+            if (lead.status === 'CONVERTED') {
+                current.converted++
+                current.revenue += leadRevenueMap.get(lead.id) || 0
+            }
             current.totalScore += lead.score
             channelData.set(channel, current)
         }
@@ -114,7 +151,58 @@ export const analyticsService = {
             convertedCount: data.converted,
             conversionRate: data.count > 0 ? Math.round((data.converted / data.count) * 100) : 0,
             avgScore: data.count > 0 ? Math.round(data.totalScore / data.count) : 0,
+            revenue: Number(data.revenue.toFixed(2))
         }))
+    },
+
+    /**
+     * 获取营收趋势数据
+     * 按月统计已付发票金额
+     */
+    async getRevenueTrend(period: string = 'month', months: number = 6) {
+        const endDate = new Date()
+        const startDate = new Date()
+        startDate.setMonth(startDate.getMonth() - months)
+
+        const invoices = await prisma.invoice.findMany({
+            where: {
+                issueDate: { gte: startDate, lte: endDate },
+                status: { in: ['PAID', 'PARTIAL'] },
+                deletedAt: null,
+            },
+            select: {
+                issueDate: true,
+                paidAmount: true,
+            },
+        })
+
+        const monthlyData = new Map<string, number>()
+
+        // Initialize last 6 months to ensure zeroes are shown
+        for (let i = months - 1; i >= 0; i--) {
+            const d = new Date()
+            d.setMonth(d.getMonth() - i)
+            const key = period === 'quarter'
+                ? `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`
+                : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+            if (!monthlyData.has(key)) monthlyData.set(key, 0)
+        }
+
+        for (const inv of invoices) {
+            const key = period === 'quarter'
+                ? `${inv.issueDate.getFullYear()}-Q${Math.floor(inv.issueDate.getMonth() / 3) + 1}`
+                : `${inv.issueDate.getFullYear()}-${String(inv.issueDate.getMonth() + 1).padStart(2, '0')}`
+
+            const current = monthlyData.get(key) || 0
+            monthlyData.set(key, current + Number(inv.paidAmount || 0))
+        }
+
+        return Array.from(monthlyData.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([period, revenue]) => ({
+                period,
+                revenue: Number(revenue.toFixed(2)),
+            }))
     },
 
     /**

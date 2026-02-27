@@ -70,7 +70,7 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
-function handleAction(item: ActionItem) {
+function handleAction(item: ActionItem): void {
   // 触发事件供父组件处理
   emit('action', item)
   
@@ -85,6 +85,9 @@ function handleAction(item: ActionItem) {
       } else {
         router.push('/projects')
       }
+      break
+    case 'invoice':
+      router.push('/invoices')
       break
     case 'message':
       router.push('/messages')

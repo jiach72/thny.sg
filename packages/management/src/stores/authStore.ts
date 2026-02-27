@@ -15,8 +15,8 @@ interface User {
 
 export const useAuthStore = defineStore('auth', () => {
     // 状态
+    // accessToken 仅存内存，页面刷新后通过 httpOnly cookie 中的 refreshToken 静默刷新
     const accessToken = ref<string | null>(localStorage.getItem('accessToken'))
-    const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'))
     const user = ref<User | null>(null)
     const permissions = ref<string[]>([])
     const loading = ref(false)
@@ -37,12 +37,12 @@ export const useAuthStore = defineStore('auth', () => {
                 throw new Error('客户账号无法登录管理系统，请使用客户门户')
             }
 
+            // accessToken 存内存 + localStorage（页面刷新恢复用）
+            // refreshToken 已由后端通过 httpOnly cookie 设置，前端无需处理
             accessToken.value = data.accessToken
-            refreshToken.value = data.refreshToken
             user.value = data.user
 
             localStorage.setItem('accessToken', data.accessToken)
-            localStorage.setItem('refreshToken', data.refreshToken)
 
             // 获取用户权限
             await fetchPermissions()
@@ -92,25 +92,32 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    let refreshPromise: Promise<any> | null = null
+
     async function refreshAccessToken() {
-        if (!refreshToken.value) {
-            throw new Error('No refresh token')
-        }
+        if (refreshPromise) return refreshPromise
 
-        const data = await authApi.refreshToken(refreshToken.value) as any
-        accessToken.value = data.accessToken
-        localStorage.setItem('accessToken', data.accessToken)
+        refreshPromise = (async () => {
+            try {
+                // refreshToken 通过 httpOnly cookie 自动携带，无需手动发送
+                const data = await authApi.refreshToken('') as any
+                accessToken.value = data.accessToken
+                localStorage.setItem('accessToken', data.accessToken)
+                return data
+            } finally {
+                refreshPromise = null
+            }
+        })()
 
-        return data
+        return refreshPromise
     }
 
     function logout() {
         accessToken.value = null
-        refreshToken.value = null
         user.value = null
         permissions.value = []
         localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
+        // refreshToken cookie 由后端 /auth/logout 清除
     }
 
     /**
@@ -131,7 +138,6 @@ export const useAuthStore = defineStore('auth', () => {
     return {
         // 状态
         accessToken,
-        refreshToken,
         user,
         permissions,
         loading,
@@ -148,4 +154,3 @@ export const useAuthStore = defineStore('auth', () => {
         can,
     }
 })
-

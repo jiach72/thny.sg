@@ -92,7 +92,7 @@
               @confirm="deleteTemplateById(template.id)"
             >
               <template #reference>
-                <el-button type="danger" link>删除</el-button>
+                <el-button type="danger" v-permission="['settings:manage']" link>删除</el-button>
               </template>
             </el-popconfirm>
           </div>

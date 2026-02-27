@@ -1,16 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { portalApi } from '@/api'
+import type { PortalProject } from '@tonghai/shared'
 
 export const useProjectStore = defineStore('project', () => {
-    const projects = ref<Record<string, unknown>[]>([])
-    const currentProject = ref<Record<string, unknown> | null>(null)
+    const projects = ref<PortalProject[]>([])
+    const currentProject = ref<PortalProject | null>(null)
     const isLoading = ref(false)
 
-    async function fetchMyProjects() {
+    async function fetchMyProjects(): Promise<void> {
         isLoading.value = true
         try {
-            const data: any = await portalApi.getMyProjects()
+            const data = await portalApi.getMyProjects()
             projects.value = data || []
         } catch (error) {
             console.error('Failed to fetch projects:', error)
@@ -19,10 +20,10 @@ export const useProjectStore = defineStore('project', () => {
         }
     }
 
-    async function fetchProject(id: string) {
+    async function fetchProject(id: string): Promise<void> {
         isLoading.value = true
         try {
-            const data: any = await portalApi.getProjectById(id)
+            const data = await portalApi.getProjectById(id)
             currentProject.value = data || null
         } catch (error) {
             console.error('Failed to fetch project details:', error)

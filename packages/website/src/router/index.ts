@@ -78,6 +78,23 @@ export const routes: RouteRecordRaw[] = [
                     description: '阅读通海南洋的专业文章与行业分析报告。',
                 },
             },
+            {
+                path: 'privacy-policy',
+                name: 'PrivacyPolicy',
+                component: () => import('@/views/PrivacyPolicy.vue'),
+                meta: {
+                    title: '隐私政策 | 通海南洋',
+                    description: '了解通海南洋如何收集、使用和保护您的个人信息。',
+                },
+            },
+            {
+                path: ':pathMatch(.*)*',
+                name: 'NotFound',
+                component: () => import('@/views/NotFound.vue'),
+                meta: {
+                    title: '页面未找到 | 通海南洋',
+                },
+            },
         ],
     },
 ]

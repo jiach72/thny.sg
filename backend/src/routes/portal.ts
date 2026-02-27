@@ -205,7 +205,36 @@ router.delete('/messages/:id', customerAuth, async (req: Request, res: Response,
     }
 })
 
-// ==================== 服务咨询接口 ====================
+// ==================== 账单发票接口 ====================
+
+/**
+ * GET /portal/invoices - 获取客户的账单发票列表
+ */
+router.get('/invoices', customerAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1
+        const limit = parseInt(req.query.limit as string) || 20
+        const status = req.query.status as string | undefined
+        const result = await portalService.getInvoices(req.user!.id, { page, limit, status })
+        res.json(result)
+    } catch (error) {
+        next(error)
+    }
+})
+
+/**
+ * GET /portal/invoices/:id - 获取指定账单详情及其付款记录
+ */
+router.get('/invoices/:id', customerAuth, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const invoice = await portalService.getInvoiceById(req.user!.id, req.params.id)
+        res.json(invoice)
+    } catch (error) {
+        next(error)
+    }
+})
+
+// ==================== 服务咨询与预约接口 ====================
 
 /**
  * POST /portal/inquiries - 创建服务咨询
@@ -221,6 +250,29 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await portalService.createInquiry(req.user!.id, req.body)
+            res.status(201).json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /portal/appointments - 客户预约顾问 (防冲突)
+ */
+router.post(
+    '/appointments',
+    customerAuth,
+    [
+        body('title').notEmpty().withMessage('请提供会议主题'),
+        body('startTime').isISO8601().withMessage('无效的开始时间'),
+        body('endTime').isISO8601().withMessage('无效的结束时间'),
+        body('userId').notEmpty().withMessage('必须指定顾问ID'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.bookAppointment(req.user!.id, req.body)
             res.status(201).json(result)
         } catch (error) {
             next(error)
@@ -297,6 +349,80 @@ router.put(
             res.json(result)
         } catch (error) {
             next(error)
+        }
+    }
+)
+
+// ==================== 文档档案接口 ====================
+
+/**
+ * GET /portal/documents - 获取客户相关的文档列表（含签署诉求）
+ */
+router.get(
+    '/documents',
+    customerAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const page = parseInt(req.query.page as string) || 1
+            const limit = parseInt(req.query.limit as string) || 20
+            const result = await portalService.getDocuments(req.user!.id, { page, limit })
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /portal/documents/:id/sign - 模拟简易签章提交
+ */
+router.post(
+    '/documents/:id/sign',
+    customerAuth,
+    [
+        body('signatureData').notEmpty().withMessage('未提供签名数据')
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.signDocument(req.user!.id, req.params.id, req.body.signatureData)
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+// ==================== 知识库与支持接口 ====================
+
+/**
+ * GET /portal/faqs - 获取启用的 FAQ 列表（按类别分组）
+ */
+router.get(
+    '/faqs',
+    customerAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const categories = await portalService.getFaqs()
+            res.json(categories)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /portal/faqs/:id/helpful - 为帮助条目点赞
+ */
+router.post(
+    '/faqs/:id/helpful',
+    customerAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await portalService.markFaqHelpful(req.params.id)
+            res.json(result)
+        } catch (error) {
+            res.json({ success: false })
         }
     }
 )

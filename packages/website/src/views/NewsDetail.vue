@@ -28,7 +28,7 @@
                 </span>
                 <span class="date">
                   <el-icon><Calendar /></el-icon>
-                  {{ formatDate(article.publishedAt) }}
+                  {{ formatDate(article.publishedAt || article.createdAt) }}
                 </span>
                 <span class="views">
                   <el-icon><View /></el-icon>
@@ -146,46 +146,63 @@ useHead({
     },
   ],
 })
+// 文章类型定义
+interface NewsArticle {
+  id: string
+  title: string
+  titleEn?: string
+  content: string
+  contentEn?: string
+  summary?: string
+  summaryEn?: string
+  coverImage?: string
+  source: string
+  sourceUrl?: string
+  author?: string
+  type: string
+  category?: string
+  tags: string[]
+  status: string
+  viewCount: number
+  publishedAt?: string
+  createdAt: string
+}
 
 // 状态
 const loading = ref(true)
-const article = ref<any>(null)
-const popularArticles = ref<any[]>([])
+const article = ref<NewsArticle | null>(null)
+const popularArticles = ref<NewsArticle[]>([])
 
 // 渲染内容（通过 DOMPurify 消毒防止 XSS，RSS 源内容可能含恶意脚本）
-const renderedContent = computed(() => {
+const renderedContent = computed((): string => {
   const contentToRender = article.value?.content || article.value?.summary || ''
   if (!contentToRender) return ''
   const raw = contentToRender
     .replace(/\n/g, '<br/>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  return DOMPurify.sanitize(raw)
+  return DOMPurify.sanitize(raw) as string
 })
 
 // 获取文章详情
-async function fetchArticle() {
+async function fetchArticle(): Promise<void> {
   const id = route.params.id as string
   loading.value = true
   try {
-    // apiClient 返回 Response Body
-    // 旧后端: { success: true, data: article }
-    // 新后端(解包后): article
     const response = await apiClient.get(`/news/${id}`, {
       params: { locale: locale.value === 'en' ? 'en' : 'zh' },
     })
     
-    // 兼容逻辑
-    if (response.success && response.data) {
-       article.value = response.data
-    } else if (response.title) { 
-       // 假设解包后的 article 对象有 title 字段
-       article.value = response
+    // 类型收窄: 兼容旧格式 { success, data } 和新格式 (直接返回)
+    const result = response as Record<string, unknown>
+    if (result.success && result.data) {
+       article.value = result.data as NewsArticle
+    } else if ('id' in result && 'title' in result) {
+       article.value = result as unknown as NewsArticle
     } else {
        article.value = null
     }
 
-  } catch (error) {
-    console.error('Error fetching article:', error)
+  } catch {
     article.value = null
   } finally {
     loading.value = false
@@ -193,23 +210,24 @@ async function fetchArticle() {
 }
 
 // 获取热门文章
-async function fetchPopular() {
+async function fetchPopular(): Promise<void> {
   try {
     const response = await apiClient.get('/news/popular', {
       params: { limit: 5, locale: locale.value === 'en' ? 'en' : 'zh' },
-    }) as any
+    })
     
-    // 兼容逻辑
-    let data = response
-    if (response.success && response.data) {
-      data = response.data
+    // 兼容逻辑: 旧格式 { success, data } 和新格式 (数组直接返回)
+    const result = response as Record<string, unknown>
+    let data: unknown = result
+    if (result.success && result.data) {
+      data = result.data
     }
     
     if (Array.isArray(data)) {
-      popularArticles.value = data
+      popularArticles.value = data as NewsArticle[]
     }
-  } catch (error) {
-    console.error('Error fetching popular:', error)
+  } catch {
+    // 非关键功能，静默失败
   }
 }
 

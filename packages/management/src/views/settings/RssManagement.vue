@@ -91,7 +91,7 @@
           <el-button link :type="row.isActive ? 'warning' : 'success'" @click="toggleFeedStatus(row)">
             {{ row.isActive ? '禁用' : '启用' }}
           </el-button>
-          <el-button link type="danger" @click="deleteFeed(row)">删除</el-button>
+          <el-button link type="danger" v-permission="['settings:manage']" @click="deleteFeed(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>

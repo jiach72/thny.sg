@@ -1,5 +1,5 @@
-/* 导入Google Fonts - 添加 display=swap 避免 FOIT */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap');
+/* 导入字体 - 使用国内可访问的 CDN 镜像，避免大陆用户因 GFW 加载失败 */
+@import url('https://fonts.loli.net/css2?family=Poppins:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap');
 
 /* CSS变量 - 暖色调优化配色方案 */
 :root {

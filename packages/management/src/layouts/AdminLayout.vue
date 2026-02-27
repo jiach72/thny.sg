@@ -1,7 +1,9 @@
 <template>
   <div class="admin-layout">
+    <!-- 移动端蒙版 -->
+    <div v-if="isMobileOpen" class="sidebar-overlay" @click="isMobileOpen = false"></div>
     <!-- 侧边栏 -->
-    <aside class="sidebar" :class="{ collapsed: isCollapsed }">
+    <aside class="sidebar" :class="{ collapsed: isCollapsed, 'mobile-open': isMobileOpen }">
       <div class="logo">
         <span v-if="!isCollapsed">通海南洋CRM</span>
         <span v-else>TH</span>
@@ -46,10 +48,19 @@
           <template #title>任务看板</template>
         </el-menu-item>
         
-        <el-menu-item index="/messages">
-          <el-icon><ChatDotRound /></el-icon>
-          <template #title>消息发送</template>
+        <el-menu-item index="/calendar">
+          <el-icon><Calendar /></el-icon>
+          <template #title>全功能日历</template>
         </el-menu-item>
+
+        <el-sub-menu index="/messages">
+          <template #title>
+            <el-icon><ChatDotRound /></el-icon>
+            <span>消息中心</span>
+          </template>
+          <el-menu-item index="/messages/inbox">收件箱</el-menu-item>
+          <el-menu-item v-if="authStore.isAdmin" index="/messages/send">发送消息</el-menu-item>
+        </el-sub-menu>
 
         <el-menu-item index="/settings/invoices">
           <el-icon><Wallet /></el-icon>
@@ -82,6 +93,10 @@
           <el-menu-item index="/settings/roles">
             <el-icon><Key /></el-icon>
             <span>角色权限</span>
+          </el-menu-item>
+          <el-menu-item index="/settings/audit-logs">
+            <el-icon><Monitor /></el-icon>
+            <span>审计日志</span>
           </el-menu-item>
           <el-menu-item index="/settings/scoring">
             <el-icon><Trophy /></el-icon>
@@ -120,9 +135,14 @@
       <!-- 顶部栏 -->
       <header class="header">
         <div class="header-left">
+          <!-- 移动端汉堡菜单 -->
+          <button class="mobile-hamburger" @click="isMobileOpen = !isMobileOpen">
+            <el-icon :size="22"><Fold /></el-icon>
+          </button>
           <el-button
             :icon="isCollapsed ? Expand : Fold"
             text
+            class="collapse-btn"
             @click="isCollapsed = !isCollapsed"
           />
           <el-breadcrumb separator="/">
@@ -170,7 +190,11 @@
 
       <!-- 页面内容 -->
       <main class="content">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
     </div>
     
@@ -184,6 +208,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores'
+import { useIdleTimeout } from '@/composables/useIdleTimeout'
 import CommandPalette from '@/components/common/CommandPalette.vue'
 import NotificationCenter from '@/components/common/NotificationCenter.vue'
 import ThemeSwitcher from '@/components/common/ThemeSwitcher.vue'
@@ -212,6 +237,7 @@ import {
   TrendCharts,
   Connection,
   Avatar,
+  Calendar,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -220,7 +246,11 @@ const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 
 const isCollapsed = ref(false)
+const isMobileOpen = ref(false)
 const showCommandPalette = ref(false)
+
+// 启动空闲超时检测 (30分钟)
+useIdleTimeout(30)
 
 const activeMenu = computed(() => {
   const path = route.path
@@ -473,5 +503,82 @@ function handleCommand(command: string) {
   font-size: 11px;
   font-weight: 500;
   color: var(--color-text-muted);
+}
+
+/* 页面切换过渡动画 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* 移动端响应式 */
+.mobile-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mobile-hamburger:hover {
+  background: var(--color-border);
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-hamburger {
+    display: flex;
+  }
+  
+  .collapse-btn {
+    display: none !important;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 240px !important;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+  }
+
+  .main-area {
+    margin-left: 0 !important;
+  }
 }
 </style>

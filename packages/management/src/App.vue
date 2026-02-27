@@ -1,9 +1,12 @@
 <template>
-  <router-view />
+  <ErrorBoundary>
+    <router-view />
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
 // CRM 管理端根组件
+import ErrorBoundary from './components/ErrorBoundary.vue'
 </script>
 
 <style>

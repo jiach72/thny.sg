@@ -325,10 +325,10 @@ function getRelationLabel(relationship: string): string {
   return relationLabels[relationship] || relationship
 }
 
-async function loadProfile() {
+async function loadProfile(): Promise<void> {
   profileLoading.value = true
   try {
-    const data = await portalApi.getProfile() as any
+    const data = await portalApi.getProfile() as unknown as { name?: string; phone?: string; company?: string; familyMembers?: FamilyMember[] }
     profileForm.name = data.name || ''
     profileForm.phone = data.phone || ''
     profileForm.company = data.company || ''
@@ -344,7 +344,7 @@ async function loadProfile() {
   }
 }
 
-async function handleSaveProfile() {
+async function handleSaveProfile(): Promise<void> {
   savingProfile.value = true
   try {
     await portalApi.updateProfile({
@@ -363,7 +363,7 @@ async function handleSaveProfile() {
   }
 }
 
-async function handleChangePassword() {
+async function handleChangePassword(): Promise<void> {
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
     ElMessage.error('两次输入的密码不一致')
     return
@@ -392,7 +392,7 @@ async function handleChangePassword() {
 
 // 防抖保存通知偏好
 let preferencesTimer: ReturnType<typeof setTimeout> | null = null
-async function handlePreferencesChange() {
+async function handlePreferencesChange(): Promise<void> {
   if (preferencesTimer) clearTimeout(preferencesTimer)
   preferencesTimer = setTimeout(async () => {
     savingPreferences.value = true
@@ -411,7 +411,7 @@ async function handlePreferencesChange() {
   }, 1000)
 }
 
-async function handleAddMember() {
+async function handleAddMember(): Promise<void> {
   if (!newMemberForm.name || !newMemberForm.relationship) return
   
   addingMember.value = true
@@ -420,7 +420,7 @@ async function handleAddMember() {
       name: newMemberForm.name,
       relationship: newMemberForm.relationship,
       isBeneficiary: newMemberForm.isBeneficiary,
-    }) as any
+    }) as unknown as { member: FamilyMember }
     
     // 添加到本地列表
     if (result.member) {
@@ -441,7 +441,7 @@ async function handleAddMember() {
   }
 }
 
-async function handleDeleteMember(memberId: string) {
+async function handleDeleteMember(memberId: string): Promise<void> {
   try {
     await portalApi.deleteFamilyMember(memberId)
     familyMembers.value = familyMembers.value.filter(m => m.id !== memberId)

@@ -23,6 +23,9 @@
         "paths": {
             "@/*": [
                 "./src/*"
+            ],
+            "@tonghai/shared": [
+                "../shared/types"
             ]
         }
     },

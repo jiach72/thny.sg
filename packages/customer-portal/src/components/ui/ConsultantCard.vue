@@ -86,8 +86,8 @@ defineEmits<{
   (e: 'schedule-meeting'): void
 }>()
 
-// 默认头像
-const defaultAvatar = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200'
+// 默认头像（移除 Unsplash 外部依赖，使用 el-avatar 的 initials 回退显示）
+const defaultAvatar = ''
 
 // 计算属性
 const displayName = computed(() => props.consultant?.name || '待指派')

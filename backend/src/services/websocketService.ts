@@ -1,8 +1,10 @@
 import { Server as HttpServer } from 'http'
 import { Server, Socket } from 'socket.io'
 import jwt from 'jsonwebtoken'
+import { createAdapter } from '@socket.io/redis-adapter'
 import { config } from '../config/index.js'
 import logger from '../config/logger.js'
+import { createRedisClient, isRedisConnected } from '../config/redis.js'
 
 let io: Server | null = null
 
@@ -23,6 +25,18 @@ export function initWebSocket(httpServer: HttpServer) {
             credentials: true,
         },
     })
+
+    // 基于 Redis 状态挂载 Socket 多节点适配器
+    try {
+        if (isRedisConnected || config.redisUrl) {
+            const pubClient = createRedisClient()
+            const subClient = pubClient.duplicate()
+            io.adapter(createAdapter(pubClient, subClient))
+            logger.info('WebSocket Redis Adapter 已加载', { context: 'websocket' })
+        }
+    } catch (error) {
+        logger.error('WebSocket Redis Adapter 加载失败', { error, context: 'websocket' })
+    }
 
     // JWT 认证中间件
     io.use((socket, next) => {

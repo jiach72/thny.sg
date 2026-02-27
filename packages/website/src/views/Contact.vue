@@ -61,13 +61,27 @@
                   </el-radio-group>
                 </el-form-item>
 
-                <el-form-item :label="t('contact.form.contactMethod.label')" prop="contactMethod">
-                  <el-input 
-                    v-model="contactForm.contactMethod" 
-                    :placeholder="t('contact.form.contactMethod.placeholder')"
-                    size="large"
-                  />
-                </el-form-item>
+                <el-row :gutter="16">
+                  <el-col :sm="12" :xs="24">
+                    <el-form-item label="邮箱" prop="email">
+                      <el-input 
+                        v-model="contactForm.email" 
+                        placeholder="your@email.com"
+                        size="large"
+                        type="email"
+                      />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :sm="12" :xs="24">
+                    <el-form-item label="电话 / 微信">
+                      <el-input 
+                        v-model="contactForm.phone" 
+                        placeholder="+65 9XXX XXXX 或微信号"
+                        size="large"
+                      />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
 
                 <el-form-item :label="t('contact.form.message.label')" prop="message">
                   <el-input 
@@ -78,12 +92,22 @@
                   />
                 </el-form-item>
 
+                <!-- PDPA 隐私政策勾选 -->
+                <el-form-item prop="pdpaConsent">
+                  <el-checkbox v-model="contactForm.pdpaConsent">
+                    我同意通海南洋根据
+                    <a href="/privacy-policy" target="_blank" class="pdpa-link">隐私政策</a>
+                    收集和使用我提交的个人信息，以便联系和提供服务。
+                  </el-checkbox>
+                </el-form-item>
+
                 <el-form-item>
                   <el-button 
                     type="primary" 
                     size="large" 
                     class="submit-button"
                     :loading="submitting"
+                    :disabled="!contactForm.pdpaConsent"
                     @click="handleSubmit"
                   >
                     {{ t('contact.form.submit') }}
@@ -112,6 +136,22 @@
                   <div>
                     <h4>{{ t('contact.info.email.title') }}</h4>
                     <p><a href="mailto:admin@thny.sg">admin@thny.sg</a></p>
+                  </div>
+                </div>
+
+                <div class="info-item">
+                  <el-icon class="info-icon"><Phone /></el-icon>
+                  <div>
+                    <h4>电话</h4>
+                    <p><a href="tel:+6590001234">+65 9000 1234</a></p>
+                  </div>
+                </div>
+
+                <div class="info-item">
+                  <el-icon class="info-icon"><ChatDotRound /></el-icon>
+                  <div>
+                    <h4>微信</h4>
+                    <p>tonghai_nanyang</p>
                   </div>
                 </div>
 
@@ -145,7 +185,7 @@ import { ref, reactive, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Location, Message, Clock, Check } from '@element-plus/icons-vue'
+import { Location, Message, Clock, Check, Phone, ChatDotRound } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 
 import apiClient from '../api/apiClient'
@@ -165,8 +205,10 @@ interface ContactForm {
   company: string
   services: string[]
   timeline: string
-  contactMethod: string
+  email: string
+  phone: string
   message: string
+  pdpaConsent: boolean
 }
 
 const contactFormRef = ref<FormInstance>()
@@ -177,19 +219,28 @@ const contactForm = reactive<ContactForm>({
   company: '',
   services: [],
   timeline: '',
-  contactMethod: '',
-  message: ''
+  email: '',
+  phone: '',
+  message: '',
+  pdpaConsent: false
 })
 
 const formRules = computed<FormRules>(() => ({
   name: [
     { required: true, message: t('contact.form.validation.name'), trigger: 'blur' }
   ],
-  contactMethod: [
-    { required: true, message: t('contact.form.validation.contactMethod'), trigger: 'blur' }
+  email: [
+    { required: true, message: '请填写邮箱地址', trigger: 'blur' },
+    { type: 'email', message: '请输入有效的邮箱格式', trigger: 'blur' }
   ],
   services: [
     { required: true, message: t('contact.form.validation.services'), trigger: 'change' }
+  ],
+  pdpaConsent: [
+    { validator: (_rule: any, value: boolean, callback: Function) => {
+      if (!value) callback(new Error('请先同意隐私政策'))
+      else callback()
+    }, trigger: 'change' }
   ]
 }))
 
@@ -208,11 +259,12 @@ const handleSubmit = async (): Promise<void> => {
         // 映射数据到后端 Webhook 格式
         const payload = {
           name: contactForm.name,
-          email: contactForm.contactMethod.includes('@') ? contactForm.contactMethod : '',
-          phone: !contactForm.contactMethod.includes('@') ? contactForm.contactMethod : '',
+          email: contactForm.email,
+          phone: contactForm.phone,
           company: contactForm.company,
           services: contactForm.services,
-          message: `[期望时间: ${contactForm.timeline}] ${contactForm.message}`
+          message: `[期望时间: ${contactForm.timeline}] ${contactForm.message}`,
+          pdpaConsent: contactForm.pdpaConsent
         }
 
         const response = (await apiClient.post('/leads/webhook', payload)) as any

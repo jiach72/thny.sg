@@ -13,8 +13,8 @@
       <div class="container">
         <h2 class="section-title text-center">{{ t('about.brandStory.title') }}</h2>
         <div class="story-content">
-          <p class="story-text" v-html="t('about.brandStory.paragraph1')"></p>
-          <p class="story-text" v-html="t('about.brandStory.paragraph2')"></p>
+          <p class="story-text" v-html="sanitize(t('about.brandStory.paragraph1'))"></p>
+          <p class="story-text" v-html="sanitize(t('about.brandStory.paragraph2'))"></p>
         </div>
       </div>
     </section>
@@ -114,10 +114,21 @@ import { useRouter, useRoute } from 'vue-router'
 import { useHead } from '@unhead/vue'
 import { useI18n } from 'vue-i18n'
 import { Avatar, Check, DocumentChecked, Connection, TrendCharts } from '@element-plus/icons-vue'
+import DOMPurify from 'dompurify'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
+
+/**
+ * 净化 HTML 内容（仅允许 strong/em/a 等安全标签）
+ */
+function sanitize(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['strong', 'em', 'a', 'br'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  })
+}
 
 useHead({
   title: () => (route.meta.title as string) || '关于我们 | 通海南洋',

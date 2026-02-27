@@ -24,3 +24,4 @@ export * from './invoice'
 
 // FAQ 类型
 export * from './faq'
+export * from './portal'

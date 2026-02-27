@@ -3,7 +3,7 @@ import type { MessageSchema } from './types'
 const en: MessageSchema = {
     services: {
         pageTitle: 'Solutions',
-        pageSubtitle: 'Comprehensive cross-border solutions for Taiwanese entrepreneurs and high-net-worth families',
+        pageSubtitle: 'Comprehensive cross-border solutions for Chinese-speaking entrepreneurs and high-net-worth families',
         corporate: {
             title: 'Corporate Services',
             intro: 'We provide full-cycle corporate administrative services in Singapore and Malaysia to help you launch your business quickly.',
@@ -290,7 +290,7 @@ const en: MessageSchema = {
         brandStory: {
             title: 'Our Story',
             paragraph1: 'In today\'s era of global economic uncertainty, going global is not just about physical relocation—it\'s about elevating your strategic vision. <strong>TongHai Nanyang</strong>, headquartered in Singapore, serves both Singapore and Malaysia markets. We are more than your market entry partner—we are your <strong>"Second Cockpit"</strong> navigating through turbulent waters.',
-            paragraph2: 'We bring together top experts in finance, law, education, and taxation, dedicated to providing Taiwanese entrepreneurs, multinational business owners, and high-net-worth families with integrated cross-border solutions covering business setup, identity planning, and asset structuring. We uphold <strong>compliance</strong> as our foundation and <strong>long-term partnership</strong> as our commitment, helping you expand with confidence and build a lasting legacy in Southeast Asia.'
+            paragraph2: 'We bring together top experts in finance, law, education, and taxation, dedicated to providing Chinese-speaking entrepreneurs, multinational business owners, and high-net-worth families with integrated cross-border solutions covering business setup, identity planning, and asset structuring. We uphold <strong>compliance</strong> as our foundation and <strong>long-term partnership</strong> as our commitment, helping you expand with confidence and build a lasting legacy in Southeast Asia.'
         },
         coreValues: {
             title: 'Core Values',
@@ -377,7 +377,7 @@ const en: MessageSchema = {
                     name: 'Wendy Wei',
                     position: 'Cross-border Business Executive (Taiwan)',
                     tags: ['Venture Capital CEO'],
-                    bio: ['Over 20 years of corporate consulting experience, skilled in resource integration and sales.', 'Sharp market analysis capabilities, providing professional landing advice for Taiwanese entrepreneurs.']
+                    bio: ['Over 20 years of corporate consulting experience, skilled in resource integration and sales.', 'Sharp market analysis capabilities, providing professional landing advice for Chinese-speaking entrepreneurs.']
                 }
             },
             advisors: {

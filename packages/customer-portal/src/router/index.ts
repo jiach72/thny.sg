@@ -11,6 +11,18 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: false, title: '登录' },
     },
     {
+        path: '/forgot-password',
+        name: 'ForgotPassword',
+        component: () => import('@/views/auth/ForgotPassword.vue'),
+        meta: { requiresAuth: false, title: '忘记密码' },
+    },
+    {
+        path: '/reset-password',
+        name: 'ResetPassword',
+        component: () => import('@/views/auth/ResetPassword.vue'),
+        meta: { requiresAuth: false, title: '重置密码' },
+    },
+    {
         path: '/setup-password',
         name: 'SetupPassword',
         component: () => import('@/views/auth/SetupPassword.vue'),
@@ -58,10 +70,22 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '消息中心' },
             },
             {
+                path: 'invoices',
+                name: 'Invoices',
+                component: () => import('@/views/invoices/InvoiceList.vue'),
+                meta: { title: '我的账单' },
+            },
+            {
                 path: 'profile',
                 name: 'Profile',
                 component: () => import('@/views/profile/Profile.vue'),
                 meta: { title: '个人资料' },
+            },
+            {
+                path: 'help',
+                name: 'Help',
+                component: () => import('@/views/help/Help.vue'),
+                meta: { title: '帮助与支持' },
             },
             {
                 path: 'settings',
@@ -75,7 +99,9 @@ const routes: RouteRecordRaw[] = [
     // 404
     {
         path: '/:pathMatch(.*)*',
-        redirect: '/dashboard',
+        name: 'NotFound',
+        component: () => import('@/views/NotFound.vue'),
+        meta: { requiresAuth: false, title: '页面未找到' },
     },
 ]
 

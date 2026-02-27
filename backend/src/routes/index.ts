@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../config/index.js'
-import { getRedis } from '../config/redis.js'
+import { getRedis, isRedisConnected } from '../config/redis.js'
 import authRoutes from './auth.js'
 import leadRoutes from './leads.js'
 import taskRoutes from './tasks.js'
@@ -26,6 +26,8 @@ import schedulerRoutes from './scheduler.js'
 import analyticsRoutes from './analytics.js'
 import auditRoutes from './audit.js'
 import exportRoutes from './export.js'
+import systemRoutes from './system.js'
+import webhookRoutes from './webhooks.js'
 
 const router = Router()
 
@@ -68,6 +70,7 @@ router.get('/health', async (_req, res) => {
 
     // 检查 Redis 连接
     try {
+        if (!isRedisConnected) throw new Error('Redis connection is down')
         const redis = getRedis()
         await redis.ping()
         checks.services.redis = 'healthy'
@@ -103,6 +106,7 @@ router.get('/', (req, res) => {
             scheduler: '/api/v1/scheduler (定时任务)',
             analytics: '/api/v1/analytics (销售分析)',
             audit: '/api/v1/audit (审计日志)',
+            webhooks: '/api/v1/webhooks (Webhook 事件推送)',
         },
     })
 })
@@ -127,6 +131,8 @@ router.use('/scheduler', schedulerRoutes)
 router.use('/analytics', analyticsRoutes)
 router.use('/audit', auditRoutes)
 router.use('/export', exportRoutes)
+router.use('/system', systemRoutes)
+router.use('/webhooks', webhookRoutes)
 
 // 客户门户专用路由
 router.use('/portal', portalRoutes)

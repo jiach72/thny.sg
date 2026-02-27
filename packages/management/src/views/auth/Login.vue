@@ -1,6 +1,6 @@
 <template>
-  <div class="login-page">
-    <div class="login-container">
+  <div class="login-page" v-loading="initCheckLoading">
+    <div class="login-container" v-show="!initCheckLoading">
       <div class="login-header">
         <h1>通海南洋CRM</h1>
         <p>客户关系管理系统</p>
@@ -35,7 +35,10 @@
         </el-form-item>
 
         <el-form-item>
-          <el-checkbox v-model="form.rememberMe">记住我</el-checkbox>
+          <div class="login-options">
+            <el-checkbox v-model="form.rememberMe">记住我</el-checkbox>
+            <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
+          </div>
         </el-form-item>
 
         <el-form-item>
@@ -50,16 +53,12 @@
           </el-button>
         </el-form-item>
       </el-form>
-
-      <!-- <div class="login-footer">
-        <p>测试账号：admin@tonghai.com / admin123</p>
-      </div> -->
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
@@ -71,6 +70,24 @@ const authStore = useAuthStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const initCheckLoading = ref(true)
+
+onMounted(async () => {
+  try {
+    // 验证是否需要拉起首次初始化的 Setup 向导
+    const { default: apiClient } = await import('@/api/apiClient')
+    const res: any = await apiClient.get('/system/status')
+    // 兼容取值路径
+    const isInit = res?.data?.data?.isInitialized ?? res?.data?.isInitialized ?? res?.isInitialized ?? true
+    if (!isInit) {
+      router.replace('/setup')
+    }
+  } catch (error) {
+    console.error('System status check fail', error)
+  } finally {
+    initCheckLoading.value = false
+  }
+})
 
 const form = reactive({
   email: '',
@@ -205,16 +222,20 @@ async function handleLogin() {
   border-color: var(--color-primary);
 }
 
-.login-footer {
-  text-align: center;
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--color-border);
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
-.login-footer p {
+.forgot-link {
+  color: var(--color-primary);
   font-size: 13px;
-  color: var(--color-text-muted);
-  font-family: 'Fira Code', monospace;
+  text-decoration: none;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
 }
 </style>

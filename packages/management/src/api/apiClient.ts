@@ -22,6 +22,7 @@ export interface ApiClient {
 const _rawClient = axios.create({
     baseURL: '/api/v1',
     timeout: 10000,
+    withCredentials: true, // 携带 httpOnly cookie（refreshToken）
     headers: {
         'Content-Type': 'application/json',
     },
@@ -64,22 +65,17 @@ _rawClient.interceptors.response.use(
                 return Promise.reject(error.response?.data || error)
             }
 
-            // Token 过期，尝试刷新
-            if (authStore.refreshToken) {
-                try {
-                    await authStore.refreshAccessToken()
-                    // 重试原请求
-                    const config = error.config
-                    if (config) {
-                        config.headers.Authorization = `Bearer ${authStore.accessToken}`
-                        return _rawClient(config)
-                    }
-                } catch {
-                    // 刷新失败，跳转登录
-                    authStore.logout()
-                    window.location.href = ADMIN_LOGIN_PATH
+            // Token 过期，尝试用 httpOnly cookie 中的 refreshToken 刷新
+            try {
+                await authStore.refreshAccessToken()
+                // 重试原请求
+                const config = error.config
+                if (config) {
+                    config.headers.Authorization = `Bearer ${authStore.accessToken}`
+                    return _rawClient(config)
                 }
-            } else {
+            } catch {
+                // 刷新失败，跳转登录
                 authStore.logout()
                 window.location.href = ADMIN_LOGIN_PATH
             }

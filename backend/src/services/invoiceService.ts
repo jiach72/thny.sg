@@ -1,5 +1,6 @@
 import { prisma } from '../config/index.js'
 import { Decimal } from '@prisma/client/runtime/library'
+import { webhookService } from './webhookService.js'
 
 interface InvoiceItem {
     description: string
@@ -140,7 +141,7 @@ export const invoiceService = {
         const taxAmount = subtotal * taxRate
         const totalAmount = subtotal + taxAmount
 
-        return prisma.invoice.create({
+        const invoice = await prisma.invoice.create({
             data: {
                 invoiceNumber,
                 projectId: data.projectId,
@@ -162,6 +163,9 @@ export const invoiceService = {
                 project: { select: { id: true, title: true } }
             }
         })
+
+        webhookService.emit('invoice.created', invoice).catch(console.error)
+        return invoice
     },
 
     /**
@@ -284,6 +288,13 @@ export const invoiceService = {
                 status: newStatus
             }
         })
+
+        if (newStatus === 'PAID') {
+            const updatedInvoice = await this.getInvoiceById(data.invoiceId)
+            if (updatedInvoice) {
+                webhookService.emit('invoice.paid', updatedInvoice).catch(console.error)
+            }
+        }
 
         return payment
     },

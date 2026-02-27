@@ -35,6 +35,20 @@ router.get('/trend', async (req, res, next) => {
     }
 })
 
+// 营收趋势
+router.get('/revenue-trend', async (req, res, next) => {
+    try {
+        const { period = 'month', months = '6' } = req.query
+        const data = await analyticsService.getRevenueTrend(
+            period as string,
+            Number(months)
+        )
+        res.json({ success: true, data })
+    } catch (error) {
+        next(error)
+    }
+})
+
 // 渠道效果
 router.get('/channels', async (req, res, next) => {
     try {

@@ -2,8 +2,8 @@
   <div class="min-h-screen flex bg-obsidian font-sans selection-wealth">
     <!-- Left: Artistic/Brand Section (Hidden on mobile) -->
     <div class="hidden lg:flex w-1/2 relative overflow-hidden items-center justify-center bg-black">
-      <!-- Background Abstract Art -->
-      <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
+      <!-- 背景渐变（替代被墙的 Unsplash 图片） -->
+      <div class="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] opacity-80"></div>
       <div class="absolute inset-0 bg-gradient-to-r from-transparent to-obsidian"></div>
       
       <div class="relative z-10 p-12 max-w-lg">
@@ -123,7 +123,7 @@ const rules: FormRules = {
   ],
 }
 
-async function handleLogin() {
+async function handleLogin(): Promise<void> {
   if (!formRef.value) return
   
   await formRef.value.validate(async (valid) => {

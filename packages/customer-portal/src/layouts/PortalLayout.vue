@@ -1,16 +1,33 @@
 <template>
   <div class="h-screen w-screen overflow-hidden font-sans text-text relative selection:bg-wealth selection:text-obsidian">
     
-    <!-- 1. Immersive Wallpaper (Fluid Gradient) -->
-    <!-- Using a high-quality abstract gradient background similar to the reference -->
-    <div class="absolute inset-0 z-0 bg-obsidian">
-      <img 
-        src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" 
-        class="w-full h-full object-cover opacity-80"
-        alt="Wallpaper"
-      />
-      <!-- Overlay to ensure text readability -->
-      <div class="absolute inset-0 bg-obsidian/30"></div>
+    <!-- 网络离线提示横幅 -->
+    <transition name="slide-down">
+      <div v-if="isOffline" class="fixed top-0 left-0 right-0 z-[100] bg-red-500/90 backdrop-blur-sm text-white text-center py-2 px-4 text-sm font-medium shadow-lg">
+        ⚠️ 网络连接已断开，部分功能可能不可用。待网络恢复后将自动重新连接。
+      </div>
+    </transition>
+    
+    <!-- 1. Immersive Wallpaper (Fluid CSS Mesh Gradient) -->
+    <!-- Re-engineered to bring back the vivid "Monterey" wallpaper aesthetic locally without relying on external Unsplash image -->
+    <div class="absolute inset-0 z-0 bg-obsidian overflow-hidden">
+      <!-- 深空渐变基底 -->
+      <div class="absolute inset-0 bg-gradient-to-br from-[#130f25] via-[#2d235c] to-[#1a1c3b] opacity-100"></div>
+      
+      <!-- 巨大的橙金辉光（还原截图1左侧的亮色调） -->
+      <div class="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-gradient-to-br from-[#f97316] via-[#d97706]/40 to-transparent rounded-full blur-[140px] opacity-40 mix-blend-screen pointer-events-none"></div>
+      
+      <!-- 巨大的青蓝色辉光（还原右下角质感） -->
+      <div class="absolute -bottom-[10%] -right-[10%] w-[60vw] h-[60vw] bg-gradient-to-tl from-[#06b6d4] via-[#3b82f6]/40 to-transparent rounded-full blur-[140px] opacity-40 mix-blend-screen pointer-events-none"></div>
+      
+      <!-- 补充性紫红色调和 -->
+      <div class="absolute top-[20%] right-[10%] w-[40vw] h-[40vw] bg-[#9333ea] rounded-full blur-[140px] opacity-30 mix-blend-screen pointer-events-none"></div>
+
+      <!-- 高级感颗粒噪点 -->
+      <div class="absolute inset-0 opacity-[0.25] mix-blend-overlay pointer-events-none" style="background-image: url('https://grainy-gradients.vercel.app/noise.svg'); background-repeat: repeat;"></div>
+      
+      <!-- 确保文本与界面对比度的底层遮罩 -->
+      <div class="absolute inset-0 bg-obsidian/30 backdrop-blur-[1px] pointer-events-none"></div>
     </div>
 
 
@@ -74,12 +91,25 @@
         </button>
 
         <!-- Language -->
-        <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" title="Language">
-            <component :is="Languages" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
+        <el-dropdown trigger="click" @command="handleLanguageChange" placement="right">
+          <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" :title="t('common.language')">
+              <component :is="Languages" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu class="!bg-obsidian !border-white/10">
+              <el-dropdown-item command="zh" :class="{'!text-wealth': locale === 'zh'}" class="!text-white/70 hover:!text-white hover:!bg-white/10">中文</el-dropdown-item>
+              <el-dropdown-item command="en" :class="{'!text-wealth': locale === 'en'}" class="!text-white/70 hover:!text-white hover:!bg-white/10">English</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
+        <!-- Help -->
+        <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" @click="$router.push('/help')" title="帮助与知识库">
+            <component :is="HelpCircle" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
         </button>
 
         <!-- Settings -->
-        <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" @click="$router.push('/settings')" title="设置">
+        <button class="group w-12 h-12 flex items-center justify-center rounded-xl bg-black/20 border border-white/5 hover:bg-wealth/20 hover:border-wealth/30 transition-all duration-300" @click="$router.push('/settings')" :title="t('nav.settings')">
             <component :is="Settings" class="w-5 h-5 text-white group-hover:text-wealth transition-all" />
         </button>
       </div>
@@ -112,8 +142,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { messageApi } from '@/api'
+import { useI18n } from 'vue-i18n'
+import { useIdleTimeout } from '@/composables/useIdleTimeout'
 import { 
   LayoutGrid, // Dashboard
   FolderKanban, // Projects
@@ -122,26 +154,52 @@ import {
   Settings,
   Bell,
   User,
-  Languages
+  Languages,
+  Receipt,
+  HelpCircle
 } from 'lucide-vue-next'
 
 const unreadCount = ref(0)
+const isOffline = ref(!navigator.onLine)
+const { t, locale } = useI18n()
+
+// 启动空闲超时检测 (30分钟)
+useIdleTimeout(30)
+
+// 网络状态监听
+const handleOnline = (): void => { isOffline.value = false }
+const handleOffline = (): void => { isOffline.value = true }
+
+const handleLanguageChange = (lang: 'zh' | 'en'): void => {
+  locale.value = lang
+  localStorage.setItem('thny_portal_lang', lang)
+}
 
 // More "App-like" naming
 const navItems = computed(() => [
-  { name: 'Dashboard', path: '/dashboard', icon: LayoutGrid },
-  { name: 'Projects', path: '/projects', icon: FolderKanban },
-  { name: 'Secure Vault', path: '/documents', icon: Vault },
+  { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutGrid },
+  { name: t('nav.projects'), path: '/projects', icon: FolderKanban },
+  { name: '我的账单', path: '/invoices', icon: Receipt },
+  { name: t('nav.documents'), path: '/documents', icon: Vault },
   { name: 'Messages', path: '/messages', icon: MessageSquare, badge: unreadCount.value },
 ])
 
+
+
 onMounted(async () => {
+  window.addEventListener('online', handleOnline)
+  window.addEventListener('offline', handleOffline)
   try {
     const result = await messageApi.getUnreadCount()
-    unreadCount.value = result.data?.count || 0
+    unreadCount.value = result.count || 0
   } catch {
     // ignore
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('online', handleOnline)
+  window.removeEventListener('offline', handleOffline)
 })
 
 
@@ -162,5 +220,17 @@ onMounted(async () => {
 .zoom-fade-leave-to {
   opacity: 0;
   transform: scale(1.05);
+}
+
+/* 离线横幅动画 */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-100%);
 }
 </style>

@@ -3,7 +3,7 @@ import type { MessageSchema } from './types'
 const zhTW: MessageSchema = {
     services: {
         pageTitle: '服務方案',
-        pageSubtitle: '為台湾企業家與高淨值家族提供全方位跨境解決方案',
+        pageSubtitle: '為華語企業家與高淨值家族提供全方位跨境解決方案',
         corporate: {
             title: '企業出海與落地',
             intro: '我們在新加坡與馬來西亞提供全週期的企業行政服務，助您快速啟動業務。',
@@ -290,7 +290,7 @@ const zhTW: MessageSchema = {
         brandStory: {
             title: '品牌故事',
             paragraph1: '在全球經濟充滿不確定性的當下，企業出海不僅僅是物理空間的轉移，更是戰略視野的升級。<strong>通海南洋 (TongHai Nanyang)</strong> 總部位於新加坡，深耕新馬雙市場。我們不僅僅是您的出海服務商，更是企業主在風浪中的<strong>"第二駕駛艙"</strong>。',
-            paragraph2: '我們匯聚了金融、法律、教育與稅務領域的頂尖專家，致力於為台灣企業家、跨國企業主及高淨值家族提供「企業落地 + 身份規劃 + 資產架構」的一站式跨境解決方案。我們堅持<strong>合規優先</strong>，以<strong>長期陪跑</strong>為承諾，助您在南洋這片熱土上，穩健出海，傳承未來。'
+            paragraph2: '我們匯聚了金融、法律、教育與稅務領域的頂尖專家，致力於為華語企業家、跨國企業主及高淨值家族提供「企業落地 + 身份規劃 + 資產架構」的一站式跨境解決方案。我們堅持<strong>合規優先</strong>，以<strong>長期陪跑</strong>為承諾，助您在南洋這片熱土上，穩健出海，傳承未來。'
         },
         coreValues: {
             title: '核心價值觀',
@@ -377,7 +377,7 @@ const zhTW: MessageSchema = {
                     name: 'Wendy 魏文帝',
                     position: '跨境商業落地執行官（台灣）',
                     tags: ['創投公司 CEO'],
-                    bio: ['擁有超過20年企業顧問經驗, 擅長資源整合與銷售。', '具備敏銳的市場分析能力, 為台灣企業家提供專業落地建議。']
+                    bio: ['擁有超過20年企業顧問經驗, 擅長資源整合與銷售。', '具備敏銳的市場分析能力, 為華語企業家提供專業落地建議。']
                 }
             },
             advisors: {

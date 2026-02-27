@@ -125,6 +125,29 @@ router.get(
 )
 
 /**
+ * POST /leads/check-duplicates - 撞库检测
+ */
+router.post(
+    '/check-duplicates',
+    authMiddleware,
+    [
+        body('email').optional().isEmail(),
+        body('phone').optional().isString(),
+        body('excludeLeadId').optional().isString()
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { email, phone, excludeLeadId } = req.body
+            const duplicates = await leadService.checkDuplicates(email, phone, excludeLeadId)
+            res.json(duplicates)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
  * POST /leads - 创建线索
  */
 router.post(
@@ -309,12 +332,40 @@ router.delete(
 router.post(
     '/:id/convert',
     authMiddleware,
+    [
+        param('id').notEmpty(),
+        body('email').optional().isEmail(),
+        body('phone').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { email, phone } = req.body
+            const result = await leadService.convertToCustomer(
+                req.params.id,
+                req.user!.id,
+                { email, phone }
+            )
+            res.json(result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * GET /leads/:id/ai-insight - 获取线索 AI 洞察分析
+ */
+router.get(
+    '/:id/ai-insight',
+    authMiddleware,
     [param('id').notEmpty()],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const result = await leadService.convertToCustomer(req.params.id, req.user!.id)
-            res.json(result)
+            const { aiService } = await import('../services/aiService.js')
+            const insight = await aiService.getLeadInsight(req.params.id)
+            res.json(insight)
         } catch (error) {
             next(error)
         }

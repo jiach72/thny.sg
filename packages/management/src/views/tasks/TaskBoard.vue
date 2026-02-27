@@ -155,7 +155,7 @@
         </el-descriptions-item>
       </el-descriptions>
       <template #footer>
-        <el-button type="danger" @click="handleDeleteTask">删除</el-button>
+        <el-button type="danger" v-permission="['tasks:delete']" @click="handleDeleteTask">删除</el-button>
         <el-button @click="showDetailDialog = false">关闭</el-button>
       </template>
     </el-dialog>

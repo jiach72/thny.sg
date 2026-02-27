@@ -17,21 +17,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
 
   # ========== Redis 缓存 ==========
   redis:
     image: redis:7-alpine
     container_name: tonghai-redis
     restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme_redis}
     volumes:
       - redis_data:/data
     networks:
       - tonghai-network
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme_redis}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   # ========== 后端 API 服务 ==========
   backend:
@@ -44,7 +55,7 @@ services:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://crm_user:${DB_PASSWORD:-changeme}@postgres:5432/crm_db
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme_redis}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: 7d
       FRONTEND_URL: ${FRONTEND_URL}
@@ -65,6 +76,11 @@ services:
       start_period: 30s
     networks:
       - tonghai-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
 
   # ========== 前端服务 ==========
   website:
@@ -73,6 +89,11 @@ services:
     restart: always
     networks:
       - tonghai-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   management:
     image: ghcr.io/jiach72/thny-management:latest
@@ -80,6 +101,11 @@ services:
     restart: always
     networks:
       - tonghai-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   portal:
     image: ghcr.io/jiach72/thny-portal:latest
@@ -87,6 +113,11 @@ services:
     restart: always
     networks:
       - tonghai-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   # ========== Nginx 反向代理 ==========
   nginx:
@@ -98,6 +129,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_webroot:/var/www/certbot
+      - certbot_certs:/etc/letsencrypt
     depends_on:
       - backend
       - website
@@ -105,11 +138,54 @@ services:
       - portal
     networks:
       - tonghai-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ========== Certbot (HTTPS 证书自动签发与续期) ==========
+  certbot:
+    image: certbot/certbot
+    container_name: tonghai-certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_webroot:/var/www/certbot
+      - certbot_certs:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  # ========== PostgreSQL 自动备份 ==========
+  pgbackups:
+    image: prodrigestivill/postgres-backup-local:15
+    container_name: tonghai-db-backup
+    restart: always
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: crm_db
+      POSTGRES_USER: crm_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      SCHEDULE: '@daily'
+      BACKUP_KEEP_DAYS: 14
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 3
+    volumes:
+      - db_backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
 
 volumes:
   postgres_data:
   redis_data:
   backend_uploads:
+  certbot_webroot:
+  certbot_certs:
+  db_backups:
 
 
 networks:

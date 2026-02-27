@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import './styles/tailwind.css' // Tailwind must come after Element Plus
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import i18n from './locales'
 import App from './App.vue'
 import router from './router'
 
@@ -12,6 +12,8 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
-app.use(ElementPlus, { locale: zhCn })
+app.use(i18n)
+// ElementPlus 的 locale 配置后续将放置在 App.vue 根组件通过 ConfigProvider 动态提供
+app.use(ElementPlus)
 
 app.mount('#app')

@@ -4,19 +4,31 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" href="/favicon.ico" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0891b2" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>通海南洋 CRM 管理系统</title>
-  <!-- Google Fonts: Plus Jakarta Sans -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- 字体：使用国内可访问的 CDN 镜像 -->
+  <link rel="preconnect" href="https://fonts.loli.net">
+  <link rel="preconnect" href="https://gstatic.loli.net" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap"
+    href="https://fonts.loli.net/css2?family=Lexend:wght@300;400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
 </head>
 
 <body>
   <div id="app"></div>
   <script type="module" src="/src/main.ts"></script>
+  <script>
+    // 注册 Service Worker (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+          // Service Worker 注册失败不影响主应用
+        })
+      })
+    }
+  </script>
 </body>
 
 </html>

@@ -1,4 +1,5 @@
 import winston from 'winston'
+import DailyRotateFile from 'winston-daily-rotate-file'
 import path from 'path'
 
 const logDir = process.env.LOG_DIR || 'logs'
@@ -25,17 +26,21 @@ export const logger = winston.createLogger({
     defaultMeta: { service: 'crm-backend' },
     transports: [
         // 错误日志单独文件
-        new winston.transports.File({
-            filename: path.join(logDir, 'error.log'),
+        new DailyRotateFile({
+            filename: path.join(logDir, 'error-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
             level: 'error',
-            maxsize: 5242880, // 5MB
-            maxFiles: 5,
+            maxSize: '20m',
+            maxFiles: '14d',
+            zippedArchive: true,
         }),
         // 所有日志
-        new winston.transports.File({
-            filename: path.join(logDir, 'combined.log'),
-            maxsize: 5242880,
-            maxFiles: 5,
+        new DailyRotateFile({
+            filename: path.join(logDir, 'combined-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            maxSize: '20m',
+            maxFiles: '14d',
+            zippedArchive: true,
         }),
     ],
 })

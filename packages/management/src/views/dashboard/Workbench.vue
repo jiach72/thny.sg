@@ -52,7 +52,7 @@
 
     <el-row :gutter="24">
       <!-- 待办列表 -->
-      <el-col :span="16">
+      <el-col :span="12">
         <el-card class="follow-up-card">
           <template #header>
             <div class="card-header">
@@ -62,6 +62,7 @@
                 <el-radio-button value="LEAD">线索</el-radio-button>
                 <el-radio-button value="TASK">任务</el-radio-button>
                 <el-radio-button value="APPOINTMENT">预约</el-radio-button>
+                <el-radio-button value="EVENT">重大事件</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -77,7 +78,8 @@
                 <el-icon :size="20">
                   <User v-if="item.type === 'LEAD'" />
                   <Document v-else-if="item.type === 'TASK'" />
-                  <Calendar v-else />
+                  <Calendar v-else-if="item.type === 'APPOINTMENT'" />
+                  <Bell v-else />
                 </el-icon>
               </div>
               <div class="item-content">
@@ -100,7 +102,8 @@
                   </el-tag>
                 </div>
                 <div class="item-meta">
-                  <span v-if="item.lead">{{ item.lead.contactName }} - {{ item.lead.companyName }}</span>
+                  <span v-if="item.relatedEntity">{{ item.relatedEntity.name }} {{ item.description ? '- ' + item.description : '' }}</span>
+                  <span v-else-if="item.lead">{{ item.lead.contactName }} - {{ item.lead.companyName }}</span>
                   <span v-if="item.dueDate" style="margin-left: 12px;">
                     <el-icon><Clock /></el-icon>
                     {{ formatDate(item.dueDate) }}
@@ -123,6 +126,15 @@
                 >
                   完成
                 </el-button>
+                <el-button 
+                  v-else-if="item.type === 'EVENT' && item.relatedEntity?.type === 'CUSTOMER'"
+                  type="warning"
+                  plain
+                  size="small"
+                  @click="$router.push(`/customers/${item.relatedEntity.id}`)"
+                >
+                  去关怀
+                </el-button>
               </div>
             </div>
             
@@ -131,8 +143,47 @@
         </el-card>
       </el-col>
 
-      <!-- 右侧面板 -->
-      <el-col :span="8">
+      <!-- 日历视图面板 -->
+      <el-col :span="12">
+        <el-card class="calendar-card">
+          <template #header>
+            <div class="card-header">
+              <span>日程日历</span>
+              <el-tag type="info" size="small">月视图</el-tag>
+            </div>
+          </template>
+          <!-- 引入 v-calendar 日历 -->
+          <VCalendar
+            transparent
+            borderless
+            expanded
+            :attributes="calendarAttributes"
+            @dayclick="onDayClick"
+          />
+          <div style="margin-top: 16px;">
+            <div v-if="selectedDate">
+              <h4>{{ selectedDate ? formatDate(selectedDate.toISOString()) : '' }} 的日程</h4>
+              <div v-for="item in selectedDayEvents" :key="item.id" class="calendar-event-item">
+                <el-tag :type="getCalendarTagType(item.type)" size="small">
+                  {{ getCalendarTagLabel(item.type) }}
+                </el-tag>
+                <span style="margin-left: 8px; font-size: 13px;">{{ item.title }}</span>
+                <el-button 
+                  v-if="item.type === 'LEAD'" 
+                  type="primary" link size="small" 
+                  @click="goToLead(item.id)" 
+                  style="float: right;"
+                >
+                  处理
+                </el-button>
+              </div>
+              <el-empty v-if="selectedDayEvents.length === 0" description="今日无日程" :image-size="60" />
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+
+      <el-col :span="24" :lg="12" style="margin-top: 24px;">
         <!-- 团队工作负载 -->
         <el-card class="workload-card">
           <template #header>
@@ -240,7 +291,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Document, Calendar, Warning, Clock, Plus, Edit, List } from '@element-plus/icons-vue'
+import { User, Document, Calendar, Warning, Clock, Plus, Edit, List, Bell } from '@element-plus/icons-vue'
 import workflowApi, { type FollowUpItem, type AssignmentStats, type OverdueStats } from '@/api/workflowApi'
 import leadApi from '@/api/leadApi'
 
@@ -266,6 +317,42 @@ const filteredFollowUps = computed(() => {
   if (!followUpFilter.value) return followUps.value
   return followUps.value.filter(f => f.type === followUpFilter.value)
 })
+
+// 日历属性映射
+const calendarAttributes = computed(() => {
+  return followUps.value.map(f => {
+    let color = 'blue'
+    if (f.type === 'TASK') color = 'green'
+    if (f.type === 'APPOINTMENT') color = 'purple'
+    if (f.type === 'EVENT') color = 'orange'
+    if (f.isOverdue) color = 'red'
+
+    const dateVal = f.dueDate ? new Date(f.dueDate) : new Date()
+
+    return {
+      key: `followup-${f.id}`,
+      dot: color,
+      dates: dateVal,
+      customData: f
+    }
+  })
+})
+
+const selectedDate = ref<Date | null>(new Date())
+const selectedDayEvents = computed(() => {
+  if (!selectedDate.value) return []
+  // 匹配选定日期的所有 followUps
+  const targetDateStr = selectedDate.value.toISOString().split('T')[0]
+  return followUps.value.filter(f => {
+    if (!f.dueDate) return false
+    const dStr = new Date(f.dueDate).toISOString().split('T')[0]
+    return dStr === targetDateStr
+  })
+})
+
+function onDayClick(day: any) {
+  selectedDate.value = day.date
+}
 
 // 加载数据
 async function loadData() {
@@ -309,6 +396,26 @@ function getPriorityLabel(priority: string): string {
     URGENT: '紧急'
   }
   return map[priority] || priority
+}
+
+function getCalendarTagType(type: string): string {
+  const map: Record<string, string> = {
+    LEAD: '',
+    TASK: 'success',
+    APPOINTMENT: 'warning',
+    EVENT: 'danger'
+  }
+  return map[type] || 'info'
+}
+
+function getCalendarTagLabel(type: string): string {
+  const map: Record<string, string> = {
+    LEAD: '线索',
+    TASK: '任务',
+    APPOINTMENT: '预约',
+    EVENT: '事件'
+  }
+  return map[type] || type
 }
 
 function getPriorityType(priority: string): string {
@@ -527,5 +634,19 @@ onMounted(() => {
   gap: 4px;
   font-size: 13px;
   color: #666;
+}
+
+.calendar-card {
+  min-height: 400px;
+}
+
+.calendar-event-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #ebeef5;
+}
+.calendar-event-item:last-child {
+  border-bottom: none;
 }
 </style>

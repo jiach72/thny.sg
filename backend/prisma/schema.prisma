@@ -153,6 +153,7 @@ model User {
   invoicesCreated  Invoice[]  @relation("InvoiceCreator")
   paymentsRecorded Payment[]  @relation("PaymentRecorder")
   auditLogs        AuditLog[] @relation("UserAuditLogs")
+  webhookEndpoints WebhookEndpoint[] @relation("WebhookCreator")
 
   @@index([roleId])
   @@map("users")
@@ -215,6 +216,7 @@ model Customer {
   birthday      DateTime? @db.Date
   occupation    String?
   interests     String[]  // 兴趣爱好标签
+  tags          String[]  // 自动打标及自定义标签
   profileNotes  String?   @map("profile_notes") @db.Text // 顾问备注
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
@@ -308,11 +310,13 @@ model Document {
   expiresAt    DateTime?   @map("expires_at")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
+  deletedAt    DateTime?   @map("deleted_at")
 
   signatureRequests SignatureRequest[]
 
   @@index([projectId])
   @@index([documentType])
+  @@index([deletedAt])
   @@map("documents")
 }
 
@@ -915,5 +919,41 @@ model AuditLog {
   @@index([resource, resourceId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ==================== Webhook 事件推送 ====================
+
+model WebhookEndpoint {
+  id          String   @id @default(cuid())
+  name        String   @default("未命名端点")
+  url         String
+  events      String[] // 订阅的事件类型列表
+  secret      String   // HMAC-SHA256 签名密钥
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   User     @relation("WebhookCreator", fields: [createdById], references: [id])
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  logs        WebhookLog[]
+
+  @@index([isActive])
+  @@map("webhook_endpoints")
+}
+
+model WebhookLog {
+  id         String   @id @default(cuid())
+  endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  endpointId String   @map("endpoint_id")
+  event      String
+  status     String   // success | failed
+  statusCode Int?     @map("status_code")
+  error      String?  @db.Text
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([endpointId])
+  @@index([createdAt])
+  @@map("webhook_logs")
 }
 

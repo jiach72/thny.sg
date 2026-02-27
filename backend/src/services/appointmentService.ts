@@ -1,5 +1,5 @@
 import { prisma } from '../config/index.js'
-import { NotFoundError } from '../middlewares/index.js'
+import { NotFoundError, ConflictError } from '../middlewares/index.js'
 import type { Prisma, AppointmentType, AppointmentStatus } from '@prisma/client'
 
 interface CreateAppointmentInput {
@@ -108,15 +108,57 @@ export const appointmentService = {
     },
 
     /**
+     * 检查预约时间冲突
+     */
+    async checkConflict(
+        userId: string,
+        startTime: Date,
+        endTime: Date,
+        excludeId?: string,
+        customerId?: string
+    ) {
+        const conditions: Prisma.AppointmentWhereInput[] = [
+            { userId }
+        ]
+        if (customerId) conditions.push({ customerId })
+
+        const overlapping = await prisma.appointment.findFirst({
+            where: {
+                OR: conditions,
+                id: excludeId ? { not: excludeId } : undefined,
+                status: 'SCHEDULED', // 仅检测正常计划中的冲突
+                startTime: { lt: endTime },
+                endTime: { gt: startTime }
+            }
+        })
+
+        if (overlapping) {
+            throw new ConflictError(
+                `预约时间冲突：在此时段已存在相关的已排期预约 (${overlapping.title})`
+            )
+        }
+    },
+
+    /**
      * 创建预约
      */
     async createAppointment(data: CreateAppointmentInput) {
+        const startTime = new Date(data.startTime)
+        const endTime = new Date(data.endTime)
+
+        if (startTime >= endTime) {
+            throw new Error('开始时间必须早于结束时间')
+        }
+
+        // 冲突检测
+        await this.checkConflict(data.userId, startTime, endTime, undefined, data.customerId)
+
         return await prisma.appointment.create({
             data: {
                 title: data.title,
                 description: data.description,
-                startTime: new Date(data.startTime),
-                endTime: new Date(data.endTime),
+                startTime,
+                endTime,
                 type: data.type,
                 status: data.status,
                 location: data.location,
@@ -135,12 +177,33 @@ export const appointmentService = {
         const existing = await prisma.appointment.findUnique({ where: { id } })
         if (!existing) throw new NotFoundError('预约不存在')
 
+        let startTime = existing.startTime
+        let endTime = existing.endTime
+
+        if (data.startTime) startTime = new Date(data.startTime)
+        if (data.endTime) endTime = new Date(data.endTime)
+
+        if (startTime >= endTime) {
+            throw new Error('开始时间必须早于结束时间')
+        }
+
+        // 若时间、状态或参与人有变，或者依然是 scheduled，进行冲突检测
+        const status = data.status || existing.status
+        if (status === 'SCHEDULED' && (
+            data.startTime || data.endTime || data.userId || data.customerId
+        )) {
+            const userId = data.userId || existing.userId
+            const customerId = data.customerId !== undefined ? data.customerId : existing.customerId
+
+            await this.checkConflict(userId, startTime, endTime, id, customerId || undefined)
+        }
+
         return await prisma.appointment.update({
             where: { id },
             data: {
                 ...data,
-                startTime: data.startTime ? new Date(data.startTime) : undefined,
-                endTime: data.endTime ? new Date(data.endTime) : undefined,
+                startTime,
+                endTime,
             }
         })
     },

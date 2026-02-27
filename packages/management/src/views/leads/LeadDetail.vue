@@ -41,7 +41,7 @@
               <el-tag size="small">{{ getSourceLabel(lead.sourceChannel) }}</el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="评分">
-              <span :class="['score', getScoreClass(lead.score)]">{{ lead.score }}</span>
+              <ScoreRing :score="lead.score || 0" :size="48" :strokeWidth="4" />
             </el-descriptions-item>
             <el-descriptions-item label="服务类型" :span="2">
               <el-tag 
@@ -74,7 +74,7 @@
       <el-col :span="8">
         <!-- 健康评分卡片 -->
         <HealthScoreCard
-          :score="lead.score || 50"
+          :score="lead.score || 0"
           :last-contact-days="getLastContactDays()"
           :response-rate="75"
           :task-completion-rate="getTaskCompletionRate()"
@@ -92,7 +92,7 @@
             </div>
           </div>
           <div v-else class="no-assignee">
-            <el-button type="primary" link @click="handleAssign">分配负责人</el-button>
+            <el-button type="primary" link v-permission="['leads:update']" @click="handleAssign">分配负责人</el-button>
           </div>
         </el-card>
 
@@ -354,12 +354,6 @@ function getSourceLabel(source: string): string {
     other: '其他',
   }
   return map[source] || source
-}
-
-function getScoreClass(score: number): string {
-  if (score >= 80) return 'high'
-  if (score >= 50) return 'medium'
-  return 'low'
 }
 
 function getTaskStatusLabel(status: string): string {

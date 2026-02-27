@@ -83,6 +83,7 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import type { Component } from 'vue'
 import { storeToRefs } from 'pinia'
 import { 
   Building2, 
@@ -100,8 +101,8 @@ onMounted(() => {
   projectStore.fetchMyProjects()
 })
 
-function getTypeIcon(type: string) {
-  const map: Record<string, any> = {
+function getTypeIcon(type: string): Component {
+  const map: Record<string, Component> = {
     'Enterprise Setup': Building2,
     'EP Application': Stamp,
     'Tax Planning': FileText,

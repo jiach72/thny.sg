@@ -100,6 +100,11 @@ export const config = {
         ],
     },
 
+    // 前端 URL（用于邮件/重定向等场景）
+    frontendUrl: env.FRONTEND_URL,
+    managementUrl: env.MANAGEMENT_URL,
+    portalUrl: env.PORTAL_URL,
+
     // 文件上传
     upload: {
         dir: env.UPLOAD_DIR,

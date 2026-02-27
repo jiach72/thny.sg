@@ -92,6 +92,27 @@
             <el-option label="线下活动" value="event" />
           </el-select>
         </el-form-item>
+        <el-form-item label="标签">
+          <el-select 
+            v-model="filters.tags" 
+            multiple 
+            collapse-tags 
+            clearable 
+            placeholder="任选标签" 
+            @change="handleSearch"
+            style="width: 200px"
+          >
+            <el-option label="VIP客户" value="VIP客户" />
+            <el-option label="高价值客户" value="高价值客户" />
+            <el-option label="已成交客户" value="已成交客户" />
+            <el-option label="新客(未消费)" value="新客(未消费)" />
+            <el-option label="已购:公司注册" value="已购:公司注册" />
+            <el-option label="已购:公司秘书" value="已购:公司秘书" />
+            <el-option label="已购:工作准证" value="已购:工作准证" />
+            <el-option label="已购:VCC基金" value="已购:VCC基金" />
+            <el-option label="意向:家族办公室" value="意向:家族办公室" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button text @click="resetFilters">重置筛选</el-button>
         </el-form-item>
@@ -160,6 +181,20 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="标签" min-width="160">
+          <template #default="{ row }">
+            <el-tag 
+              v-for="tag in row.tags || []" 
+              :key="tag" 
+              size="small" 
+              type="info"
+              style="margin-right: 4px; margin-bottom: 4px;"
+            >
+              {{ tag }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column label="专属顾问" width="120">
           <template #default="{ row }">
             <div v-if="row.lead?.assignedTo" class="advisor-cell">
@@ -186,6 +221,7 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click="handleCreateProject(row)">创建项目</el-dropdown-item>
                   <el-dropdown-item @click="handleBookAppointment(row)">预约会议</el-dropdown-item>
+                  <el-dropdown-item divided @click="handleAutoTags(row)">重算标签</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -210,6 +246,76 @@
         />
       </div>
     </el-card>
+
+    <!-- 批量更新 KYC 弹窗 -->
+    <el-dialog v-model="batchKycDialogVisible" title="批量更新 KYC 状态" width="400px">
+      <el-form :model="batchKycForm" label-position="top">
+        <el-form-item label="KYC 状态" required>
+          <el-select v-model="batchKycForm.kycStatus" style="width: 100%">
+            <el-option label="待审核" value="PENDING" />
+            <el-option label="复审中" value="REVIEW" />
+            <el-option label="已通过" value="APPROVED" />
+            <el-option label="已拒绝" value="REJECTED" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="风险等级 (可选)">
+          <el-select v-model="batchKycForm.riskGrade" style="width: 100%" clearable placeholder="不修改请留空">
+            <el-option label="低" value="LOW" />
+            <el-option label="中" value="MEDIUM" />
+            <el-option label="高" value="HIGH" />
+            <el-option label="极高" value="CRITICAL" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="batchKycDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="batchKycSubmitting" @click="submitBatchKyc">
+            确认更新
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 预约弹窗 -->
+    <el-dialog v-model="appointmentDialogVisible" :title="`为 ${currentAppointmentCustomer?.name || '客户'} 创建预约`" width="500px">
+      <el-form :model="appointmentForm" label-position="top" require-asterisk-position="right">
+        <el-form-item label="预约主题" required>
+          <el-input v-model="appointmentForm.title" placeholder="如：初步需求沟通" />
+        </el-form-item>
+        <el-form-item label="类型" required>
+          <el-select v-model="appointmentForm.type" style="width: 100%">
+            <el-option label="线上会议" value="ONLINE" />
+            <el-option label="线下会面" value="OFFLINE" />
+            <el-option label="电话沟通" value="PHONE" />
+            <el-option label="其他" value="OTHER" />
+          </el-select>
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="开始时间" required>
+              <el-date-picker v-model="appointmentForm.startTime" type="datetime" placeholder="选择日期和时间" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="结束时间" required>
+              <el-date-picker v-model="appointmentForm.endTime" type="datetime" placeholder="选择日期和时间" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="地点/链接 (可选)">
+          <el-input v-model="appointmentForm.location" placeholder="会议室地址或会议链接" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="appointmentDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="appointmentSubmitting" @click="submitAppointment">
+            提交预约
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -228,11 +334,31 @@ const customers = ref<any[]>([])
 const selectedRows = ref<any[]>([])
 const stats = ref<any>({})
 
+const batchKycDialogVisible = ref(false)
+const batchKycSubmitting = ref(false)
+const batchKycForm = reactive({
+  kycStatus: '',
+  riskGrade: '',
+})
+
+// 预约状态相关
+const appointmentDialogVisible = ref(false)
+const appointmentSubmitting = ref(false)
+const currentAppointmentCustomer = ref<any>(null)
+const appointmentForm = reactive({
+  title: '',
+  type: 'ONLINE',
+  startTime: '',
+  endTime: '',
+  location: '',
+})
+
 const filters = reactive({
   search: '',
   kycStatus: '',
   riskGrade: '',
   sourceChannel: '',
+  tags: [] as string[],
 })
 
 const pagination = reactive({
@@ -266,6 +392,9 @@ async function fetchCustomers() {
     if (filters.kycStatus) params.append('kycStatus', filters.kycStatus)
     if (filters.riskGrade) params.append('riskGrade', filters.riskGrade)
     if (filters.sourceChannel) params.append('sourceChannel', filters.sourceChannel)
+    if (filters.tags && filters.tags.length > 0) {
+      filters.tags.forEach(t => params.append('tags', t))
+    }
 
     const res = await apiClient.get(`/customers?${params}`) as any
     customers.value = res?.data || []
@@ -290,6 +419,7 @@ function resetFilters() {
   filters.kycStatus = ''
   filters.riskGrade = ''
   filters.sourceChannel = ''
+  filters.tags = []
   handleSearch()
 }
 
@@ -317,15 +447,122 @@ function handleCreateProject(row: any) {
 }
 
 function handleBookAppointment(row: any) {
-  ElMessage.info(`预约功能：客户 ${getDisplayName(row)}`)
+  currentAppointmentCustomer.value = row
+  appointmentForm.title = ''
+  appointmentForm.type = 'ONLINE'
+  appointmentForm.startTime = ''
+  appointmentForm.endTime = ''
+  appointmentForm.location = ''
+  appointmentDialogVisible.value = true
 }
 
-function handleExport() {
-  ElMessage.success('导出功能开发中')
+async function submitAppointment() {
+  if (!appointmentForm.title || !appointmentForm.startTime || !appointmentForm.endTime) {
+    ElMessage.warning('请填写完整的预约信息（主题、起止时间）')
+    return
+  }
+
+  // 转化为 ISO 也可以在 axios hook 隐式做，但显式给更好
+  const startTime = new Date(appointmentForm.startTime).toISOString()
+  const endTime = new Date(appointmentForm.endTime).toISOString()
+
+  appointmentSubmitting.value = true
+  try {
+    await apiClient.post('/appointments', {
+      customerId: currentAppointmentCustomer.value.id,
+      title: appointmentForm.title,
+      type: appointmentForm.type,
+      startTime,
+      endTime,
+      location: appointmentForm.location || undefined,
+      status: 'SCHEDULED'
+    })
+    ElMessage.success('预约发单成功')
+    appointmentDialogVisible.value = false
+    fetchCustomers() // 刷新列表互动时间可能有变化等
+  } catch (err: any) {
+    ElMessage.error(err?.message || '预约失败')
+  } finally {
+    appointmentSubmitting.value = false
+  }
+}
+
+async function handleAutoTags(row: any) {
+  try {
+    const res = await apiClient.post(`/customers/${row.id}/auto-tags`) as any
+    if (res?.success) {
+      ElMessage.success('已重新计算并更新客户标签')
+      // 更新当前行的标签，避免每次都全量下拉
+      row.tags = res.tags
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || '更新标签失败')
+  }
+}
+
+async function handleExport() {
+  try {
+    const params = new URLSearchParams()
+    if (filters.search) params.append('search', filters.search)
+    if (filters.kycStatus) params.append('kycStatus', filters.kycStatus)
+    if (filters.riskGrade) params.append('riskGrade', filters.riskGrade)
+
+    // 后端返回 CSV 二进制流
+    const response = await fetch(`/api/v1/customers/export?${params}`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
+      },
+    })
+    if (!response.ok) throw new Error('导出失败')
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `customers_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    ElMessage.success('导出成功')
+  } catch (err: any) {
+    ElMessage.error(err?.message || '导出失败')
+  }
 }
 
 function batchUpdateKyc() {
-  ElMessage.info(`批量更新 ${selectedRows.value.length} 名客户的 KYC 状态`)
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择要更新的客户')
+    return
+  }
+  batchKycDialogVisible.value = true
+}
+
+async function submitBatchKyc() {
+  if (!batchKycForm.kycStatus) {
+    ElMessage.warning('请选择要变更的 KYC 状态')
+    return
+  }
+
+  const ids = selectedRows.value.map(r => r.id)
+  batchKycSubmitting.value = true
+  try {
+    const res = await apiClient.put('/customers/kyc/batch', {
+      ids,
+      kycStatus: batchKycForm.kycStatus,
+      riskGrade: batchKycForm.riskGrade || undefined,
+    })
+    ElMessage.success(`成功更新了 ${res.data?.count || ids.length} 名客户的状态`)
+    batchKycDialogVisible.value = false
+    selectedRows.value = [] // 必须清空以重置按钮状态
+    fetchCustomers() // 刷新列表
+  } catch (err: any) {
+    ElMessage.error(err?.message || '批量更新失败')
+  } finally {
+    batchKycSubmitting.value = false
+  }
 }
 
 // 辅助函数

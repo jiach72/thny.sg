@@ -4,7 +4,7 @@
     <header class="glass-header">
       <div class="header-content">
         <div>
-          <h1 class="page-title">早安，{{ userName }}</h1>
+          <h1 class="page-title">{{ greeting }}，{{ userName }}</h1>
           <p class="page-desc">今天是 {{ currentDate }}，由于您的高效工作，已有 {{ taskStats?.byStatus?.DONE || 0 }} 项任务完成。</p>
         </div>
         <div class="header-actions">
@@ -88,6 +88,14 @@ const showCreateDialog = ref(false)
 const userName = computed(() => authStore.user?.name || '管理员')
 const currentDate = dayjs().format('YYYY年MM月DD日 dddd')
 
+// 动态问候语：根据当前时间切换
+const greeting = computed((): string => {
+    const hour = new Date().getHours()
+    if (hour < 12) return '早安'
+    if (hour < 18) return '下午好'
+    return '晚上好'
+})
+
 const handleCreate = () => {
     showCreateDialog.value = true
 }
@@ -118,11 +126,10 @@ onMounted(async () => {
 .dashboard-2 {
     max-width: 1600px;
     margin: 0 auto;
-    color: #1e293b;
+    color: var(--color-text);
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: 1px solid rgba(255, 255, 255, 0.5);
     --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    --primary: #6366F1;
 }
 
 /* 头部 */
@@ -137,27 +144,27 @@ onMounted(async () => {
 .page-title {
     font-size: 32px;
     font-weight: 800;
-    color: #0F172A;
+    color: var(--color-text);
     margin: 0 0 8px 0;
     letter-spacing: -0.02em;
 }
 .page-desc {
-    color: #64748B;
+    color: var(--color-text-muted);
     font-size: 16px;
     margin: 0;
 }
 .btn-create {
-    background-color: var(--primary);
+    background-color: var(--color-primary);
     border: none;
     padding: 12px 24px;
     font-weight: 600;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
     transition: all 0.3s;
 }
 .btn-create:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 6px 16px rgba(8, 145, 178, 0.4);
 }
 
 /* 布局 */
@@ -208,7 +215,7 @@ onMounted(async () => {
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    color: #334155;
+    color: var(--color-text);
     display: flex;
     align-items: center;
     gap: 8px;

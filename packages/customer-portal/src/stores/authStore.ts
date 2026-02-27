@@ -1,23 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '@/api'
-
-interface User {
-    id: string
-    name: string
-    email: string
-    role: string
-    avatarUrl?: string
-    familyMembers?: Record<string, unknown>[]
-    riskGrade?: string
-    phone?: string
-    company?: string
-}
+import type { User, LoginResponse } from '@tonghai/shared'
 
 export const useAuthStore = defineStore('auth', () => {
     // 状态
+    // accessToken 存内存 + localStorage（页面刷新恢复用）
+    // refreshToken 通过 httpOnly cookie 自动管理，前端无需持有
     const accessToken = ref<string | null>(localStorage.getItem('accessToken'))
-    const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'))
     const user = ref<User | null>(null)
     const loading = ref(false)
 
@@ -26,17 +16,17 @@ export const useAuthStore = defineStore('auth', () => {
     const isCustomer = computed(() => user.value?.role === 'CUSTOMER')
 
     // 方法
-    async function login(payload: { email: string; password: string }) {
+    async function login(payload: { email: string; password: string }): Promise<LoginResponse> {
         loading.value = true
         try {
-            const data: any = await authApi.login(payload)
+            const data: LoginResponse = await authApi.login(payload)
 
+            // accessToken 存内存 + localStorage
+            // refreshToken 已由后端通过 httpOnly cookie 设置
             accessToken.value = data.accessToken
-            refreshToken.value = data.refreshToken
-            user.value = data.user
+            user.value = data.user as User
 
             localStorage.setItem('accessToken', data.accessToken)
-            localStorage.setItem('refreshToken', data.refreshToken)
 
             return data
         } finally {
@@ -44,11 +34,11 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    async function fetchCurrentUser() {
+    async function fetchCurrentUser(): Promise<User | null> {
         if (!accessToken.value) return null
 
         try {
-            const data: any = await authApi.getCurrentUser()
+            const data: User = await authApi.getCurrentUser()
             user.value = data
             return data
         } catch {
@@ -57,34 +47,40 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    async function refreshAccessToken() {
-        if (!refreshToken.value) {
-            throw new Error('No refresh token')
-        }
+    let refreshPromise: Promise<unknown> | null = null
 
-        const data: any = await authApi.refreshToken(refreshToken.value)
-        accessToken.value = data.accessToken
-        localStorage.setItem('accessToken', data.accessToken)
+    async function refreshAccessToken(): Promise<unknown> {
+        if (refreshPromise) return refreshPromise
 
-        return data
+        refreshPromise = (async () => {
+            try {
+                // refreshToken 通过 httpOnly cookie 自动携带
+                const data = await authApi.refreshToken('')
+                accessToken.value = data.accessToken
+                localStorage.setItem('accessToken', data.accessToken)
+                return data
+            } finally {
+                refreshPromise = null
+            }
+        })()
+
+        return refreshPromise
     }
 
-    function logout() {
+    function logout(): void {
         accessToken.value = null
-        refreshToken.value = null
         user.value = null
         localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
+        // refreshToken cookie 由后端 /auth/logout 清除
     }
 
-    function setTokens(newAccessToken: string, newRefreshToken: string) {
+    function setTokens(newAccessToken: string, _newRefreshToken?: string): void {
         accessToken.value = newAccessToken
-        refreshToken.value = newRefreshToken
         localStorage.setItem('accessToken', newAccessToken)
-        localStorage.setItem('refreshToken', newRefreshToken)
+        // refreshToken 由 httpOnly cookie 管理，忽略前端传入值
     }
 
-    function setUser(userData: any) {
+    function setUser(userData: User): void {
         user.value = userData
     }
 
@@ -96,7 +92,6 @@ export const useAuthStore = defineStore('auth', () => {
     return {
         // 状态
         accessToken,
-        refreshToken,
         user,
         loading,
         // 计算属性

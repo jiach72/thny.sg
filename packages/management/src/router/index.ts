@@ -11,6 +11,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/auth/Login.vue'),
         meta: { requiresAuth: false, title: '登录' },
     },
+    {
+        path: '/forgot-password',
+        name: 'ForgotPassword',
+        component: () => import('@/views/auth/ForgotPassword.vue'),
+        meta: { requiresAuth: false, title: '忘记密码' },
+    },
+    {
+        path: '/reset-password',
+        name: 'ResetPassword',
+        component: () => import('@/views/auth/ResetPassword.vue'),
+        meta: { requiresAuth: false, title: '重置密码' },
+    },
+    {
+        path: '/setup',
+        name: 'Setup',
+        component: () => import('@/views/setup/Setup.vue'),
+        meta: { requiresAuth: false, title: '系统初始化' },
+    },
 
     // 主应用 (需要登录)
     {
@@ -33,6 +51,12 @@ const routes: RouteRecordRaw[] = [
                 name: 'LeadList',
                 component: () => import('@/views/leads/LeadList.vue'),
                 meta: { title: '线索管理' },
+            },
+            {
+                path: 'leads/kanban',
+                name: 'LeadKanban',
+                component: () => import('@/views/leads/LeadKanban.vue'),
+                meta: { title: '线索管道' },
             },
             {
                 path: 'leads/:id',
@@ -65,6 +89,12 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '项目管理' },
             },
             {
+                path: 'calendar',
+                name: 'CalendarView',
+                component: () => import('@/views/calendar/CalendarView.vue'),
+                meta: { title: '工作日历' },
+            },
+            {
                 path: 'projects/:id',
                 name: 'ProjectDetail',
                 component: () => import('@/views/projects/ProjectDetail.vue'),
@@ -95,10 +125,29 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '角色权限' },
             },
             {
+                path: 'settings/audit-logs',
+                name: 'AuditLogs',
+                component: () => import('@/views/settings/AuditLogViewer.vue'),
+                meta: { title: '审计日志' },
+            },
+            {
                 path: 'messages',
-                name: 'MessageSend',
-                component: () => import('@/views/messages/MessageSend.vue'),
-                meta: { title: '消息发送' },
+                redirect: '/messages/inbox',
+                meta: { title: '消息中心' },
+                children: [
+                    {
+                        path: 'inbox',
+                        name: 'MessageInbox',
+                        component: () => import('@/views/messages/MessageInbox.vue'),
+                        meta: { title: '收件箱' },
+                    },
+                    {
+                        path: 'send',
+                        name: 'MessageSend',
+                        component: () => import('@/views/messages/MessageSend.vue'),
+                        meta: { title: '消息发送' },
+                    }
+                ]
             },
             {
                 path: 'settings/faq',
@@ -178,7 +227,9 @@ const routes: RouteRecordRaw[] = [
     // 404
     {
         path: '/:pathMatch(.*)*',
-        redirect: '/dashboard',
+        name: 'NotFound',
+        component: () => import('@/views/NotFound.vue'),
+        meta: { requiresAuth: false, title: '页面未找到' },
     },
 ]
 

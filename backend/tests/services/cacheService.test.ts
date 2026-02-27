@@ -1,25 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { cacheService } from '../../src/services/cacheService.js'
 
-// Mock getRedis
-const mockRedis = {
+// 借助 vi.hoisted 确保能够在 vi.mock 内部使用该常量而不断开依赖
+const mockRedis = vi.hoisted(() => ({
     get: vi.fn(),
     setex: vi.fn(),
     del: vi.fn(),
-    keys: vi.fn()
-}
+    scan: vi.fn()
+}))
 
 vi.mock('../../src/config/redis.js', () => ({
-    getRedis: () => mockRedis
+    getRedis: () => mockRedis,
+    isRedisConnected: true
 }))
 
 // Mock logger
-vi.mock('../../src/config/logger.js', () => ({
-    default: {
-        error: vi.fn(),
-        info: vi.fn()
+vi.mock('../../src/config/logger.js', () => {
+    return {
+        default: {
+            error: vi.fn(),
+            info: vi.fn()
+        }
     }
-}))
+})
 
 describe('cacheService', () => {
     beforeEach(() => {
@@ -62,19 +65,20 @@ describe('cacheService', () => {
     })
 
     describe('invalidatePattern', () => {
-        it('should find keys by pattern and delete them', async () => {
-            mockRedis.keys.mockResolvedValueOnce(['cache:dash:1', 'cache:dash:2'])
+        it('should scan keys by pattern and delete them', async () => {
+            // 第一次 SCAN 返回一些 key，cursor 指向 '0' 表示结束
+            mockRedis.scan.mockResolvedValueOnce(['0', ['cache:dash:1', 'cache:dash:2']])
             mockRedis.del.mockResolvedValueOnce(2)
 
             const deleted = await cacheService.invalidatePattern('dash:*')
 
-            expect(mockRedis.keys).toHaveBeenCalledWith('cache:dash:*')
+            expect(mockRedis.scan).toHaveBeenCalledWith('0', 'MATCH', 'cache:dash:*', 'COUNT', 100)
             expect(mockRedis.del).toHaveBeenCalledWith('cache:dash:1', 'cache:dash:2')
             expect(deleted).toBe(2)
         })
 
         it('should return 0 when no keys match the pattern', async () => {
-            mockRedis.keys.mockResolvedValueOnce([])
+            mockRedis.scan.mockResolvedValueOnce(['0', []])
             const deleted = await cacheService.invalidatePattern('dash:*')
             expect(deleted).toBe(0)
             expect(mockRedis.del).not.toHaveBeenCalled()

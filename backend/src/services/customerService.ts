@@ -1,4 +1,5 @@
 import { prisma } from '../config/index.js'
+import { webhookService } from './webhookService.js'
 
 interface CustomerListParams {
     page?: number
@@ -8,6 +9,7 @@ interface CustomerListParams {
     riskGrade?: string
     sourceChannel?: string
     assignedToId?: string
+    tags?: string[]
     sortBy?: string
     sortOrder?: 'asc' | 'desc'
 }
@@ -46,6 +48,10 @@ export const customerService = {
         if (riskGrade) where.riskGrade = riskGrade
         if (sourceChannel) where.lead = { ...(where.lead as object), sourceChannel }
         if (assignedToId) where.lead = { ...(where.lead as object), assignedToId }
+        if (params.tags && params.tags.length > 0) {
+            // Prisma 支持 PostgreSQL string array hasSome
+            where.tags = { hasSome: Array.isArray(params.tags) ? params.tags : [params.tags] }
+        }
 
         // 构建排序
         const orderBy: Record<string, string> = {}
@@ -162,7 +168,10 @@ export const customerService = {
                             where: { deletedAt: null },
                             select: { id: true, totalAmount: true, paidAmount: true, status: true, dueDate: true },
                         },
-                        documents: { select: { id: true, fileName: true, fileType: true, fileSize: true, accessLevel: true, createdAt: true } },
+                        documents: {
+                            where: { deletedAt: null },
+                            select: { id: true, fileName: true, fileType: true, fileSize: true, accessLevel: true, createdAt: true }
+                        },
                     },
                     orderBy: { createdAt: 'desc' },
                 },
@@ -216,10 +225,39 @@ export const customerService = {
         const data: Record<string, unknown> = { kycStatus }
         if (riskGrade) data.riskGrade = riskGrade
 
-        return prisma.customer.update({
+        const result = await prisma.customer.update({
             where: { id },
             data,
         })
+
+        if (kycStatus === 'APPROVED' || kycStatus === 'REJECTED') {
+            webhookService.emit('customer.updated', result).catch(console.error)
+        }
+
+        return result
+    },
+
+    /**
+     * 批量更新 KYC 状态
+     */
+    async batchUpdateKycStatus(ids: string[], kycStatus: string, riskGrade?: string) {
+        const data: Record<string, unknown> = { kycStatus }
+        if (riskGrade) data.riskGrade = riskGrade
+
+        const result = await prisma.customer.updateMany({
+            where: { id: { in: ids } },
+            data,
+        })
+
+        if (kycStatus === 'APPROVED' || kycStatus === 'REJECTED') {
+            // Retrieve updated customers to send in webhook (simplified for batch)
+            const updatedCustomers = await prisma.customer.findMany({ where: { id: { in: ids } } })
+            updatedCustomers.forEach(customer => {
+                webhookService.emit('customer.updated', customer).catch(console.error)
+            })
+        }
+
+        return result
     },
 
     /**
@@ -290,5 +328,80 @@ export const customerService = {
             },
             take: 50,
         })
+    },
+
+    /**
+     * 自动评估并分类客户标签 (自动化分群)
+     * 基于消费总额、服务类型等
+     */
+    async autoAssignTags(customerId: string) {
+        const customer = await prisma.customer.findUnique({
+            where: { id: customerId },
+            include: {
+                lead: { select: { serviceTypes: true, sourceChannel: true } },
+                projects: {
+                    where: { deletedAt: null },
+                    include: {
+                        invoices: {
+                            where: { deletedAt: null, status: { in: ['PAID', 'PARTIAL'] } },
+                            select: { paidAmount: true }
+                        }
+                    }
+                }
+            }
+        })
+
+        if (!customer) return []
+
+        const newTags = new Set<string>()
+
+        // 1. 基于总消费打标
+        let totalSpent = 0
+        customer.projects.forEach(p => {
+            p.invoices.forEach(inv => {
+                totalSpent += Number(inv.paidAmount || 0)
+            })
+        })
+
+        // 定义价值阶梯
+        if (totalSpent >= 50000) newTags.add('VIP客户')
+        else if (totalSpent >= 10000) newTags.add('高价值客户')
+        else if (totalSpent > 0) newTags.add('已成交客户')
+        else newTags.add('新客(未消费)')
+
+        // 2. 基于服务类型打标
+        const serviceMap: Record<string, string> = {
+            'company_registration': '公司注册',
+            'secretary_service': '公司秘书',
+            'accounting': '财税服务',
+            'work_permit': '工作准证',
+            'family_office': '家族办公室',
+            'vcc_fund': 'VCC基金'
+        }
+
+        customer.projects.forEach(p => {
+            if (serviceMap[p.projectType]) newTags.add(`已购:${serviceMap[p.projectType]}`)
+        })
+        customer.lead.serviceTypes.forEach(t => {
+            if (serviceMap[t]) newTags.add(`意向:${serviceMap[t]}`)
+        })
+
+        // 3. 来源打标
+        if (customer.lead.sourceChannel) {
+            newTags.add(`来源:${customer.lead.sourceChannel}`)
+        }
+
+        const tagsArray = Array.from(newTags)
+
+        // 保留原有的非自动生成的标签 (可选, 目前完全覆盖并重算核心业务标签)
+        // const existingTags = new Set(customer.tags || [])
+        // tagsArray.forEach(t => existingTags.add(t))
+
+        await prisma.customer.update({
+            where: { id: customerId },
+            data: { tags: tagsArray }
+        })
+
+        return tagsArray
     },
 }

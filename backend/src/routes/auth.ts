@@ -6,8 +6,40 @@ import { rbacService } from '../services/rbacService.js'
 import { validate } from '../middlewares/index.js'
 import { authMiddleware } from '../middlewares/index.js'
 import { sendSuccess, success } from '../utils/responseHelper.js'
+import { config } from '../config/index.js'
 
 const router = Router()
+
+/**
+ * httpOnly cookie 配置（仅用于 refreshToken）
+ * - httpOnly: 防止 XSS 读取
+ * - secure: 生产环境强制 HTTPS
+ * - sameSite: lax 防止 CSRF
+ * - path: 限制 cookie 仅发送到 auth 端点
+ */
+const REFRESH_TOKEN_COOKIE = 'refreshToken'
+const COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure: config.nodeEnv === 'production',
+    sameSite: 'lax' as const,
+    path: '/api/v1/auth',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 天（与 JWT_REFRESH_EXPIRES_IN 对齐）
+}
+
+/** 将 refreshToken 设置为 httpOnly cookie */
+function setRefreshTokenCookie(res: Response, refreshToken: string): void {
+    res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, COOKIE_OPTIONS)
+}
+
+/** 清除 refreshToken cookie */
+function clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie(REFRESH_TOKEN_COOKIE, {
+        httpOnly: COOKIE_OPTIONS.httpOnly,
+        secure: COOKIE_OPTIONS.secure,
+        sameSite: COOKIE_OPTIONS.sameSite,
+        path: COOKIE_OPTIONS.path,
+    })
+}
 
 /**
  * 认证端点速率限制
@@ -71,6 +103,12 @@ router.post(
         try {
             const { email, password } = req.body
             const result = await authService.login({ email, password })
+
+            // 将 refreshToken 设置为 httpOnly cookie
+            if (result.refreshToken) {
+                setRefreshTokenCookie(res, result.refreshToken)
+            }
+
             sendSuccess(res, result, '登录成功')
         } catch (error) {
             next(error)
@@ -97,6 +135,12 @@ router.post(
         try {
             const { tempToken, code } = req.body
             const result = await authService.verify2FALogin(tempToken, code)
+
+            // 将 refreshToken 设置为 httpOnly cookie
+            if (result.refreshToken) {
+                setRefreshTokenCookie(res, result.refreshToken)
+            }
+
             sendSuccess(res, result, '登录成功')
         } catch (error) {
             next(error)
@@ -142,14 +186,33 @@ router.post(
  */
 router.post(
     '/refresh',
-    [body('refreshToken').notEmpty().withMessage('刷新令牌不能为空')],
-    validate,
+    [
+        // refreshToken 现在优先从 cookie 读取，body 作为向后兼容
+        body('refreshToken').optional(),
+    ],
     async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { refreshToken } = req.body
+            // 优先从 httpOnly cookie 读取，其次从 body 读取（向后兼容）
+            const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] || req.body.refreshToken
+
+            if (!refreshToken) {
+                return res.status(400).json({
+                    code: 400,
+                    message: '刷新令牌不能为空',
+                })
+            }
+
             const result = await authService.refreshToken(refreshToken)
+
+            // 如果实现了 Refresh Token 轮换，需要重新写入 cookie
+            if (result.refreshToken) {
+                setRefreshTokenCookie(res, result.refreshToken)
+            }
+
             sendSuccess(res, result, '刷新成功')
         } catch (error) {
+            // 刷新失败时清除 cookie
+            clearRefreshTokenCookie(res)
             next(error)
         }
     }
@@ -262,7 +325,8 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response, next:
             }
         }
 
-        const { refreshToken } = req.body
+        // 从 cookie 或 body 获取 refreshToken
+        const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] || req.body.refreshToken
         if (refreshToken) {
             const { tokenBlacklist } = await import('../config/redis.js')
             const jwt = await import('jsonwebtoken')
@@ -275,9 +339,13 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response, next:
             }
         }
 
+        // 清除 refreshToken cookie
+        clearRefreshTokenCookie(res)
+
         sendSuccess(res, null, '登出成功')
     } catch (error) {
-        // 即使黑名单失败，也返回成功（降级处理）
+        // 即使黑名单失败，也清除 cookie 并返回成功
+        clearRefreshTokenCookie(res)
         console.error('Token 黑名单添加失败:', error)
         sendSuccess(res, null, '已成功登出')
     }
@@ -321,6 +389,98 @@ router.post(
             const { token, password } = req.body
             const result = await authService.setupPassword(token, password)
             sendSuccess(res, result, '密码设置成功')
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /auth/forgot-password - 忘记密码（发送重置邮件）
+ */
+router.post(
+    '/forgot-password',
+    rateLimit({
+        windowMs: 60 * 60 * 1000, // 1 小时
+        max: 3, // 每小时最多 3 次
+        message: { success: false, message: '请求过于频繁，请稍后再试' },
+    }),
+    [
+        body('email').isEmail().withMessage('请输入有效的邮箱地址'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await authService.forgotPassword(req.body.email)
+            sendSuccess(res, result, result.message)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /auth/reset-password - 重置密码（验证 token + 设置新密码）
+ */
+router.post(
+    '/reset-password',
+    authLimiter,
+    [
+        body('token').notEmpty().withMessage('重置令牌不能为空'),
+        body('password')
+            .isLength({ min: 8 })
+            .withMessage('密码至少 8 位'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { token, password } = req.body
+            const result = await authService.resetPassword(token, password)
+            sendSuccess(res, result, result.message)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * GET /auth/setup-status - 获取系统初始化状态
+ * 用于前端判断是否需要进入部署后的初始化向导
+ */
+router.get('/setup-status', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await authService.getSetupStatus()
+        sendSuccess(res, result)
+    } catch (error) {
+        next(error)
+    }
+})
+
+/**
+ * POST /auth/setup-admin - 冷启动时初始化首个超级管理员
+ * 仅当系统中无任何管理员时可用
+ */
+router.post(
+    '/setup-admin',
+    [
+        body('email').isEmail().withMessage('请输入有效的邮箱地址'),
+        body('password')
+            .isLength({ min: 8 })
+            .withMessage('密码至少 8 位')
+            .matches(/[A-Z]/)
+            .withMessage('密码需包含至少一个大写字母')
+            .matches(/[a-z]/)
+            .withMessage('密码需包含至少一个小写字母')
+            .matches(/[0-9]/)
+            .withMessage('密码需包含至少一个数字'),
+        body('name').notEmpty().withMessage('姓名不能为空'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { email, password, name } = req.body
+            const result = await authService.setupFirstAdmin({ email, password, name })
+            sendSuccess(res, result, '首次超级管理员创建成功，正在刷新环境')
         } catch (error) {
             next(error)
         }
