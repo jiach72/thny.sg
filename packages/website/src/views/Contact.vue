@@ -132,6 +132,14 @@
                 </div>
 
                 <div class="info-item">
+                  <el-icon class="info-icon"><Location /></el-icon>
+                  <div>
+                    <h4>{{ t('contact.info.addressTaiwan.title') }}</h4>
+                    <p>{{ t('contact.info.addressTaiwan.content') }}</p>
+                  </div>
+                </div>
+
+                <div class="info-item">
                   <el-icon class="info-icon"><Message /></el-icon>
                   <div>
                     <h4>{{ t('contact.info.email.title') }}</h4>

@@ -124,10 +124,16 @@ const route = useRoute()
  * 净化 HTML 内容（仅允许 strong/em/a 等安全标签）
  */
 function sanitize(html: string): string {
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['strong', 'em', 'a', 'br'],
-    ALLOWED_ATTR: ['href', 'target', 'rel'],
-  })
+  // 兼容直接导入与 default 导入，防止 vite-ssg 报错 TypeError: DOMPurify.sanitize is not a function
+  const purify = DOMPurify.sanitize ? DOMPurify : (DOMPurify as any).default || DOMPurify
+  if (typeof purify.sanitize === 'function') {
+    return purify.sanitize(html, {
+      ALLOWED_TAGS: ['strong', 'em', 'a', 'br'],
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+    })
+  }
+  // 如果实在找不到 sanitize 函数（SSR极度边缘情况），返回原文本作为兜底
+  return html
 }
 
 useHead({

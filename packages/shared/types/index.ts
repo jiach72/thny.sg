@@ -25,3 +25,12 @@ export * from './invoice'
 // FAQ 类型
 export * from './faq'
 export * from './portal'
+
+// 供应商类型
+export * from './vendor'
+
+// 报销类型
+export * from './claim'
+
+// 会议类型
+export * from './meeting'

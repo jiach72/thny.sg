@@ -44,6 +44,7 @@ export interface PortalDashboardStats {
     activeProjects: number
     pendingDocuments: number
     upcomingMilestones?: Milestone[]
+    consultant?: ConsultantInfo
 }
 
 // 门户站内消息

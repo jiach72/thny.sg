@@ -157,6 +157,7 @@ import { useLeadStore } from '@/stores'
 import AssigneeDialog from '@/components/AssigneeDialog.vue'
 import HealthScoreCard from '@/components/common/HealthScoreCard.vue'
 import ActivityTimeline from '@/components/common/ActivityTimeline.vue'
+import ScoreRing from '@/components/common/ScoreRing.vue'
 
 const route = useRoute()
 const router = useRouter()

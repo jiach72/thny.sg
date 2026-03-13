@@ -496,8 +496,12 @@ const zhCN: MessageSchema = {
         info: {
             title: '联络信息',
             address: {
-                title: '地址',
+                title: '新加坡总部',
                 content: '20 Anson Road, Level 6, #06-66, Twenty Anson, Singapore 079912'
+            },
+            addressTaiwan: {
+                title: '台湾办公室',
+                content: '新北市大同路二段247号2楼'
             },
             email: {
                 title: 'Email'

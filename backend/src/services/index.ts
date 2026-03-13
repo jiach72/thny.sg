@@ -6,4 +6,7 @@ export { customerService } from './customerService.js'
 export { appointmentService } from './appointmentService.js'
 export { inquiryService } from './inquiryService.js'
 export { scoringService } from './scoringService.js'
+export { vendorService } from './vendorService.js'
+export { claimService } from './claimService.js'
+export { meetingService } from './meetingService.js'
 

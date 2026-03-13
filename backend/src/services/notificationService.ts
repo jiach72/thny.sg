@@ -21,6 +21,11 @@ export type NotificationEvent =
     | 'PROJECT_STATUS_CHANGED'
     | 'MESSAGE_RECEIVED'
     | 'SYSTEM_ALERT'
+    | 'CLAIM_SUBMITTED'
+    | 'CLAIM_APPROVED'
+    | 'CLAIM_REJECTED'
+    | 'CLAIM_PAID'
+    | 'MEETING_REMINDER'
 
 /**
  * 通知渠道
@@ -68,6 +73,11 @@ const EVENT_CHANNEL_MAP: Record<NotificationEvent, NotificationChannel[]> = {
     PROJECT_STATUS_CHANGED: ['WEBSOCKET', 'IN_APP'],
     MESSAGE_RECEIVED: ['WEBSOCKET'],
     SYSTEM_ALERT: ['WEBSOCKET', 'IN_APP', 'EMAIL'],
+    CLAIM_SUBMITTED: ['WEBSOCKET', 'IN_APP'],
+    CLAIM_APPROVED: ['WEBSOCKET', 'IN_APP', 'EMAIL'],
+    CLAIM_REJECTED: ['WEBSOCKET', 'IN_APP', 'EMAIL'],
+    CLAIM_PAID: ['WEBSOCKET', 'IN_APP', 'EMAIL'],
+    MEETING_REMINDER: ['WEBSOCKET', 'IN_APP', 'EMAIL'],
 }
 
 // ==================== 通知服务 ====================
@@ -282,8 +292,69 @@ export const notificationService = {
             PROJECT_STATUS_CHANGED: 'PROJECT',
             MESSAGE_RECEIVED: 'SYSTEM',
             SYSTEM_ALERT: 'ANNOUNCEMENT',
+            CLAIM_SUBMITTED: 'PAYMENT',
+            CLAIM_APPROVED: 'PAYMENT',
+            CLAIM_REJECTED: 'PAYMENT',
+            CLAIM_PAID: 'PAYMENT',
+            MEETING_REMINDER: 'REMINDER',
         }
         return mapping[event] || 'SYSTEM'
+    },
+
+    // ==================== 报销通知便捷方法 ====================
+
+    /**
+     * 报销单提交通知（通知审批人）
+     */
+    async notifyClaimSubmitted(claimId: string, claimNumber: string, submitterName: string, approverIds: string[]): Promise<void> {
+        await this.dispatch({
+            event: 'CLAIM_SUBMITTED',
+            recipientIds: approverIds,
+            title: '新报销单待审批',
+            content: `${submitterName} 提交了报销单 ${claimNumber}，请及时审批`,
+            entity: { type: 'CLAIM', id: claimId, name: claimNumber },
+        })
+    },
+
+    /**
+     * 报销单审批通过通知
+     */
+    async notifyClaimApproved(claimId: string, claimNumber: string, submitterId: string, approverId: string): Promise<void> {
+        await this.dispatch({
+            event: 'CLAIM_APPROVED',
+            recipientIds: [submitterId],
+            actorId: approverId,
+            title: '报销单已批准',
+            content: `您的报销单 ${claimNumber} 已获批准`,
+            entity: { type: 'CLAIM', id: claimId, name: claimNumber },
+        })
+    },
+
+    /**
+     * 报销单驳回通知
+     */
+    async notifyClaimRejected(claimId: string, claimNumber: string, submitterId: string, rejectorId: string, reason: string): Promise<void> {
+        await this.dispatch({
+            event: 'CLAIM_REJECTED',
+            recipientIds: [submitterId],
+            actorId: rejectorId,
+            title: '报销单被驳回',
+            content: `您的报销单 ${claimNumber} 被驳回，原因：${reason}`,
+            entity: { type: 'CLAIM', id: claimId, name: claimNumber },
+        })
+    },
+
+    /**
+     * 会议提醒通知
+     */
+    async notifyMeetingReminder(meetingId: string, title: string, startTime: string, participantIds: string[]): Promise<void> {
+        await this.dispatch({
+            event: 'MEETING_REMINDER',
+            recipientIds: participantIds,
+            title: '会议提醒',
+            content: `会议「${title}」将于 ${startTime} 开始，请准时参加`,
+            entity: { type: 'APPOINTMENT', id: meetingId, name: title },
+        })
     },
 }
 

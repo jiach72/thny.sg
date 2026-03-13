@@ -154,6 +154,12 @@ model User {
   paymentsRecorded Payment[]  @relation("PaymentRecorder")
   auditLogs        AuditLog[] @relation("UserAuditLogs")
   webhookEndpoints WebhookEndpoint[] @relation("WebhookCreator")
+  // Phase 5: 新模块关联
+  submittedClaims       Claim[] @relation("ClaimSubmitter")
+  managerApprovedClaims Claim[] @relation("ClaimManagerApprover")
+  adminApprovedClaims   Claim[] @relation("ClaimAdminApprover")
+  rejectedClaims        Claim[] @relation("ClaimRejector")
+  recordedMinutes       MeetingMinutes[] @relation("MinutesRecorder")
 
   @@index([roleId])
   @@map("users")
@@ -417,6 +423,9 @@ model Appointment {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Phase 5: 会议纪要关联
+  minutes    MeetingMinutes? @relation("AppointmentMinutes")
 
   @@index([userId])
   @@index([startTime])
@@ -955,5 +964,216 @@ model WebhookLog {
   @@index([endpointId])
   @@index([createdAt])
   @@map("webhook_logs")
+}
+
+// ==================== Phase 5: 会议日程增强 ====================
+
+enum MeetingRoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+// 会议室资源
+model MeetingRoom {
+  id          String            @id @default(cuid())
+  name        String                                // "会议室A"
+  location    String?                                // "办公室3楼"
+  capacity    Int               @default(6)
+  facilities  String[]                               // ["投影仪", "白板", "视频会议"]
+  status      MeetingRoomStatus @default(AVAILABLE)
+  isActive    Boolean           @default(true) @map("is_active")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@map("meeting_rooms")
+}
+
+// 会议纪要
+model MeetingMinutes {
+  id             String      @id @default(cuid())
+  appointment    Appointment @relation("AppointmentMinutes", fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointmentId  String      @unique @map("appointment_id")
+  content        String      @db.Text              // 纪要正文 (Markdown)
+  actionItems    Json?       @map("action_items")   // [{task, assignee, dueDate}]
+  recordedBy     User        @relation("MinutesRecorder", fields: [recordedById], references: [id])
+  recordedById   String      @map("recorded_by_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@map("meeting_minutes")
+}
+
+// ==================== Phase 5: 报销流程 ====================
+
+enum ClaimStatus {
+  DRAFT             // 草稿
+  SUBMITTED         // 已提交待审批
+  MANAGER_APPROVED  // 经理已批准
+  APPROVED          // 最终批准（Admin）
+  REJECTED          // 已拒绝
+  PAID              // 已付款
+}
+
+enum ExpenseCategory {
+  TRANSPORT           // 交通
+  MEALS               // 餐饮
+  ACCOMMODATION       // 住宿
+  OFFICE_SUPPLIES     // 办公用品
+  CLIENT_ENTERTAINMENT // 客户招待
+  COMMUNICATION       // 通讯
+  PROFESSIONAL_SERVICES // 专业服务费
+  OTHER               // 其他
+}
+
+// 报销分类管理（动态维护）
+model ExpenseCategoryConfig {
+  id          String   @id @default(cuid())
+  code        String   @unique                    // 分类编码
+  name        String                              // 中文名称
+  nameEn      String?  @map("name_en")            // 英文名称
+  icon        String?                              // 图标标识
+  maxAmount   Decimal? @db.Decimal(15, 2) @map("max_amount") // 单笔上限
+  requireReceipt Boolean @default(true) @map("require_receipt") // 是否必须附收据
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("expense_category_configs")
+}
+
+// 报销单
+model Claim {
+  id            String      @id @default(cuid())
+  claimNumber   String      @unique @map("claim_number")  // CLM-20260312-001
+  title         String
+  description   String?     @db.Text
+  status        ClaimStatus @default(DRAFT)
+  totalAmount   Decimal     @db.Decimal(15, 2) @map("total_amount")
+  currency      String      @default("SGD")
+
+  // 提交人
+  submitter     User        @relation("ClaimSubmitter", fields: [submitterId], references: [id])
+  submitterId   String      @map("submitter_id")
+  projectId     String?     @map("project_id")             // 关联项目（可选）
+
+  // 审批链
+  managerApprovedBy   User?     @relation("ClaimManagerApprover", fields: [managerApprovedById], references: [id])
+  managerApprovedById String?   @map("manager_approved_by_id")
+  managerApprovedAt   DateTime? @map("manager_approved_at")
+  managerComment      String?   @map("manager_comment")
+  adminApprovedBy     User?     @relation("ClaimAdminApprover", fields: [adminApprovedById], references: [id])
+  adminApprovedById   String?   @map("admin_approved_by_id")
+  adminApprovedAt     DateTime? @map("admin_approved_at")
+  adminComment        String?   @map("admin_comment")
+  rejectedBy          User?     @relation("ClaimRejector", fields: [rejectedById], references: [id])
+  rejectedById        String?   @map("rejected_by_id")
+  rejectedAt          DateTime? @map("rejected_at")
+  rejectionReason     String?   @map("rejection_reason")
+
+  // 付款
+  paidAt        DateTime?   @map("paid_at")
+  paymentRef    String?     @map("payment_ref")
+
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  deletedAt     DateTime?   @map("deleted_at")
+
+  items         ClaimItem[]
+
+  @@index([submitterId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("claims")
+}
+
+// 报销明细
+model ClaimItem {
+  id            String          @id @default(cuid())
+  claim         Claim           @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  claimId       String          @map("claim_id")
+  category      ExpenseCategory @default(OTHER)
+  description   String
+  amount        Decimal         @db.Decimal(15, 2)
+  expenseDate   DateTime        @map("expense_date")    // 消费日期
+  receiptUrl    String?         @map("receipt_url")      // 收据文件路径
+  receiptName   String?         @map("receipt_name")     // 原始文件名
+  notes         String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  @@index([claimId])
+  @@map("claim_items")
+}
+
+// ==================== Phase 5: 供应商管理 ====================
+
+enum VendorStatus {
+  ACTIVE
+  INACTIVE
+  BLACKLISTED
+}
+
+enum VendorType {
+  CORPORATE_SECRETARY  // 秘书公司
+  LAW_FIRM             // 律师事务所
+  ACCOUNTING_FIRM      // 会计事务所
+  BANK                 // 银行
+  INSURANCE            // 保险公司
+  TRANSLATION          // 翻译公司
+  LOGISTICS            // 物流公司
+  IT_SERVICE           // IT 服务
+  OTHER                // 其他
+}
+
+// 供应商
+model Vendor {
+  id            String       @id @default(cuid())
+  name          String
+  type          VendorType   @default(OTHER)
+  status        VendorStatus @default(ACTIVE)
+  contactName   String?      @map("contact_name")
+  contactEmail  String?      @map("contact_email")
+  contactPhone  String?      @map("contact_phone")
+  website       String?
+  address       String?
+  registrationNo String?     @map("registration_no")    // 注册号
+  taxId         String?      @map("tax_id")             // 税号
+  serviceScope  String[]     @map("service_scope")      // 服务范围标签
+  rating        Int?         @default(0)                 // 评分 1-5
+  contractStart DateTime?    @map("contract_start")
+  contractEnd   DateTime?    @map("contract_end")
+  contractTerms String?      @map("contract_terms") @db.Text
+  notes         String?      @db.Text
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  deletedAt     DateTime?    @map("deleted_at")
+
+  assignments   VendorAssignment[]
+
+  @@index([type])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("vendors")
+}
+
+// 供应商-项目分配
+model VendorAssignment {
+  id            String    @id @default(cuid())
+  vendor        Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId      String    @map("vendor_id")
+  projectId     String    @map("project_id")
+  role          String                               // "秘书服务", "法律顾问"
+  status        String    @default("ACTIVE")          // ACTIVE, COMPLETED, TERMINATED
+  fee           Decimal?  @db.Decimal(15, 2)
+  currency      String    @default("SGD")
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@unique([vendorId, projectId, role])
+  @@index([vendorId])
+  @@index([projectId])
+  @@map("vendor_assignments")
 }
 

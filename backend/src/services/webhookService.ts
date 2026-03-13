@@ -19,6 +19,13 @@ export type WebhookEvent =
     | 'project.statusChanged'
     | 'invoice.created'
     | 'invoice.paid'
+    | 'claim.submitted'
+    | 'claim.approved'
+    | 'claim.rejected'
+    | 'claim.paid'
+    | 'vendor.created'
+    | 'vendor.updated'
+    | 'vendor.deleted'
 
 /** Webhook 推送负载 */
 interface WebhookPayload {

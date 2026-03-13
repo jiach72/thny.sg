@@ -53,6 +53,11 @@
           <template #title>全功能日历</template>
         </el-menu-item>
 
+        <el-menu-item index="/meetings">
+          <el-icon><Clock /></el-icon>
+          <template #title>会议日程</template>
+        </el-menu-item>
+
         <el-sub-menu index="/messages">
           <template #title>
             <el-icon><ChatDotRound /></el-icon>
@@ -61,6 +66,16 @@
           <el-menu-item index="/messages/inbox">收件箱</el-menu-item>
           <el-menu-item v-if="authStore.isAdmin" index="/messages/send">发送消息</el-menu-item>
         </el-sub-menu>
+
+        <el-menu-item index="/vendors">
+          <el-icon><OfficeBuilding /></el-icon>
+          <template #title>供应商管理</template>
+        </el-menu-item>
+
+        <el-menu-item index="/claims">
+          <el-icon><Money /></el-icon>
+          <template #title>报销管理</template>
+        </el-menu-item>
 
         <el-menu-item index="/settings/invoices">
           <el-icon><Wallet /></el-icon>
@@ -238,6 +253,9 @@ import {
   Connection,
   Avatar,
   Calendar,
+  OfficeBuilding,
+  Money,
+  Clock,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -256,6 +274,9 @@ const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/leads/')) return '/leads'
   if (path.startsWith('/customers/')) return '/customers'
+  if (path.startsWith('/vendors/')) return '/vendors'
+  if (path.startsWith('/claims/')) return '/claims'
+  if (path.startsWith('/projects/')) return '/projects'
   return path
 })
 

@@ -496,8 +496,12 @@ const en: MessageSchema = {
         info: {
             title: 'Contact Information',
             address: {
-                title: 'Address',
+                title: 'Singapore HQ',
                 content: '20 Anson Road, Level 6, #06-66, Twenty Anson, Singapore 079912'
+            },
+            addressTaiwan: {
+                title: 'Taiwan Office',
+                content: '2F., No. 247, Sec. 2, Datong Rd., Xizhi Dist., New Taipei City'
             },
             email: {
                 title: 'Email'

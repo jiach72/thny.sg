@@ -90,7 +90,6 @@ const handleSubmit = async () => {
     <div class="setup-box" v-if="!checking">
       <div class="setup-header">
         <div class="logo">
-          <img src="@/assets/images/logo.svg" alt="TongHai CRM" v-if="false" />
           <h1>通海南洋 CRM</h1>
         </div>
         <h2>系统初始化</h2>

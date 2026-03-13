@@ -297,6 +297,13 @@ export const portalService = {
             where: { userId },
             include: {
                 projects: true,
+                lead: {
+                    include: {
+                        assignedTo: {
+                            select: { id: true, name: true, email: true, avatarUrl: true, department: true }
+                        }
+                    }
+                }
             },
         })
 
@@ -344,12 +351,22 @@ export const portalService = {
             }
         })
 
+        const consultantUser = customer.lead?.assignedTo;
+        const consultant = consultantUser ? {
+            id: consultantUser.id,
+            name: consultantUser.name,
+            email: consultantUser.email,
+            avatarUrl: consultantUser.avatarUrl || undefined,
+            title: consultantUser.department || '高级顾问'
+        } : undefined;
+
         return {
             totalProjects: customer.projects.length,
             activeProjects,
             completedProjects,
             pendingDocuments,
             upcomingMilestones,
+            consultant,
         }
     },
 

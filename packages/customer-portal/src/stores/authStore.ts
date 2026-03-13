@@ -21,6 +21,11 @@ export const useAuthStore = defineStore('auth', () => {
         try {
             const data: LoginResponse = await authApi.login(payload)
 
+            // 检查用户角色 - 非客户不能登录客户门户
+            if (data.user?.role !== 'CUSTOMER') {
+                throw new Error('此门户仅限客户访问')
+            }
+
             // accessToken 存内存 + localStorage
             // refreshToken 已由后端通过 httpOnly cookie 设置
             accessToken.value = data.accessToken
@@ -39,6 +44,12 @@ export const useAuthStore = defineStore('auth', () => {
 
         try {
             const data: User = await authApi.getCurrentUser()
+            // 检查用户角色 - 非客户不能停留在客户门户
+            if (data.role !== 'CUSTOMER') {
+                logout()
+                return null
+            }
+
             user.value = data
             return data
         } catch {
@@ -58,7 +69,19 @@ export const useAuthStore = defineStore('auth', () => {
                 const data = await authApi.refreshToken('')
                 accessToken.value = data.accessToken
                 localStorage.setItem('accessToken', data.accessToken)
+
+                // 刷新完 token 后立即获取一次用户信息以验证角色
+                // 避免管理员的 cookie 在客户门户导致获取了错误的 token
+                const userProfile = await authApi.getCurrentUser()
+                if (userProfile.role !== 'CUSTOMER') {
+                    throw new Error('此门户仅限客户访问')
+                }
+                user.value = userProfile
+
                 return data
+            } catch (error) {
+                logout()
+                throw error
             } finally {
                 refreshPromise = null
             }

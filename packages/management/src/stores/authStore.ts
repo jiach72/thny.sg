@@ -77,9 +77,16 @@ export const useAuthStore = defineStore('auth', () => {
 
         try {
             const data = await authApi.getCurrentUser() as any
+            const role = data.roleCode || data.role?.code || data.role
+
+            if (role === 'CUSTOMER') {
+                logout()
+                return null
+            }
+
             user.value = {
                 ...data,
-                role: data.roleCode || data.role?.code || data.role,
+                role,
             }
 
             // 获取用户权限
@@ -103,7 +110,24 @@ export const useAuthStore = defineStore('auth', () => {
                 const data = await authApi.refreshToken('') as any
                 accessToken.value = data.accessToken
                 localStorage.setItem('accessToken', data.accessToken)
+
+                const userProfile = await authApi.getCurrentUser() as any
+                const role = userProfile.roleCode || userProfile.role?.code || userProfile.role
+                if (role === 'CUSTOMER') {
+                    throw new Error('客户账号无法登录管理系统，请使用客户门户')
+                }
+
+                user.value = {
+                    ...userProfile,
+                    role,
+                }
+
+                await fetchPermissions()
+
                 return data
+            } catch (error) {
+                logout()
+                throw error
             } finally {
                 refreshPromise = null
             }

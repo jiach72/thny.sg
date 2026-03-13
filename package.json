@@ -17,7 +17,7 @@
     "build:management": "npm run build -w @tonghai/management",
     "build:portal": "npm run build -w @tonghai/customer-portal",
     "build:all": "npm run build:website && npm run build:management && npm run build:portal",
-    "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:portal\" \"npm run dev:website\" \"npm run dev:management\"",
+    "dev:all": "concurrently --raw \"npm run dev:backend\" \"npm run dev:portal\" \"npm run dev:website\" \"npm run dev:management\"",
     "docker:up": "docker-compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker-compose -f docker/docker-compose.yml down",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx --fix",

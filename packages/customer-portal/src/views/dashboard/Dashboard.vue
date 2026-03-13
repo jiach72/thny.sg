@@ -236,7 +236,7 @@
                     v-for="slot in ['09:00', '10:30', '14:00', '15:30', '17:00']" 
                     :key="slot"
                     class="py-2 border rounded text-sm transition-colors text-center"
-                    :class="meetingForm.timeSlot === slot ? 'bg-wealth text-obsidian border-wealth font-bold' : 'border-white/10 text-text hover:border-wealth/50'"
+                    :class="meetingForm.timeSlot === slot ? 'bg-wealth text-obsidian border-wealth font-bold' : 'bg-white/5 border-white/10 text-text hover:bg-white/10 hover:border-wealth/50'"
                     @click="meetingForm.timeSlot = slot"
                  >
                    {{ slot }}
@@ -251,7 +251,7 @@
            </div>
 
            <div class="mt-8 flex gap-3 justify-end">
-             <button @click="showMeetingDialog = false" class="px-4 py-2 text-sm text-text-muted hover:text-text transition-colors">取消</button>
+             <button @click="showMeetingDialog = false" class="px-4 py-2 bg-transparent rounded text-sm text-text-muted hover:text-text hover:bg-white/5 transition-colors">取消</button>
              <button @click="submitMeeting" :disabled="isSubmittingMeeting || !meetingForm.date || !meetingForm.timeSlot" class="px-6 py-2 bg-gradient-to-r from-wealth to-[#B49248] text-obsidian text-sm font-bold rounded shadow-lg shadow-wealth/20 hover:shadow-wealth/40 transition-all disabled:opacity-50 disabled:grayscale">提交预约</button>
            </div>
         </div>
@@ -320,7 +320,10 @@ export interface ActionItem {
 export interface Consultant {
   id: string
   name: string
+  email?: string
   avatar?: string
+  avatarUrl?: string
+  phone?: string
   contactNumber?: string
   title?: string
 }
@@ -339,6 +342,7 @@ export interface DashboardStats {
   activeProjects: number
   pendingDocuments: number
   upcomingMilestones?: Milestone[]
+  consultant?: Consultant
 }
 
 type ServiceType = 'immigration' | 'education' | 'business' | 'realestate'
@@ -407,7 +411,7 @@ async function loadDashboardData(): Promise<void> {
     
     const notifications = responses[0] as unknown as ActionItem[]
     const dashboardStats = responses[1] as unknown as DashboardStats
-    
+
     todos.value = Array.isArray(notifications) ? notifications : []
     stats.value = dashboardStats || { activeProjects: 0, pendingDocuments: 0 }
     
@@ -416,9 +420,23 @@ async function loadDashboardData(): Promise<void> {
       milestones.value = dashboardStats.upcomingMilestones
     }
     
-    // 从第一个项目获取顾问信息（如果有）
-    if (typedProjects.value.length > 0 && typedProjects.value[0].consultant) {
-      consultant.value = typedProjects.value[0].consultant
+    // 从 Stats 提取顾问（全局），如果不存在，则降级为从第一个项目获取顾问信息
+    let consultantData: any = null
+    if (dashboardStats && dashboardStats.consultant) {
+      consultantData = dashboardStats.consultant
+    } else if (typedProjects.value.length > 0 && typedProjects.value[0].consultant) {
+      consultantData = typedProjects.value[0].consultant
+    }
+    
+    if (consultantData && typeof consultantData === 'object' && consultantData.name) {
+      consultant.value = {
+        id: consultantData.id || `temp_${Date.now()}`,
+        name: consultantData.name,
+        email: consultantData.email,
+        phone: consultantData.contactNumber || consultantData.phone,
+        avatarUrl: consultantData.avatarUrl || consultantData.avatar,
+        title: consultantData.title || '高级顾问'
+      };
     }
     
     // 触发 Onboarding 检查
@@ -516,6 +534,14 @@ async function submitMeeting(): Promise<void> {
 }
 :deep(.vc-header) {
   margin-bottom: 1rem;
+}
+:deep(.vc-title),
+:deep(.vc-arrow) {
+  background: transparent !important;
+}
+:deep(.vc-title:hover),
+:deep(.vc-arrow:hover) {
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 :deep(.vc-nav-popover-container) {
   background: #1c1c1c;

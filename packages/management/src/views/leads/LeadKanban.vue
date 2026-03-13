@@ -105,6 +105,7 @@ import { storeToRefs } from 'pinia'
 import { Plus, List } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import LeadFormDialog from './components/LeadFormDialog.vue'
+import ScoreRing from '@/components/common/ScoreRing.vue'
 import type { Lead } from '@tonghai/shared/types'
 
 // 管道阶段配置

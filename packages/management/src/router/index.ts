@@ -221,6 +221,42 @@ const routes: RouteRecordRaw[] = [
                 component: () => import('@/views/settings/WorkflowDesigner.vue'),
                 meta: { title: '工作流设计器' },
             },
+
+            // 会议与日程管理
+            {
+                path: 'meetings',
+                name: 'MeetingScheduler',
+                component: () => import('@/views/meetings/MeetingScheduler.vue'),
+                meta: { title: '会议日程' },
+            },
+
+            // 供应商管理
+            {
+                path: 'vendors',
+                name: 'VendorList',
+                component: () => import('@/views/vendors/VendorList.vue'),
+                meta: { title: '供应商管理' },
+            },
+            {
+                path: 'vendors/:id',
+                name: 'VendorDetail',
+                component: () => import('@/views/vendors/VendorDetail.vue'),
+                meta: { title: '供应商详情' },
+            },
+
+            // 报销管理
+            {
+                path: 'claims',
+                name: 'ClaimManagement',
+                component: () => import('@/views/claims/ClaimManagement.vue'),
+                meta: { title: '报销管理' },
+            },
+            {
+                path: 'claims/:id',
+                name: 'ClaimDetail',
+                component: () => import('@/views/claims/ClaimDetail.vue'),
+                meta: { title: '报销详情' },
+            },
         ],
     },
 

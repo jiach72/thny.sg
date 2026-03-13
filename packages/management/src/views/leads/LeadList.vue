@@ -355,6 +355,7 @@ import type { Lead } from '@tonghai/shared/types'
 import LeadFormDialog from './components/LeadFormDialog.vue'
 import LeadConvertDialog from './components/LeadConvertDialog.vue'
 import LeadImportDialog from '@/components/LeadImportDialog.vue'
+import ScoreRing from '@/components/common/ScoreRing.vue'
 import { userApi } from '@/api/userApi'
 
 const router = useRouter()

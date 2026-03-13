@@ -28,6 +28,9 @@ import auditRoutes from './audit.js'
 import exportRoutes from './export.js'
 import systemRoutes from './system.js'
 import webhookRoutes from './webhooks.js'
+import meetingRoutes from './meetings.js'
+import claimRoutes from './claims.js'
+import vendorRoutes from './vendors.js'
 
 const router = Router()
 
@@ -107,6 +110,9 @@ router.get('/', (req, res) => {
             analytics: '/api/v1/analytics (销售分析)',
             audit: '/api/v1/audit (审计日志)',
             webhooks: '/api/v1/webhooks (Webhook 事件推送)',
+            meetings: '/api/v1/meetings (会议管理)',
+            claims: '/api/v1/claims (报销管理)',
+            vendors: '/api/v1/vendors (供应商管理)',
         },
     })
 })
@@ -133,6 +139,9 @@ router.use('/audit', auditRoutes)
 router.use('/export', exportRoutes)
 router.use('/system', systemRoutes)
 router.use('/webhooks', webhookRoutes)
+router.use('/meetings', meetingRoutes)
+router.use('/claims', claimRoutes)
+router.use('/vendors', vendorRoutes)
 
 // 客户门户专用路由
 router.use('/portal', portalRoutes)

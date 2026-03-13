@@ -496,8 +496,12 @@ const zhTW: MessageSchema = {
         info: {
             title: '聯絡信息',
             address: {
-                title: '地址',
+                title: '新加坡總部',
                 content: '20 Anson Road, Level 6, #06-66, Twenty Anson, Singapore 079912'
+            },
+            addressTaiwan: {
+                title: '台灣辦公室',
+                content: '新北市大同路二段247號2樓'
             },
             email: {
                 title: 'Email'
