@@ -14,7 +14,7 @@ import { initWebSocket } from './services/websocketService.js'
 import logger from './config/logger.js'
 import morgan from 'morgan'
 import { prisma } from './config/index.js'
-import { closeRedis } from './config/redis.js'
+import { closeRedis, getRedis } from './config/redis.js'
 import { emailSenderService } from './services/emailSenderService.js'
 import { apiVersionMiddleware } from './middlewares/index.js'
 
@@ -123,7 +123,17 @@ async function bootstrap() {
             }
         }
 
-        // ========== 2. 初始化邮件服务 ==========
+        // ========== 2. 初始化 Redis 连接 ==========
+        try {
+            const redis = getRedis();
+            await redis.connect(); // 主动建立连接（lazyConnect 模式下需要显式调用）
+            logger.info('✅ Redis 连接成功');
+        } catch (err: any) {
+            logger.warn(`⚠️ Redis 连接失败，进入降级模式: ${err.message}`);
+            // Redis 失败不阻断启动，系统会使用内存降级方案
+        }
+
+        // ========== 3. 初始化邮件服务 ==========
         try {
             await emailSenderService.initialize();
         } catch (err) {
