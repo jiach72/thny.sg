@@ -125,7 +125,8 @@ const route = useRoute()
  */
 function sanitize(html: string): string {
   // 兼容直接导入与 default 导入，防止 vite-ssg 报错 TypeError: DOMPurify.sanitize is not a function
-  const purify = DOMPurify.sanitize ? DOMPurify : (DOMPurify as any).default || DOMPurify
+  const lib: any = DOMPurify
+  const purify = typeof lib.sanitize === 'function' ? lib : lib.default || lib
   if (typeof purify.sanitize === 'function') {
     return purify.sanitize(html, {
       ALLOWED_TAGS: ['strong', 'em', 'a', 'br'],
