@@ -18,6 +18,16 @@ import { closeRedis } from './config/redis.js'
 import { emailSenderService } from './services/emailSenderService.js'
 import { apiVersionMiddleware } from './middlewares/index.js'
 
+// *** 全局错误捕获（必须最早注册，确保线上能打印崩溃信息）***
+process.on('uncaughtException', (err) => {
+    console.error('[FATAL] Uncaught Exception:', err)
+    process.exit(1)
+})
+process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] Unhandled Rejection:', reason)
+    process.exit(1)
+})
+
 const app = express()
 
 // Sentry 初始化 (必须尽早引入)
