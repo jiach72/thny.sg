@@ -94,9 +94,36 @@ app.use(errorHandler)
 const PORT = config.port
 
 // 启动前初始化关联组件
-emailSenderService.initialize().then(() => {
-    httpServer.listen(PORT, '0.0.0.0', () => {
-        logger.info(`
+async function bootstrap() {
+    try {
+        // ========== 1. 带重试的数据库连接 ==========
+        let retries = 5;
+        while (retries > 0) {
+            try {
+                await prisma.$connect();
+                logger.info('✅ Prisma 数据库连接成功');
+                break;
+            } catch (err: any) {
+                retries -= 1;
+                logger.warn(`⏳ Prisma 连接数据库失败，剩余尝试次数: ${retries} (${err.message})...`);
+                if (retries === 0) {
+                    throw err;
+                }
+                await new Promise(res => setTimeout(res, 3000));
+            }
+        }
+
+        // ========== 2. 初始化邮件服务 ==========
+        try {
+            await emailSenderService.initialize();
+        } catch (err) {
+            logger.error('邮件服务初始化失败', err);
+            // 邮件失败不阻断核心启动
+        }
+
+        // ========== 3. 启动 HTTP 服务 ==========
+        httpServer.listen(PORT, '0.0.0.0', () => {
+            logger.info(`
   ╔═══════════════════════════════════════════════╗
   ║                                               ║
   ║   🚀 TongHai CRM API Server                   ║
@@ -108,15 +135,15 @@ emailSenderService.initialize().then(() => {
   ║   SMTP/Email: ✅                               ║
   ║                                               ║
   ╚═══════════════════════════════════════════════╝
-  `)
-    })
-}).catch((err) => {
-    logger.error('邮件服务初始化失败', err)
-    // 即便邮件服务失败，继续启动应用
-    httpServer.listen(PORT, '0.0.0.0', () => {
-        logger.info(`Server started on port ${PORT} (Email Disabled)`)
-    })
-})
+  `);
+        });
+    } catch (error) {
+        logger.error('❌ 致命错误：核心服务启动失败', error);
+        process.exit(1);
+    }
+}
+
+bootstrap();
 
 // ==================== 平滑退出 (Graceful Shutdown) ====================
 async function gracefulShutdown(signal: string) {
