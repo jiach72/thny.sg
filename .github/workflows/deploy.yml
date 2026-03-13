@@ -145,24 +145,38 @@ jobs:
             echo "Pulling latest images..."
             sudo docker compose pull
             
-            # 4. 重启服务
-            echo "Recreating containers..."
+            # 4. 先确保 postgres 和 redis 启动
+            echo "Starting postgres and redis first..."
+            sudo docker compose up -d postgres redis
+            
+            # 5. 等待数据库就绪
+            echo "Waiting for postgres to be ready..."
+            for i in $(seq 1 10); do
+              if sudo docker compose exec -T postgres pg_isready -U crm_user -d crm_db > /dev/null 2>&1; then
+                echo "Postgres is ready!"
+                break
+              fi
+              echo "Waiting for postgres ($i/10)..."
+              sleep 3
+            done
+            
+            # 6. 在数据库就绪后运行迁移（使用 backend 镜像一次性运行）
+            echo "Running database migrations..."
+            sudo docker compose run --rm --no-deps \
+              -e DATABASE_URL="postgresql://crm_user:${DB_PASSWORD}@postgres:5432/crm_db" \
+              backend npx prisma migrate deploy
+            
+            # 7. 启动所有剩余服务
+            echo "Starting all services..."
             sudo docker compose up -d --remove-orphans
             
-            # 5. 清理旧镜像
+            # 8. 清理旧镜像
             sudo docker image prune -f
             
-            # 6. 等待后端容器健康
-            echo "Waiting for backend to be ready..."
-            sleep 15
-            
-            # 7. 数据库迁移
-            echo "Running database migrations..."
-            sudo docker compose exec -T backend npx prisma migrate deploy
-            
-            # 8. 首次部署时播种初始数据
+            # 9. 首次部署时播种初始数据
             echo "Checking if database needs seeding..."
-            USER_COUNT=$(sudo docker compose exec -T postgres psql -U crm_user -d crm_db -tAc "SELECT COUNT(*) FROM \"User\";" 2>/dev/null || echo "0")
+            sleep 10
+            USER_COUNT=$(sudo docker compose exec -T postgres psql -U crm_user -d crm_db -tAc "SELECT COUNT(*) FROM users;" 2>/dev/null || echo "0")
             if [ "$USER_COUNT" = "0" ] || [ -z "$USER_COUNT" ]; then
               echo "First deployment detected, seeding database..."
               sudo docker compose exec -T backend npx prisma db seed
