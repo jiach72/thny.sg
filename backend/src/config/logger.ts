@@ -45,13 +45,11 @@ export const logger = winston.createLogger({
     ],
 })
 
-// 开发环境添加控制台输出
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(
-        new winston.transports.Console({
-            format: consoleFormat,
-        })
-    )
-}
+// 所有环境都输出到 console (Docker 日志通过 stdout 收集)
+logger.add(
+    new winston.transports.Console({
+        format: consoleFormat,
+    })
+)
 
 export default logger
