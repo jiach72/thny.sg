@@ -18,18 +18,18 @@
             </span>
             <span 
               class="px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold"
-              :class="getStatusClass((project as any).status)"
+              :class="getStatusClass(project.status)"
             >
-              {{ getStatusLabel((project as any).status) }}
+              {{ getStatusLabel(project.status) }}
             </span>
           </div>
-          <h1 class="font-serif text-3xl text-text mb-2">{{ (project as any).title }}</h1>
+          <h1 class="font-serif text-3xl text-text mb-2">{{ project.title }}</h1>
           <div class="flex items-center gap-4 text-sm text-text-muted">
-            <span class="flex items-center gap-1.5" v-if="(project as any).startDate">
-              <component :is="Calendar" class="w-3.5 h-3.5" /> 开始于 {{ formatDate((project as any).startDate) }}
+            <span class="flex items-center gap-1.5" v-if="project.startDate">
+              <component :is="Calendar" class="w-3.5 h-3.5" /> 开始于 {{ formatDate(project.startDate) }}
             </span>
-            <span class="flex items-center gap-1.5" v-if="(project as any).estimatedEndDate">
-              <component :is="Clock" class="w-3.5 h-3.5" /> 预计 {{ formatDate((project as any).estimatedEndDate) }}
+            <span class="flex items-center gap-1.5" v-if="project.estimatedEndDate">
+              <component :is="Clock" class="w-3.5 h-3.5" /> 预计 {{ formatDate(project.estimatedEndDate) }}
             </span>
           </div>
         </div>
@@ -223,7 +223,7 @@ async function handleDownload(doc: PortalDocument): Promise<void> {
   try {
     ElMessage.info('正在请求下载...')
     const response = await documentApi.downloadDocument(doc.id)
-    const blob = new Blob([response as any], { type: (doc as any).fileType || 'application/octet-stream' })
+    const blob = new Blob([response as any], { type: doc.mimeType || 'application/octet-stream' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

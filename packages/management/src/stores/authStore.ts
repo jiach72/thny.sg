@@ -20,6 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
     const user = ref<User | null>(null)
     const permissions = ref<string[]>([])
     const loading = ref(false)
+    const isInitialized = ref(false)
 
     // 计算属性
     const isAuthenticated = computed(() => !!accessToken.value)
@@ -154,9 +155,14 @@ export const useAuthStore = defineStore('auth', () => {
         return permissions.value.includes(permissionCode)
     }
 
-    // 初始化获取用户信息
-    if (accessToken.value && !user.value) {
-        fetchCurrentUser()
+    async function initAuth() {
+        if (isInitialized.value) return
+        
+        if (accessToken.value && !user.value) {
+            await fetchCurrentUser()
+        }
+        
+        isInitialized.value = true
     }
 
     return {
@@ -165,6 +171,7 @@ export const useAuthStore = defineStore('auth', () => {
         user,
         permissions,
         loading,
+        isInitialized,
         // 计算属性
         isAuthenticated,
         isAdmin,
@@ -175,6 +182,7 @@ export const useAuthStore = defineStore('auth', () => {
         fetchCurrentUser,
         fetchPermissions,
         refreshAccessToken,
+        initAuth,
         can,
     }
 })

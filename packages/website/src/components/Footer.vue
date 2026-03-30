@@ -4,9 +4,7 @@
       <!-- Company Info -->
       <div class="footer-section footer-brand">
         <div class="brand">
-          <div class="logo-icon">
-            <span>TH</span>
-          </div>
+          <img src="/logo.png" alt="通海南洋 LOGO" class="logo-img" />
           <span class="logo-text">{{ $t('footer.companyName') }}</span>
         </div>
         <p class="tagline">{{ $t('footer.tagline') }}</p>
@@ -79,18 +77,10 @@
   margin-bottom: var(--spacing-sm);
 }
 
-.logo-icon {
-  width: 36px;
+.logo-img {
   height: 36px;
-  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-gold) 100%);
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 1rem;
-  color: white;
+  width: auto;
+  object-fit: contain;
 }
 
 .logo-text {

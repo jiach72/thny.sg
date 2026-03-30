@@ -4,7 +4,7 @@
  * so these have been extracted to a central location.
  */
 
-export function formatDate(dateStr: string | Date | null, includeTime = false): string {
+export function formatDate(dateStr: string | Date | null | undefined, includeTime = false): string {
     if (!dateStr) return '-'
 
     const options: Intl.DateTimeFormatOptions = {

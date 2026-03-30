@@ -10,6 +10,9 @@ export const useAuthStore = defineStore('auth', () => {
     const accessToken = ref<string | null>(localStorage.getItem('accessToken'))
     const user = ref<User | null>(null)
     const loading = ref(false)
+    const isInitialized = ref(false)
+
+    let _initPromise: Promise<void> | null = null
 
     // 计算属性
     const isAuthenticated = computed(() => !!accessToken.value)
@@ -107,16 +110,28 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = userData
     }
 
-    // 初始化获取用户信息
-    if (accessToken.value && !user.value) {
-        fetchCurrentUser()
+    function initAuth(): Promise<void> {
+        if (_initPromise) return _initPromise
+        
+        _initPromise = (async () => {
+            if (accessToken.value && !user.value) {
+                await fetchCurrentUser()
+            }
+            isInitialized.value = true
+        })()
+        
+        return _initPromise
     }
+
+    // 初始化获取用户信息
+    initAuth()
 
     return {
         // 状态
         accessToken,
         user,
         loading,
+        isInitialized,
         // 计算属性
         isAuthenticated,
         isCustomer,
@@ -127,5 +142,6 @@ export const useAuthStore = defineStore('auth', () => {
         refreshAccessToken,
         setTokens,
         setUser,
+        initAuth,
     }
 })

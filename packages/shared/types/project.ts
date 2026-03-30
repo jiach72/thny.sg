@@ -43,6 +43,8 @@ export interface CompanyInfo {
 // 项目实体
 export interface Project {
     id: string
+    title?: string
+    description?: string
     customerId: string
     projectType: string
     status: ProjectStatus

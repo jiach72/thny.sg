@@ -3,9 +3,7 @@
     <div class="container navbar-container">
       <!-- Logo -->
       <router-link to="/" class="brand">
-        <div class="logo-icon">
-          <span>TH</span>
-        </div>
+        <img src="/logo.png" alt="通海南洋 LOGO" class="logo-img" />
         <span class="logo-text">{{ $t('nav.brand') }}</span>
       </router-link>
 
@@ -114,18 +112,10 @@ const closeMobileMenu = (): void => {
   opacity: 0.8;
 }
 
-.logo-icon {
-  width: 40px;
+.logo-img {
   height: 40px;
-  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-gold) 100%);
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 1.125rem;
-  color: white;
+  width: auto;
+  object-fit: contain;
 }
 
 .logo-text {

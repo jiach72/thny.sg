@@ -285,6 +285,11 @@ import {
   Palette, Globe2, ShieldCheck, Smartphone, Monitor, Download 
 } from 'lucide-vue-next'
 import { portalApi, authApi } from '@/api'
+import { useAuthStore } from '@/stores'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 const saving = ref(false)
 const show2faDialog = ref(false)
@@ -404,8 +409,14 @@ async function confirmDisable2FA(): Promise<void> {
   }
 }
 
-function handleLogoutAllDevices(): void {
-  ElMessage.success('已登出所有其他设备')
+async function handleLogoutAllDevices(): Promise<void> {
+  try {
+    await authStore.logout()
+    ElMessage.success('已安全登出并在本设备清除会话')
+    router.push('/login')
+  } catch (e) {
+    ElMessage.error('登出失败，请重试')
+  }
 }
 
 async function handleExportData(): Promise<void> {

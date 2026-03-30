@@ -9,8 +9,8 @@
     <!-- Project Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" v-loading="isLoading">
       <div 
-        v-for="(project, index) in ((projects as any[]) || [])" 
-        :key="(project as any).id" 
+        v-for="(project, index) in projects || []" 
+        :key="project.id" 
         class="group relative flex flex-col p-6 rounded-2xl bg-[#0B0F19]/60 backdrop-blur-xl border border-white/5 hover:border-wealth/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] cursor-pointer overflow-hidden"
         @click="$router.push(`/projects/${project.id}`)"
         :style="{ animationDelay: `${index * 100}ms` }"
@@ -21,39 +21,39 @@
         <!-- Card Header -->
         <div class="relative z-10 flex items-start justify-between mb-6">
           <div class="p-3 rounded-xl bg-white/5 border border-white/10 group-hover:bg-wealth/10 group-hover:border-wealth/20 transition-colors duration-300">
-            <component :is="getTypeIcon((project as any).projectType)" class="w-6 h-6 text-wealth" />
+            <component :is="getTypeIcon(project.projectType)" class="w-6 h-6 text-wealth" />
           </div>
           <span 
             class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-            :class="getStatusClasses((project as any).status)"
+            :class="getStatusClasses(project.status)"
           >
-            {{ getStatusLabel((project as any).status) }}
+            {{ getStatusLabel(project.status) }}
           </span>
         </div>
 
         <!-- Project Info -->
         <div class="relative z-10 flex-1 mb-6">
-          <h3 class="font-serif text-xl text-text mb-2 group-hover:text-wealth transition-colors duration-300 line-clamp-1">{{ (project as any).title || '无标题项目' }}</h3>
-          <p class="text-sm text-text-muted line-clamp-2 h-10">{{ (project as any).description || '暂无详细描述...' }}</p>
+          <h3 class="font-serif text-xl text-text mb-2 group-hover:text-wealth transition-colors duration-300 line-clamp-1">{{ project.title || '无标题项目' }}</h3>
+          <p class="text-sm text-text-muted line-clamp-2 h-10">{{ project.description || '暂无详细描述...' }}</p>
         </div>
 
         <!-- Date & Progress -->
         <div class="relative z-10 space-y-4">
           <div class="flex items-center gap-2 text-xs text-text-muted">
             <component :is="Calendar" class="w-3.5 h-3.5" />
-            <span>开始日期: {{ formatDate((project as any).startDate) }}</span>
+            <span>开始日期: {{ formatDate(project.startDate) }}</span>
           </div>
 
           <!-- Progress Bar -->
           <div class="space-y-2">
             <div class="flex justify-between text-[10px] uppercase font-bold tracking-wider text-text-muted">
               <span>完成进度</span>
-              <span class="text-wealth">{{ (project as any).completionPercentage || 0 }}%</span>
+              <span class="text-wealth">{{ project.completionPercentage || 0 }}%</span>
             </div>
             <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
               <div 
                 class="h-full bg-gradient-to-r from-wealth to-[#f59e0b] shadow-[0_0_10px_rgba(214,181,110,0.4)] transition-all duration-1000 ease-out"
-                :style="{ width: `${(project as any).completionPercentage || 0}%` }"
+                :style="{ width: `${project.completionPercentage || 0}%` }"
               ></div>
             </div>
           </div>
@@ -62,10 +62,10 @@
         <!-- Footer (Consultant) -->
         <div class="relative z-10 mt-6 pt-4 border-t border-white/5 flex items-center gap-3">
           <div class="w-6 h-6 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 ring-1 ring-white/10 flex items-center justify-center text-[10px] font-medium text-text">
-            {{ (project as any).consultant?.name?.[0] || '管' }}
+            {{ project.consultant?.name?.[0] || '管' }}
           </div>
           <span class="text-xs text-text-muted group-hover:text-text transition-colors">
-            负责人: {{ (project as any).consultant?.name || '指派中' }}
+            负责人: {{ project.consultant?.name || '指派中' }}
           </span>
         </div>
       </div>
@@ -93,6 +93,7 @@ import {
   Calendar
 } from 'lucide-vue-next'
 import { useProjectStore } from '@/stores/projectStore'
+import { formatDate, getStatusLabel } from '@/utils/formatters'
 
 const projectStore = useProjectStore()
 const { projects, isLoading } = storeToRefs(projectStore)
@@ -110,17 +111,6 @@ function getTypeIcon(type: string): Component {
   return map[type] || FolderOpen
 }
 
-function getStatusLabel(status: string): string {
-  const map: Record<string, string> = {
-    PLANNING: '规划中',
-    ACTIVE: '进行中',
-    ON_HOLD: '暂停',
-    COMPLETED: '已完成',
-    ARCHIVED: '归档'
-  }
-  return map[status] || status
-}
-
 function getStatusClasses(status: string): string {
   const map: Record<string, string> = {
     PLANNING: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -130,11 +120,6 @@ function getStatusClasses(status: string): string {
     ARCHIVED: 'bg-gray-500/10 text-gray-400 border-gray-500/20'
   }
   return map[status] || 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 </script>
 

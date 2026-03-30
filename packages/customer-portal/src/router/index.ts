@@ -111,8 +111,13 @@ const router = createRouter({
 })
 
 // 导航守卫
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
     const authStore = useAuthStore()
+
+    // 确保身份验证已经初始化完毕
+    if (!authStore.isInitialized) {
+        await authStore.initAuth()
+    }
 
     // 设置页面标题
     const title = to.meta.title as string

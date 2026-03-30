@@ -275,12 +275,15 @@ const router = createRouter({
 })
 
 // 导航守卫
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
     const authStore = useAuthStore()
 
     // 设置页面标题
     const title = to.meta.title as string
     document.title = title ? `${title} - 通海南洋CRM` : '通海南洋CRM'
+
+    // 等待鉴权状态初始化完成
+    await authStore.initAuth()
 
     // 检查认证
     if (to.meta.requiresAuth !== false && !authStore.isAuthenticated) {
