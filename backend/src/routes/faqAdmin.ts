@@ -14,23 +14,22 @@ const router = Router()
  */
 router.get('/import/template', async (req: Request, res: Response) => {
     try {
-        const XLSX_MODULE = await import('xlsx')
-        // @ts-ignore
-        const XLSX = XLSX_MODULE.default || XLSX_MODULE
+        const ExcelJS = await import('exceljs')
+        const workbook = new ExcelJS.Workbook()
+        const worksheet = workbook.addWorksheet('FAQ导入模板')
 
         // 准备数据头和示例行
         const headers = ['Category', 'Question', 'Answer', 'QuestionEn', 'AnswerEn', 'Keywords']
         const sample = ['移民服务', '申请EP需要什么条件？', '申请EP需要月薪至少5000新币...', 'What are the requirements for EP?', 'EP requires minimum salary of SGD 5000...', 'EP, 工作准证, 薪资']
 
-        const ws = XLSX.utils.aoa_to_sheet([headers, sample])
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, 'FAQ导入模板')
+        worksheet.addRow(headers)
+        worksheet.addRow(sample)
 
-        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+        const buffer = await workbook.xlsx.writeBuffer()
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         res.setHeader('Content-Disposition', 'attachment; filename=faq_template.xlsx')
-        res.send(buffer)
+        res.send(Buffer.from(buffer))
     } catch (error) {
         console.error('Template gen error:', error)
         res.status(500).send('Error generating template')

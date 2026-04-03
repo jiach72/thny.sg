@@ -25,6 +25,7 @@ const envSchema = z.object({
     FRONTEND_URL: z.string().default('http://localhost:3000'),
     MANAGEMENT_URL: z.string().default('http://localhost:3001'),
     PORTAL_URL: z.string().default('http://localhost:3002'),
+    MOBILE_URL: z.string().default('http://localhost:5173'),
 
     // 文件上传
     UPLOAD_DIR: z.string().default('./uploads'),
@@ -97,6 +98,7 @@ export const config = {
             env.FRONTEND_URL,
             env.MANAGEMENT_URL,
             env.PORTAL_URL,
+            env.MOBILE_URL,
         ],
     },
 
