@@ -1,54 +1,79 @@
 <template>
-  <view class="home-page">
-    <!-- 顶部欢迎 -->
-    <view class="welcome-section">
-      <view class="avatar-ring">
-        <text class="avatar-letter">{{ userInitial }}</text>
+  <base-layout>
+    <view class="home-page">
+      <!-- 顶部欢迎 -->
+      <view class="welcome-section">
+        <view class="avatar-ring">
+          <text class="avatar-letter">{{ userInitial }}</text>
+        </view>
+        <text class="greeting">{{ greeting }}，{{ authStore.userName || '用户' }}</text>
+        <text class="role-badge">{{ authStore.userRole }}</text>
       </view>
-      <text class="greeting">{{ greeting }}，{{ authStore.userName || '用户' }}</text>
-      <text class="role-badge">{{ authStore.userRole }}</text>
-    </view>
 
-    <!-- 快捷操作卡片 -->
-    <view class="quick-actions">
-      <view class="action-card" @click="navigateTo('/pages/index/index')">
-        <text class="action-icon">📋</text>
-        <text class="action-label">我的案件</text>
+      <!-- 数据指示区 -->
+      <view v-if="loading" style="padding: 40rpx; text-align: center; color: #94a3b8;">
+        <text>安全隧道数据同步中...</text>
       </view>
-      <view class="action-card" @click="navigateTo('/pages/index/index')">
-        <text class="action-icon">💬</text>
-        <text class="action-label">AI 客服</text>
-      </view>
-      <view class="action-card" @click="navigateTo('/pages/index/index')">
-        <text class="action-icon">📄</text>
-        <text class="action-label">合同签署</text>
-      </view>
-      <view class="action-card" @click="navigateTo('/pages/index/index')">
-        <text class="action-icon">💳</text>
-        <text class="action-label">费用支付</text>
-      </view>
-    </view>
 
-    <!-- 登出按钮 -->
-    <view class="logout-section">
-      <nut-button plain type="danger" size="large" block @click="handleLogout">
-        退出登录
-      </nut-button>
+      <!-- 快捷操作卡片 -->
+      <view class="quick-actions" v-else>
+        <view class="action-card" @click="navigateTo('/pages/cases/cases')">
+          <text class="action-icon">📋</text>
+          <text class="action-label" v-if="stats">{{ stats.activeProjects || 0 }} 项并行案件</text>
+          <text class="action-label" v-else>业务办理</text>
+        </view>
+        <view class="action-card" @click="navigateTo('/pages/cases/cases')">
+          <text class="action-icon">📄</text>
+          <text class="action-label" v-if="stats">{{ stats.pendingDocuments || 0 }} 份待补文件</text>
+          <text class="action-label" v-else>合同签署</text>
+        </view>
+        <view class="action-card" @click="navigateTo('/pages/profile/profile')">
+          <text class="action-icon">💳</text>
+          <text class="action-label" v-if="stats">{{ stats.unpaidInvoices || 0 }} 笔待付账单</text>
+          <text class="action-label" v-else>费用发票</text>
+        </view>
+      </view>
+      
+      <!-- 滚动通知 -->
+      <view class="notifications-area" v-if="notifications.length > 0" style="margin-bottom: 40rpx;">
+        <nut-noticebar :text="notifications[0]?.title || '您的案件有新的进展，请留意查看！'"></nut-noticebar>
+      </view>
     </view>
-  </view>
+  </base-layout>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useAuthStore } from '../../stores/auth'
+import { portalApi } from '../../api/portalApi'
+import type { PortalDashboardStats } from '@tonghai/shared'
 
 const authStore = useAuthStore()
+const stats = ref<PortalDashboardStats | null>(null)
+const notifications = ref<any[]>([])
+const loading = ref(false)
 
-onShow(() => {
+onShow(async () => {
   authStore.init()
   if (!authStore.isLoggedIn) {
     uni.reLaunch({ url: '/pages/login/login' })
+    return
+  }
+  
+  loading.value = true
+  try {
+    await authStore.fetchMe()
+    const [statsRes, notifRes] = await Promise.all([
+      portalApi.getDashboardStats(),
+      portalApi.getNotifications()
+    ])
+    stats.value = statsRes || null
+    notifications.value = notifRes || []
+  } catch(e) {
+    console.error('Home dashboard fetch error', e)
+  } finally {
+    loading.value = false
   }
 })
 
@@ -64,7 +89,7 @@ const greeting = computed(() => {
 })
 
 function navigateTo(url: string) {
-  uni.showToast({ title: '功能即将上线', icon: 'none' })
+  uni.switchTab({ url })
 }
 
 function handleLogout() {
