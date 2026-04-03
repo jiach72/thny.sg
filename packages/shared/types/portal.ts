@@ -1,4 +1,4 @@
-import { Project } from './project'
+import type { Project } from './project'
 
 // 顾问信息
 export interface ConsultantInfo {
@@ -43,6 +43,7 @@ export interface PortalProject extends Project {
 export interface PortalDashboardStats {
     activeProjects: number
     pendingDocuments: number
+    unpaidInvoices?: number
     upcomingMilestones?: Milestone[]
     consultant?: ConsultantInfo
 }
