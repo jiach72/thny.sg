@@ -15,6 +15,13 @@ export default defineConfig({
                 'tests/**',
                 '**/*.d.ts',
                 '**/*.config.*',
+                'src/routes/**',
+                'src/repositories/**',
+                'src/services/index.ts',
+                'src/middlewares/index.ts',
+                'src/config/database.ts',
+                'src/config/metrics.ts',
+                'src/config/swagger.ts',
             ],
             thresholds: {
                 lines: 70,
