@@ -3,7 +3,7 @@
  * 自动注入 JWT Token、处理 401 自动刷新、统一错误提示
  */
 
-import { getSecureItemSync, setSecureItem, getSecureItem, removeSecureItem } from './secureStorage'
+import { setSecureItem, removeSecureItem } from './secureStorage'
 
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 

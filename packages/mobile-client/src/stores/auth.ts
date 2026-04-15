@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import http from '../utils/request'
-import { setSecureItem, getSecureItem, getSecureItemSync, removeSecureItem } from '../utils/secureStorage'
+import { setSecureItem, removeSecureItem } from '../utils/secureStorage'
 import { setCachedAccessToken } from '../utils/request'
 import type { User } from '@tonghai/shared'
 

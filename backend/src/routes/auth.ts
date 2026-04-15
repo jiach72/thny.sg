@@ -303,7 +303,7 @@ router.get('/me/permissions', authMiddleware, async (req: Request, res: Response
  * POST /auth/logout - 用户登出
  * 将 Token 加入黑名单，使其立即失效
  */
-router.post('/logout', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/logout', authMiddleware, async (req: Request, res: Response, _next: NextFunction) => {
     try {
         const authHeader = req.headers.authorization
         const token = authHeader?.substring(7)

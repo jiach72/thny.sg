@@ -81,7 +81,7 @@ describe('SignatureService', () => {
                 completedAt: expect.any(Date),
             })
 
-            const result = await signatureService.completeSigning(
+            const _result = await signatureService.completeSigning(
                 'sig-1',
                 'data:image/png;base64,signature'
             )

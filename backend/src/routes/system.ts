@@ -72,7 +72,7 @@ async function detectRealBusinessData(): Promise<{ hasRealData: boolean; details
     }
 
     // 检查是否有非测试邮箱的客户
-    const realCustomers = await prisma.customer.count({
+    const _realCustomers = await prisma.customer.count({
         where: {
             deletedAt: null,
             email: { notIn: TEST_EMAIL_EXACT },

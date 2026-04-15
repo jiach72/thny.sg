@@ -35,7 +35,7 @@
 <script setup lang="ts">
 
 
-const props = defineProps({
+const _props = defineProps({
   steps: {
     type: Array as () => string[],
     required: true

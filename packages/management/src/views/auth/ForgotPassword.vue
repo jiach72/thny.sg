@@ -59,7 +59,7 @@ import { Message, CircleCheck } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import apiClient from '@/api/apiClient'
 
-const props = withDefaults(defineProps<{
+const _props = withDefaults(defineProps<{
   loginPath?: string
 }>(), {
   loginPath: '/login',

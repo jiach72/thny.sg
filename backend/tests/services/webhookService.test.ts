@@ -89,7 +89,7 @@ describe('WebhookService', () => {
                 isActive: false,
             })
 
-            const result = await webhookService.updateEndpoint('ep-1', { isActive: false })
+            const _result = await webhookService.updateEndpoint('ep-1', { isActive: false })
 
             expect(prismaMock.webhookEndpoint.update).toHaveBeenCalledWith({
                 where: { id: 'ep-1' },

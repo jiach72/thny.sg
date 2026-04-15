@@ -64,7 +64,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { portalApi } from '../../api/portalApi'
 import { BASE_URL } from '../../utils/request'
-import type { PortalProject } from '@tonghai/shared'
 
 const loading = ref(true)
 const projects = ref<any[]>([])

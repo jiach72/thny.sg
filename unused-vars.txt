@@ -1,0 +1,10 @@
+
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\backend\src\routes\auth.ts: line 306, col 76, Warning - 'next' is defined but never used. Allowed unused args must match /^_/u. (unused-imports/no-unused-vars)
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\backend\src\routes\system.ts: line 75, col 11, Warning - 'realCustomers' is assigned a value but never used. Allowed unused vars must match /^_/u. (unused-imports/no-unused-vars)
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\backend\src\services\claimService.ts: line 36, col 7, Warning - 'VALID_TRANSITIONS' is assigned a value but never used. Allowed unused vars must match /^_/u. (unused-imports/no-unused-vars)
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\backend\tests\services\signatureService.test.ts: line 84, col 19, Warning - 'result' is assigned a value but never used. Allowed unused vars must match /^_/u. (unused-imports/no-unused-vars)
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\backend\tests\services\webhookService.test.ts: line 92, col 19, Warning - 'result' is assigned a value but never used. Allowed unused vars must match /^_/u. (unused-imports/no-unused-vars)
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\packages\management\src\views\auth\ForgotPassword.vue: line 62, col 7, Warning - 'props' is assigned a value but never used. Allowed unused vars must match /^_/u. (unused-imports/no-unused-vars)
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\packages\management\src\views\auth\ResetPassword.vue: line 68, col 7, Warning - 'props' is assigned a value but never used. Allowed unused vars must match /^_/u. (unused-imports/no-unused-vars)
+C:\Users\jiach\Documents\AntigravityCode\thny.sg\packages\mobile-client\src\components\WizardTimeline.vue: line 38, col 7, Warning - 'props' is assigned a value but never used. Allowed unused vars must match /^_/u. (unused-imports/no-unused-vars)
+

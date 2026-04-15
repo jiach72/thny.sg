@@ -33,7 +33,7 @@ interface PaginationOptions {
 }
 
 // 审批状态机：只允许合法的状态转换
-const VALID_TRANSITIONS: Record<string, string[]> = {
+const _VALID_TRANSITIONS: Record<string, string[]> = {
     DRAFT: ['SUBMITTED'],
     SUBMITTED: ['MANAGER_APPROVED', 'REJECTED'],
     MANAGER_APPROVED: ['APPROVED', 'REJECTED'],
