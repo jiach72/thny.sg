@@ -225,16 +225,16 @@ const notifPrefs = reactive({
 onMounted(async () => {
   const saved = uni.getStorageSync('app_settings')
   if (saved) {
-    try { Object.assign(settings, typeof saved === 'string' ? JSON.parse(saved) : saved) } catch {}
+    try { Object.assign(settings, typeof saved === 'string' ? JSON.parse(saved) : saved) } catch { /* ignore invalid stored settings */ }
   }
   try {
     const user = await authApi.getCurrentUser()
     if (user) settings.twoFactorEnabled = !!(user as any)?.twoFactorEnabled
-  } catch {}
+  } catch { /* two-factor status unavailable */ }
   try {
     const prefs = await portalApi.getPreferences()
     if (prefs) Object.assign(notifPrefs, prefs)
-  } catch {}
+  } catch { /* notification preferences unavailable */ }
 })
 
 function saveSettings() {
