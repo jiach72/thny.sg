@@ -97,7 +97,7 @@ describe('AuthService', () => {
 
             const result = await authService.register({
                 email: 'new@example.com',
-                password: 'password123',
+                password: 'Password123',
                 name: 'New User',
             })
 

@@ -17,6 +17,16 @@ const prismaMock = vi.hoisted(() => ({
         findUnique: vi.fn(),
         update: vi.fn(),
     },
+    $transaction: vi.fn((fnOrCmds: unknown) => {
+        // 支持回调式事务
+        if (typeof fnOrCmds === 'function') {
+            return fnOrCmds({
+                claim: { findFirst: prismaMock.claim.findFirst, update: prismaMock.claim.update },
+                claimItem: { create: prismaMock.claimItem.create, aggregate: prismaMock.claimItem.aggregate },
+            })
+        }
+        return Promise.all(fnOrCmds as unknown[])
+    }),
 }))
 
 // 2. Mock 模块

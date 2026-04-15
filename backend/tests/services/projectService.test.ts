@@ -1,31 +1,53 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mockDeep, mockReset } from 'vitest-mock-extended'
-import { PrismaClient } from '@prisma/client'
-import { projectService } from '../../src/services/projectService.js'
 
-vi.mock('../../src/config/index.js', () => ({
-    prisma: mockDeep<PrismaClient>()
+// 1. 提升 mock 对象
+const prismaMock = vi.hoisted(() => ({
+    project: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        count: vi.fn(),
+    },
 }))
-import { prisma } from '../../src/config/index.js'
+
+// 2. Mock 模块
+vi.mock('../../src/config/index.js', () => ({
+    prisma: prismaMock,
+}))
+
+// Mock webhookService
+vi.mock('../../src/services/webhookService.js', () => ({
+    webhookService: { emit: vi.fn().mockResolvedValue(undefined) },
+}))
+
+vi.mock('../../src/config/logger.js', () => ({
+    default: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+}))
+
+// 3. 导入被测模块
+import { projectService } from '../../src/services/projectService.js'
 
 describe('projectService', () => {
     beforeEach(() => {
-        mockReset(prisma)
+        vi.clearAllMocks()
     })
 
     describe('getProjects', () => {
         it('应该能够带过滤条件分页取回项目数组', async () => {
-            vi.mocked(prisma.project.count).mockResolvedValue(5)
-            vi.mocked(prisma.project.findMany).mockResolvedValue([
+            prismaMock.project.count.mockResolvedValue(5)
+            prismaMock.project.findMany.mockResolvedValue([
                 { id: 'p1', status: 'ACTIVE' },
                 { id: 'p2', status: 'ACTIVE' }
-            ] as any)
+            ])
 
             const res = await projectService.getProjects({ page: 1, limit: 10, status: 'ACTIVE' })
 
             expect(res.data).toHaveLength(2)
             expect(res.pagination.total).toBe(5)
-            expect(prisma.project.count).toHaveBeenCalledWith(expect.objectContaining({
+            expect(prismaMock.project.count).toHaveBeenCalledWith(expect.objectContaining({
                 where: { status: 'ACTIVE' }
             }))
         })
@@ -34,12 +56,12 @@ describe('projectService', () => {
     describe('getMyProjectById', () => {
         it('应该只允许指定客户获取属于自己邮箱名下的项目', async () => {
             const mockProject = { id: 'p1', title: 'Test Project' }
-            vi.mocked(prisma.project.findFirst).mockResolvedValue(mockProject as any)
+            prismaMock.project.findFirst.mockResolvedValue(mockProject)
 
             const res = await projectService.getMyProjectById('p1', 'client@test.com')
 
             expect(res?.title).toBe('Test Project')
-            expect(prisma.project.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+            expect(prismaMock.project.findFirst).toHaveBeenCalledWith(expect.objectContaining({
                 where: {
                     id: 'p1',
                     customer: { lead: { email: 'client@test.com' } }
@@ -56,11 +78,11 @@ describe('projectService', () => {
                 projectType: 'accounting',
                 budget: 1000
             }
-            vi.mocked(prisma.project.create).mockResolvedValue({ ...payload, id: 'x1' } as any)
+            prismaMock.project.create.mockResolvedValue({ ...payload, id: 'x1' })
 
             const res = await projectService.createProject(payload)
             expect(res.id).toBe('x1')
-            expect(prisma.project.create).toHaveBeenCalledWith(expect.objectContaining({
+            expect(prismaMock.project.create).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({ title: 'New Biz', status: 'PLANNING' })
             }))
         })

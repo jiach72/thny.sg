@@ -21,7 +21,17 @@ const prismaMock = vi.hoisted(() => ({
         delete: vi.fn(),
         count: vi.fn(),
     },
-    $transaction: vi.fn((cmds: unknown[]) => Promise.all(cmds)),
+    $transaction: vi.fn((fnOrCmds: unknown) => {
+        // 支持回调式事务: prisma.$transaction(async (tx) => { ... })
+        if (typeof fnOrCmds === 'function') {
+            return fnOrCmds({
+                invoice: { count: prismaMock.invoice.count, create: prismaMock.invoice.create, update: prismaMock.invoice.update },
+                payment: { create: prismaMock.payment.create },
+            })
+        }
+        // 支持数组式事务: prisma.$transaction([cmd1, cmd2])
+        return Promise.all(fnOrCmds as unknown[])
+    }),
 }))
 
 // 2. Mock 模块

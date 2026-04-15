@@ -1,13 +1,37 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { prismaMock } from '../prismaMock'
 
-// Mock PrismaClient
-vi.mock('@prisma/client', () => ({
-    PrismaClient: vi.fn(() => prismaMock),
+// 1. 提升 mock 对象
+const prismaMock = vi.hoisted(() => ({
+    role: {
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+    },
+    permission: {
+        findMany: vi.fn(),
+    },
+    rolePermission: {
+        deleteMany: vi.fn(),
+        createMany: vi.fn(),
+    },
+    user: {
+        findUnique: vi.fn(),
+    },
 }))
 
-// 需要在 mock 之后动态导入
-const { rbacService } = await import('../../src/services/rbacService')
+// 2. Mock 模块
+vi.mock('../../src/config/index.js', () => ({
+    prisma: prismaMock,
+}))
+
+vi.mock('../../src/middlewares/index.js', () => ({
+    NotFoundError: class NotFoundError extends Error { constructor(msg: string) { super(msg) } },
+}))
+
+// 3. 导入被测模块
+import { rbacService } from '../../src/services/rbacService'
 
 describe('RBACService', () => {
     beforeEach(() => {
@@ -36,7 +60,7 @@ describe('RBACService', () => {
                     { permission: { code: 'leads:create' } },
                     { permission: { code: 'leads:read' } },
                 ],
-            } as any)
+            })
 
             const result = await rbacService.hasPermission('SALES', 'leads:create')
             expect(result).toBe(true)
@@ -53,7 +77,7 @@ describe('RBACService', () => {
                 permissions: [
                     { permission: { code: 'leads:read' } },
                 ],
-            } as any)
+            })
 
             const result = await rbacService.hasPermission('SALES', 'leads:delete')
             expect(result).toBe(false)
@@ -77,7 +101,7 @@ describe('RBACService', () => {
                 permissions: [
                     { permission: { code: 'leads:read' } },
                 ],
-            } as any)
+            })
 
             // 第一次调用 - 查询数据库
             await rbacService.hasPermission('SALES', 'leads:read')
@@ -96,7 +120,7 @@ describe('RBACService', () => {
                 name: '管理员',
                 isSystem: true,
                 createdAt: new Date(),
-            } as any)
+            })
 
             const result = await rbacService.deleteRole('ADMIN')
             expect(result).toBe(false)
@@ -117,8 +141,8 @@ describe('RBACService', () => {
                 name: '自定义角色',
                 isSystem: false,
                 createdAt: new Date(),
-            } as any)
-            prismaMock.role.delete.mockResolvedValue({} as any)
+            })
+            prismaMock.role.delete.mockResolvedValue({})
 
             const result = await rbacService.deleteRole('CUSTOM')
             expect(result).toBe(true)
@@ -138,7 +162,7 @@ describe('RBACService', () => {
                 isSystem: true,
                 createdAt: new Date(),
                 permissions: [{ permission: { code: 'leads:read' } }],
-            } as any)
+            })
 
             // 加载缓存
             await rbacService.hasPermission('SALES', 'leads:read')
