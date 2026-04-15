@@ -1,2 +1,0 @@
-src/views/settings/WorkflowDesigner.vue(301,45): error TS2339: Property 'logs' does not exist on type '{ valid: boolean; errors?: string[] | undefined; }'.
-src/views/settings/WorkflowDesigner.vue(301,57): error TS2339: Property 'logs' does not exist on type '{ valid: boolean; errors?: string[] | undefined; }'.

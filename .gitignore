@@ -2,7 +2,10 @@ node_modules
 dist
 .shared
 .agent
+.agents
 .gemini
+.claude
+.codebuddy
 *.log
 .vscode
 .idea
@@ -29,3 +32,15 @@ coverage/
 # 临时分析文件
 analyze.cjs
 eslint_report.json
+
+# 文档与内部资料（不部署）
+docs/
+AGENTS.md
+CHANGELOG.md
+
+# 临时诊断输出
+audit.txt
+audit-postfix.txt
+final-audit.txt
+lint.txt
+tsc-*.txt
