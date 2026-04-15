@@ -1,0 +1,20 @@
+/* =========================================================================
+   通海南洋 Premium UI 主题设定 (Thny)
+   用于覆盖 NutUI 内置的 SCSS 变量，并注入全站深浅色双模式映射
+   ========================================================================= */
+
+// 1. 品牌核心色 (Brand Palette)
+$brand-color: #3b82f6;          // 主色调：现代蓝紫
+$brand-color-light: #60a5fa;    // 浅辅助色：用于按压反光/部分渐变结尾
+$brand-color-dark: #2563eb;     // 深辅助色：主要用于加重/Hover/悬浮阴影
+
+// 2. 覆盖 NutUI 默认变量 (Overriding NutUI Variables)
+// 这些变量会在打包时自动取代 NutUI variables.scss 中的默认红
+$primary-color: $brand-color;
+$primary-color-end: $brand-color-light;
+$button-primary-background-color: linear-gradient(135deg, $brand-color 0%, $brand-color-dark 100%);
+$button-primary-border-color: transparent;
+
+// 为了匹配奢华质感设定的一些圆角与阴影
+$button-border-radius: 8px;
+

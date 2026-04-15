@@ -78,6 +78,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import apiClient from '@/api/apiClient'
+import { logger } from '@/utils/logger'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -146,7 +147,7 @@ async function saveSettings() {
     await fetchSettings()
   } catch (error: any) {
     const errMsg = error.error || (error as Error).message || '保存失败'
-    console.error('保存 AI 配置失败:', error)
+    logger.error('AiSettings', '保存 AI 配置失败:', error)
     ElMessage.error(`保存失败: ${errMsg}`)
   } finally {
     saving.value = false

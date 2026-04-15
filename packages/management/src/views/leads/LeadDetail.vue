@@ -25,7 +25,7 @@
 
     <el-row :gutter="24" v-if="lead">
       <!-- 左侧信息 -->
-      <el-col :span="16">
+      <el-col :xs="24" :sm="24" :md="16" :lg="16">
         <el-card class="info-card">
           <template #header>
             <span>基本信息</span>
@@ -71,7 +71,7 @@
       </el-col>
 
       <!-- 右侧边栏 -->
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8" :lg="8">
         <!-- 健康评分卡片 -->
         <HealthScoreCard
           :score="lead.score || 0"
@@ -143,6 +143,13 @@
       :current-assignee-id="lead?.assignedTo?.id"
       @confirm="handleAssignConfirm"
     />
+
+    <!-- 线索转化弹窗 -->
+    <LeadConvertDialog
+      v-model:visible="showConvertDialog"
+      :lead="lead"
+      @success="handleConvertSuccess"
+    />
   </div>
 </template>
 
@@ -155,6 +162,7 @@ import { ArrowLeft, ArrowDown } from '@element-plus/icons-vue'
 import { useLeadStore } from '@/stores'
 // Lead 类型在 store 中已声明，此处通过 storeToRefs 继承推断
 import AssigneeDialog from '@/components/AssigneeDialog.vue'
+import LeadConvertDialog from './components/LeadConvertDialog.vue'
 import HealthScoreCard from '@/components/common/HealthScoreCard.vue'
 import ActivityTimeline from '@/components/common/ActivityTimeline.vue'
 import ScoreRing from '@/components/common/ScoreRing.vue'
@@ -167,6 +175,7 @@ const { currentLead: lead, loading } = storeToRefs(leadStore)
 const showEditDialog = ref(false)
 
 const showAssignDialog = ref(false)
+const showConvertDialog = ref(false)
 
 // 格式化活动数据用于 ActivityTimeline 组件
 const formattedActivities = computed(() => {
@@ -233,45 +242,18 @@ async function handleAssignConfirm(payload: { userId: string; reason: string }) 
 async function handleConvert() {
   if (!lead.value) return
   
-  if (!lead.value.email) {
-    ElMessage.error('该线索缺少邮箱，无法转化为客户')
-    return
-  }
-
   if (lead.value.status === 'CONVERTED') {
     ElMessage.warning('该线索已转化为客户')
     return
   }
 
-  try {
-    await ElMessageBox.confirm(
-      `确定要将线索 "${lead.value.contactName}" 转化为客户吗？\n系统将自动创建客户账号并生成首次登录链接。`,
-      '转化为客户',
-      { type: 'info', confirmButtonText: '确认转化', cancelButtonText: '取消' }
-    )
+  showConvertDialog.value = true
+}
 
-    const result = await leadStore.convertToCustomer(lead.value.id)
-    
-    // 显示成功信息和设置密码链接
-    await ElMessageBox.alert(
-      `客户账号已创建成功！\n\n请将以下链接发送给客户用于首次登录设置密码：\n\n${window.location.origin}/portal${result.setupUrl}`,
-      '转化成功',
-      { 
-        type: 'success',
-        confirmButtonText: '复制链接',
-        callback: () => {
-          navigator.clipboard.writeText(`${window.location.origin}/portal${result.setupUrl}`)
-          ElMessage.success('链接已复制到剪贴板')
-        }
-      }
-    )
-
-    // 刷新当前线索状态
+async function handleConvertSuccess() {
+  // 刷新当前线索状态
+  if (lead.value) {
     await leadStore.fetchLeadById(lead.value.id)
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.response?.data?.message || '转化失败')
-    }
   }
 }
 

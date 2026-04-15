@@ -1,5 +1,5 @@
 import { prisma } from '../config/index.js'
-import { NotFoundError, ConflictError } from '../middlewares/index.js'
+import { NotFoundError, ConflictError, BusinessLogicError } from '../middlewares/index.js'
 import type { Prisma, AppointmentType, AppointmentStatus } from '@prisma/client'
 
 interface CreateAppointmentInput {
@@ -147,7 +147,7 @@ export const appointmentService = {
         const endTime = new Date(data.endTime)
 
         if (startTime >= endTime) {
-            throw new Error('开始时间必须早于结束时间')
+            throw new BusinessLogicError('开始时间必须早于结束时间')
         }
 
         // 冲突检测
@@ -184,7 +184,7 @@ export const appointmentService = {
         if (data.endTime) endTime = new Date(data.endTime)
 
         if (startTime >= endTime) {
-            throw new Error('开始时间必须早于结束时间')
+            throw new BusinessLogicError('开始时间必须早于结束时间')
         }
 
         // 若时间、状态或参与人有变，或者依然是 scheduled，进行冲突检测

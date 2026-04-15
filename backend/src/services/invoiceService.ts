@@ -1,6 +1,9 @@
 import { prisma } from '../config/index.js'
+import { Prisma, type Invoice } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { webhookService } from './webhookService.js'
+import { NotFoundError, BusinessLogicError } from '../middlewares/index.js'
+import logger from '../config/logger.js'
 
 interface InvoiceItem {
     description: string
@@ -49,23 +52,26 @@ export const invoiceService = {
     // ==================== 发票管理 ====================
 
     /**
-     * 生成发票号
+     * 生成发票号（事务内查询防止并发冲突）
      */
     async generateInvoiceNumber(): Promise<string> {
         const year = new Date().getFullYear()
         const month = String(new Date().getMonth() + 1).padStart(2, '0')
+        const prefix = `INV-${year}${month}`
 
-        // 获取当月发票数量
-        const count = await prisma.invoice.count({
-            where: {
-                invoiceNumber: {
-                    startsWith: `INV-${year}${month}`
+        // 在事务内执行 count 查询，防止并发时生成重复编号
+        return prisma.$transaction(async (tx) => {
+            const count = await tx.invoice.count({
+                where: {
+                    invoiceNumber: {
+                        startsWith: prefix
+                    }
                 }
-            }
-        })
+            })
 
-        const sequence = String(count + 1).padStart(4, '0')
-        return `INV-${year}${month}-${sequence}`
+            const sequence = String(count + 1).padStart(4, '0')
+            return `${prefix}-${sequence}`
+        })
     },
 
     /**
@@ -79,7 +85,7 @@ export const invoiceService = {
         const { page, limit } = pagination
         const skip = (page - 1) * limit
 
-        const where: any = {}
+        const where: Prisma.InvoiceWhereInput = {}
         if (filters.projectId) where.projectId = filters.projectId
         if (filters.customerId) where.customerId = filters.customerId
         if (filters.status) where.status = filters.status
@@ -113,7 +119,7 @@ export const invoiceService = {
     /**
      * 获取发票详情
      */
-    async getInvoiceById(id: string) {
+    async getInvoiceById(id: string): Promise<Invoice | null> {
         return prisma.invoice.findUnique({
             where: { id },
             include: {
@@ -147,7 +153,8 @@ export const invoiceService = {
                 projectId: data.projectId,
                 customerId: data.customerId,
                 title: data.title,
-                items: data.items as any,
+                // Prisma Json 字段需要序列化对象
+                items: data.items as unknown as Prisma.InputJsonValue,
                 subtotal: new Decimal(subtotal),
                 taxRate: new Decimal(taxRate),
                 taxAmount: new Decimal(taxAmount),
@@ -164,7 +171,7 @@ export const invoiceService = {
             }
         })
 
-        webhookService.emit('invoice.created', invoice).catch(console.error)
+        webhookService.emit('invoice.created', invoice).catch(err => logger.error('Webhook推送失败', err))
         return invoice
     },
 
@@ -172,20 +179,25 @@ export const invoiceService = {
      * 更新发票
      */
     async updateInvoice(id: string, data: UpdateInvoiceInput) {
-        const updateData: any = { ...data }
+        const updateData: Prisma.InvoiceUpdateInput = {}
 
         // 如果更新了明细项，重新计算金额
         if (data.items) {
             const subtotal = data.items.reduce((sum, item) => sum + item.amount, 0)
             const invoice = await this.getInvoiceById(id)
-            const taxRate = data.taxRate ?? (invoice as any)?.taxRate ?? 0
-            const taxAmount = subtotal * Number(taxRate)
+            const taxRate = data.taxRate ?? (invoice ? Number(invoice.taxRate) : 0)
+            const taxAmount = subtotal * taxRate
             const totalAmount = subtotal + taxAmount
 
             updateData.subtotal = new Decimal(subtotal)
             updateData.taxAmount = new Decimal(taxAmount)
             updateData.totalAmount = new Decimal(totalAmount)
+            updateData.items = data.items as unknown as Prisma.InputJsonValue
         }
+
+        if (data.title !== undefined) updateData.title = data.title
+        if (data.notes !== undefined) updateData.notes = data.notes
+        if (data.terms !== undefined) updateData.terms = data.terms
 
         if (data.issueDate) updateData.issueDate = new Date(data.issueDate)
         if (data.dueDate) updateData.dueDate = new Date(data.dueDate)
@@ -204,7 +216,7 @@ export const invoiceService = {
         // 检查是否有收款记录
         const payments = await prisma.payment.count({ where: { invoiceId: id } })
         if (payments > 0) {
-            throw new Error('无法删除已有收款记录的发票')
+            throw new BusinessLogicError('无法删除已有收款记录的发票')
         }
 
         return prisma.invoice.delete({ where: { id } })
@@ -246,57 +258,61 @@ export const invoiceService = {
         }
 
         if (invoice.status === 'PAID') {
-            throw new Error('发票已全额付款')
+            throw new BusinessLogicError('发票已全额付款')
         }
 
         // 计算发票货币金额
         const exchangeRate = data.exchangeRate || 1
         const amountInInvoiceCurrency = data.amount * exchangeRate
 
-        // 创建收款记录
-        const payment = await prisma.payment.create({
-            data: {
-                invoiceId: data.invoiceId,
-                amount: new Decimal(data.amount),
-                currency: data.currency || invoice.currency,
-                exchangeRate: new Decimal(exchangeRate),
-                amountInInvoiceCurrency: new Decimal(amountInInvoiceCurrency),
-                paymentMethod: data.paymentMethod,
-                paymentDate: new Date(data.paymentDate),
-                reference: data.reference,
-                notes: data.notes,
-                attachmentUrl: data.attachmentUrl,
-                recordedById: recorderId
+        // 使用事务保证收款记录创建与发票状态更新的原子性
+        const payment = await prisma.$transaction(async (tx) => {
+            const created = await tx.payment.create({
+                data: {
+                    invoiceId: data.invoiceId,
+                    amount: new Decimal(data.amount),
+                    currency: data.currency || invoice.currency,
+                    exchangeRate: new Decimal(exchangeRate),
+                    amountInInvoiceCurrency: new Decimal(amountInInvoiceCurrency),
+                    paymentMethod: data.paymentMethod,
+                    paymentDate: new Date(data.paymentDate),
+                    reference: data.reference,
+                    notes: data.notes,
+                    attachmentUrl: data.attachmentUrl,
+                    recordedById: recorderId
+                }
+            })
+
+            // 更新发票已付金额和状态
+            const newPaidAmount = Number(invoice.paidAmount) + amountInInvoiceCurrency
+            const totalAmount = Number(invoice.totalAmount)
+
+            let newStatus = invoice.status
+            if (newPaidAmount >= totalAmount) {
+                newStatus = 'PAID'
+            } else if (newPaidAmount > 0) {
+                newStatus = 'PARTIAL'
             }
+
+            await tx.invoice.update({
+                where: { id: data.invoiceId },
+                data: {
+                    paidAmount: new Decimal(newPaidAmount),
+                    status: newStatus
+                }
+            })
+
+            return { payment: created, newStatus }
         })
 
-        // 更新发票已付金额和状态
-        const newPaidAmount = Number(invoice.paidAmount) + amountInInvoiceCurrency
-        const totalAmount = Number(invoice.totalAmount)
-
-        let newStatus = invoice.status
-        if (newPaidAmount >= totalAmount) {
-            newStatus = 'PAID'
-        } else if (newPaidAmount > 0) {
-            newStatus = 'PARTIAL'
-        }
-
-        await prisma.invoice.update({
-            where: { id: data.invoiceId },
-            data: {
-                paidAmount: new Decimal(newPaidAmount),
-                status: newStatus
-            }
-        })
-
-        if (newStatus === 'PAID') {
+        if (payment.newStatus === 'PAID') {
             const updatedInvoice = await this.getInvoiceById(data.invoiceId)
             if (updatedInvoice) {
-                webhookService.emit('invoice.paid', updatedInvoice).catch(console.error)
+                webhookService.emit('invoice.paid', updatedInvoice).catch(err => logger.error('Webhook推送失败', err))
             }
         }
 
-        return payment
+        return payment.payment
     },
 
     /**
@@ -306,7 +322,7 @@ export const invoiceService = {
         const { page, limit } = pagination
         const skip = (page - 1) * limit
 
-        const where: any = {}
+        const where: Prisma.PaymentWhereInput = {}
         if (filters.invoiceId) where.invoiceId = filters.invoiceId
 
         const [payments, total] = await Promise.all([
@@ -344,7 +360,7 @@ export const invoiceService = {
         })
 
         if (!payment) {
-            throw new Error('收款记录不存在')
+            throw new NotFoundError('收款记录不存在')
         }
 
         // 更新发票已付金额
@@ -377,7 +393,7 @@ export const invoiceService = {
      * 获取发票统计
      */
     async getInvoiceStats(customerId?: string) {
-        const where: any = customerId ? { customerId } : {}
+        const where: Prisma.InvoiceWhereInput = customerId ? { customerId } : {}
 
         const [
             totalInvoices,

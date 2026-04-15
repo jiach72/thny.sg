@@ -299,6 +299,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { apiClient } from '@/api'
 import { ArrowLeft, ChatDotRound, Calendar, Briefcase } from '@element-plus/icons-vue'
+import { logger } from '@/utils/logger'
 
 const route = useRoute()
 const customerId = computed(() => route.params.id as string)
@@ -393,9 +394,14 @@ async function fetchDetail() {
     kycForm.riskGrade = customer.value.riskGrade || 'LOW'
 
     familyMembers.value = Array.isArray(customer.value.familyMembers) ? customer.value.familyMembers : []
+
+    const famRes = await apiClient.get(`/customers/${customerId.value}/family`) as any
+    if (famRes?.members) {
+      familyMembers.value = famRes.members
+    }
     notesContent.value = customer.value.profileNotes || ''
   } catch (e) {
-    console.error('加载客户详情失败', e)
+    logger.error('CustomerDetail', '加载客户详情失败', e)
   } finally {
     loading.value = false
   }
@@ -406,7 +412,7 @@ async function fetchTimeline() {
     const res = await apiClient.get(`/customers/${customerId.value}/timeline`) as any
     timeline.value = Array.isArray(res) ? res : []
   } catch (e) {
-    console.error('加载时间线失败', e)
+    logger.error('CustomerDetail', '加载时间线失败', e)
     timeline.value = []
   }
 }
@@ -460,23 +466,36 @@ async function saveNotes() {
 
 async function saveFamilyMembers() {
   try {
-    await apiClient.put(`/customers/${customerId.value}/family`, { familyMembers: familyMembers.value })
-    ElMessage.success('家庭成员已更新')
+    const result = await apiClient.post(`/customers/${customerId.value}/family`, newMember) as any
+    if (result?.member) {
+      familyMembers.value.push(result.member)
+    }
+    ElMessage.success('家庭成员已添加')
   } catch (e) {
-    ElMessage.error('更新失败')
+    ElMessage.error('添加失败')
   }
 }
 
-function addFamilyMember() {
-  familyMembers.value.push({ ...newMember })
+async function addFamilyMember() {
+  if (!newMember.name || !newMember.relationship) {
+    ElMessage.warning('请填写姓名和关系')
+    return
+  }
+  await saveFamilyMembers()
   showFamilyDialog.value = false
   Object.assign(newMember, { name: '', relationship: '', age: 0, beneficiary: false, serviceNeeds: '' })
-  saveFamilyMembers()
 }
 
-function removeFamilyMember(index: number) {
-  familyMembers.value.splice(index, 1)
-  saveFamilyMembers()
+async function removeFamilyMember(index: number) {
+  const member = familyMembers.value[index]
+  if (!member?.id) return
+  try {
+    await apiClient.delete(`/customers/${customerId.value}/family/${member.id}`)
+    familyMembers.value.splice(index, 1)
+    ElMessage.success('成员已删除')
+  } catch (e) {
+    ElMessage.error('删除失败')
+  }
 }
 
 function addInterest() {

@@ -327,8 +327,11 @@ import { apiClient } from '@/api'
 import {
   User, Search, Refresh, Download, CircleCheck, Warning, Briefcase,
 } from '@element-plus/icons-vue'
+import { logger } from '@/utils/logger'
+import { useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const loading = ref(false)
 const customers = ref<any[]>([])
 const selectedRows = ref<any[]>([])
@@ -378,7 +381,7 @@ async function fetchStats() {
     const res = await apiClient.get('/customers/stats') as any
     stats.value = res || {}
   } catch (e) {
-    console.error('加载统计失败', e)
+    logger.error('CustomerList', '加载统计失败', e)
   }
 }
 
@@ -402,7 +405,7 @@ async function fetchCustomers() {
       pagination.total = res.pagination.total
     }
   } catch (e) {
-    console.error('加载客户列表失败', e)
+    logger.error('CustomerList', '加载客户列表失败', e)
     customers.value = []
   } finally {
     loading.value = false
@@ -490,11 +493,9 @@ async function submitAppointment() {
 async function handleAutoTags(row: any) {
   try {
     const res = await apiClient.post(`/customers/${row.id}/auto-tags`) as any
-    if (res?.success) {
-      ElMessage.success('已重新计算并更新客户标签')
-      // 更新当前行的标签，避免每次都全量下拉
-      row.tags = res.tags
-    }
+    // 拦截器解包后，res 可能是直接的 { tags: [...] } 对象
+    ElMessage.success('已重新计算并更新客户标签')
+    row.tags = res?.tags || res?.data?.tags
   } catch (e: any) {
     ElMessage.error(e?.message || '更新标签失败')
   }
@@ -511,7 +512,7 @@ async function handleExport() {
     const response = await fetch(`/api/v1/customers/export?${params}`, {
       credentials: 'include',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
+        'Authorization': `Bearer ${authStore.accessToken || ''}`,
       },
     })
     if (!response.ok) throw new Error('导出失败')
@@ -549,12 +550,12 @@ async function submitBatchKyc() {
   const ids = selectedRows.value.map(r => r.id)
   batchKycSubmitting.value = true
   try {
-    const res = await apiClient.put('/customers/kyc/batch', {
+    const res = await apiClient.put<{ count?: number }>('/customers/kyc/batch', {
       ids,
       kycStatus: batchKycForm.kycStatus,
       riskGrade: batchKycForm.riskGrade || undefined,
     })
-    ElMessage.success(`成功更新了 ${res.data?.count || ids.length} 名客户的状态`)
+    ElMessage.success(`成功更新了 ${res.count || ids.length} 名客户的状态`)
     batchKycDialogVisible.value = false
     selectedRows.value = [] // 必须清空以重置按钮状态
     fetchCustomers() // 刷新列表

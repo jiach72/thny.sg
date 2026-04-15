@@ -35,7 +35,7 @@ export const leadApi = {
     /**
      * 获取最近活动
      */
-    getActivities(limit: number = 20): Promise<any[]> {
+    getActivities(limit: number = 20): Promise<NonNullable<Lead['activities']>> {
         return apiClient.get('/leads/activities', { params: { limit } })
     },
 
@@ -93,8 +93,8 @@ export const leadApi = {
      */
     checkDuplicates(payload: { email?: string; phone?: string; excludeLeadId?: string }): Promise<{
         hasDuplicates: boolean
-        leads: any[]
-        customers: any[]
+        leads: { id: string; contactName: string; email?: string }[]
+        customers: { id: string; companyName: string; email?: string }[]
     }> {
         return apiClient.post('/leads/check-duplicates', payload)
     },
@@ -102,7 +102,7 @@ export const leadApi = {
     /**
      * 添加线索备注
      */
-    addNote(id: string, content: string): Promise<any> {
+    addNote(id: string, content: string): Promise<NonNullable<Lead['activities']>[number]> {
         return apiClient.post(`/leads/${id}/notes`, { content })
     },
 

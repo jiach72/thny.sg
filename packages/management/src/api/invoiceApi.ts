@@ -98,7 +98,7 @@ export interface InvoiceStats {
 }
 
 // 获取发票列表
-export const getInvoices = (filters?: { status?: InvoiceStatus; customerId?: string; projectId?: string }, pagination?: { page: number; limit: number }): Promise<{ data: Invoice[]; pagination: any }> =>
+export const getInvoices = (filters?: { status?: InvoiceStatus; customerId?: string; projectId?: string }, pagination?: { page: number; limit: number }): Promise<{ data: Invoice[]; pagination: { total: number; page: number; limit: number; totalPages: number } }> =>
     apiClient.get('/invoices', {
         params: { ...filters, ...pagination }
     })

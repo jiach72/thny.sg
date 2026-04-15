@@ -5,15 +5,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import http from '../utils/request'
-
-interface UserInfo {
-  id: string
-  name: string
-  email: string
-  role: string
-  roleId?: string
-  avatarUrl?: string
-}
+import { setSecureItem, getSecureItem, getSecureItemSync, removeSecureItem } from '../utils/secureStorage'
+import { setCachedAccessToken } from '../utils/request'
+import type { User } from '@tonghai/shared'
 
 interface LoginParams {
   email: string
@@ -25,23 +19,22 @@ interface LoginResponse {
   refreshToken: string
   tokenType: string
   expiresIn: number
-  user: UserInfo
+  user: User
   requires2FA?: boolean
   tempToken?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  // 响应式状态
-  const user = ref<UserInfo | null>(null)
+  const user = ref<User | null>(null)
   const loading = ref(false)
+  // accessToken 仅存内存，不持久化到 storage（防窃取）
+  const accessToken = ref<string | null>(null)
 
-  // 计算属性
-  const isLoggedIn = computed(() => !!uni.getStorageSync('accessToken'))
+  const isLoggedIn = computed(() => !!accessToken.value)
   const userName = computed(() => user.value?.name || '')
   const userRole = computed(() => user.value?.role || '')
 
-  // 初始化：从本地缓存恢复用户信息
-  function init() {
+  async function init() {
     const cached = uni.getStorageSync('user')
     if (cached) {
       try {
@@ -50,24 +43,33 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = null
       }
     }
+    // 尝试从安全存储恢复 accessToken
+    try {
+      const storedToken = await getSecureItem('accessToken')
+      if (storedToken) {
+        accessToken.value = storedToken
+        // 恢复后立即从安全存储中移除，仅保留在内存中
+        removeSecureItem('accessToken')
+      }
+    } catch {
+      // 安全存储读取失败，保持未登录
+    }
   }
 
-  /**
-   * 登录
-   */
   async function login(params: LoginParams) {
     loading.value = true
     try {
       const res = await http.post<LoginResponse>('/auth/login', params)
 
-      // 需要 2FA
       if (res.requires2FA) {
         return { requires2FA: true, tempToken: res.tempToken }
       }
 
-      // 常规登录成功
-      uni.setStorageSync('accessToken', res.accessToken)
-      uni.setStorageSync('refreshToken', res.refreshToken)
+      // accessToken 仅存内存
+      accessToken.value = res.accessToken
+      setCachedAccessToken(res.accessToken)
+      // refreshToken 存入安全存储（用于自动刷新）
+      await setSecureItem('refreshToken', res.refreshToken)
       uni.setStorageSync('user', JSON.stringify(res.user))
       user.value = res.user
 
@@ -77,16 +79,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * 2FA 验证登录
-   */
   async function verify2FA(tempToken: string, code: string) {
     loading.value = true
     try {
       const res = await http.post<LoginResponse>('/auth/login/2fa', { tempToken, code })
 
-      uni.setStorageSync('accessToken', res.accessToken)
-      uni.setStorageSync('refreshToken', res.refreshToken)
+      // accessToken 仅存内存
+      accessToken.value = res.accessToken
+      setCachedAccessToken(res.accessToken)
+      await setSecureItem('refreshToken', res.refreshToken)
       uni.setStorageSync('user', JSON.stringify(res.user))
       user.value = res.user
 
@@ -96,12 +97,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * 获取当前用户完整信息
-   */
   async function fetchMe() {
     try {
-      const res = await http.get<UserInfo>('/auth/me')
+      const res = await http.get<User>('/auth/me')
       user.value = res
       uni.setStorageSync('user', JSON.stringify(res))
     } catch {
@@ -109,9 +107,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * 登出
-   */
   async function logout() {
     try {
       await http.post('/auth/logout')
@@ -119,16 +114,28 @@ export const useAuthStore = defineStore('auth', () => {
       // 即使后端调用失败，前端也要清理
     } finally {
       user.value = null
-      uni.removeStorageSync('accessToken')
-      uni.removeStorageSync('refreshToken')
+      accessToken.value = null
+      setCachedAccessToken(null)
+      removeSecureItem('accessToken')
+      removeSecureItem('refreshToken')
       uni.removeStorageSync('user')
       uni.reLaunch({ url: '/pages/login/login' })
+    }
+  }
+
+  async function getSSOTicket() {
+    try {
+      const res = await http.post<{ ticket: string; expiresIn: number }>('/auth/sso/ticket')
+      return res.ticket
+    } catch {
+      return null
     }
   }
 
   return {
     user,
     loading,
+    accessToken,
     isLoggedIn,
     userName,
     userRole,
@@ -137,5 +144,6 @@ export const useAuthStore = defineStore('auth', () => {
     verify2FA,
     fetchMe,
     logout,
+    getSSOTicket,
   }
 })

@@ -12,8 +12,102 @@
 			"style": {
 				"navigationBarTitleText": "TongHai Nanyang"
 			}
+		},
+		{
+			"path": "pages/cases/cases",
+			"style": {
+				"navigationBarTitleText": "业务办理与资料"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationBarTitleText": "个人中心"
+			}
+		},
+		{
+			"path": "pages/webview/webview",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/documents/documents",
+			"style": {
+				"navigationBarTitleText": "我的文档"
+			}
+		},
+		{
+			"path": "pages/invoices/invoices",
+			"style": {
+				"navigationBarTitleText": "我的账单"
+			}
+		},
+		{
+			"path": "pages/messages/messages",
+			"style": {
+				"navigationBarTitleText": "消息中心"
+			}
+		},
+		{
+			"path": "pages/help/help",
+			"style": {
+				"navigationBarTitleText": "帮助与支持"
+			}
+		},
+		{
+			"path": "pages/settings/settings",
+			"style": {
+				"navigationBarTitleText": "设置"
+			}
+		},
+		{
+			"path": "pages/cases/detail",
+			"style": {
+				"navigationBarTitleText": "项目详情"
+			}
+		},
+		{
+			"path": "pages/auth/forgot-password",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "找回密码"
+			}
+		},
+		{
+			"path": "pages/auth/reset-password",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "重置密码"
+			}
 		}
 	],
+	"tabBar": {
+		"color": "#94a3b8",
+		"selectedColor": "#3b82f6",
+		"borderStyle": "white",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"iconPath": "static/icons/home.png",
+				"selectedIconPath": "static/icons/home_active.png",
+				"text": "工作台"
+			},
+			{
+				"pagePath": "pages/cases/cases",
+				"iconPath": "static/icons/cases.png",
+				"selectedIconPath": "static/icons/cases_active.png",
+				"text": "办理"
+			},
+			{
+				"pagePath": "pages/profile/profile",
+				"iconPath": "static/icons/profile.png",
+				"selectedIconPath": "static/icons/profile_active.png",
+				"text": "我的"
+			}
+		]
+	},
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "通海南洋",

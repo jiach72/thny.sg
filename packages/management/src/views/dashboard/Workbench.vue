@@ -294,6 +294,7 @@ import { ElMessage } from 'element-plus'
 import { User, Document, Calendar, Warning, Clock, Plus, Edit, List, Bell } from '@element-plus/icons-vue'
 import workflowApi, { type FollowUpItem, type AssignmentStats, type OverdueStats } from '@/api/workflowApi'
 import leadApi from '@/api/leadApi'
+import { logger } from '@/utils/logger'
 
 const router = useRouter()
 
@@ -383,7 +384,7 @@ async function loadLeadOptions() {
     const result = await leadApi.getList(undefined, { page: 1, limit: 100 })
     leadOptions.value = result.data || []
   } catch (err: any) {
-    console.error('加载线索失败:', err)
+    logger.error('Workbench', '加载线索失败:', err)
   }
 }
 

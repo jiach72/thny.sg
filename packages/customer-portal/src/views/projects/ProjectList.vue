@@ -2,14 +2,22 @@
   <div class="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
     <!-- Header -->
     <div>
-      <h1 class="font-serif text-3xl text-text mb-2 animate-slide-in-left">我的项目</h1>
-      <p class="text-sm text-text-muted animate-slide-in-left delay-100">查看和追踪您所有服务项目的进度</p>
+      <h1 class="font-serif text-3xl text-text mb-2 animate-slide-in-left">{{ $t('projects.title') }}</h1>
+      <p class="text-sm text-text-muted animate-slide-in-left delay-100">{{ $t('projects.subtitle') }}</p>
+      <div class="flex items-center gap-4 mt-4">
+        <div class="relative flex-1 max-w-xs">
+          <component :is="Search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+          <input v-model="searchQuery" type="text" :placeholder="$t('projects.searchPlaceholder')" 
+            class="w-full pl-10 pr-4 py-2 bg-glass/20 border border-white/10 rounded-xl text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-wealth/30 transition-colors" />
+        </div>
+      </div>
     </div>
 
-    <!-- Project Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" v-loading="isLoading">
+    <LoadingState v-if="isLoading" :text="$t('projects.loading')" />
+
+    <div v-else-if="filteredProjects && filteredProjects.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
-        v-for="(project, index) in projects || []" 
+        v-for="(project, index) in filteredProjects" 
         :key="project.id" 
         class="group relative flex flex-col p-6 rounded-2xl bg-[#0B0F19]/60 backdrop-blur-xl border border-white/5 hover:border-wealth/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] cursor-pointer overflow-hidden"
         @click="$router.push(`/projects/${project.id}`)"
@@ -33,21 +41,21 @@
 
         <!-- Project Info -->
         <div class="relative z-10 flex-1 mb-6">
-          <h3 class="font-serif text-xl text-text mb-2 group-hover:text-wealth transition-colors duration-300 line-clamp-1">{{ project.title || '无标题项目' }}</h3>
-          <p class="text-sm text-text-muted line-clamp-2 h-10">{{ project.description || '暂无详细描述...' }}</p>
+          <h3 class="font-serif text-xl text-text mb-2 group-hover:text-wealth transition-colors duration-300 line-clamp-1">{{ project.title || $t('projects.untitled') }}</h3>
+          <p class="text-sm text-text-muted line-clamp-2 h-10">{{ project.description || $t('projects.noDescription') }}</p>
         </div>
 
         <!-- Date & Progress -->
         <div class="relative z-10 space-y-4">
           <div class="flex items-center gap-2 text-xs text-text-muted">
             <component :is="Calendar" class="w-3.5 h-3.5" />
-            <span>开始日期: {{ formatDate(project.startDate) }}</span>
+            <span>{{ $t('projects.startDate') }}: {{ formatDate(project.startDate) }}</span>
           </div>
 
           <!-- Progress Bar -->
           <div class="space-y-2">
             <div class="flex justify-between text-[10px] uppercase font-bold tracking-wider text-text-muted">
-              <span>完成进度</span>
+              <span>{{ $t('projects.completionProgress') }}</span>
               <span class="text-wealth">{{ project.completionPercentage || 0 }}%</span>
             </div>
             <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
@@ -62,41 +70,48 @@
         <!-- Footer (Consultant) -->
         <div class="relative z-10 mt-6 pt-4 border-t border-white/5 flex items-center gap-3">
           <div class="w-6 h-6 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 ring-1 ring-white/10 flex items-center justify-center text-[10px] font-medium text-text">
-            {{ project.consultant?.name?.[0] || '管' }}
+            {{ project.consultant?.name?.[0] || $t('projects.manager')[0] }}
           </div>
           <span class="text-xs text-text-muted group-hover:text-text transition-colors">
-            负责人: {{ project.consultant?.name || '指派中' }}
+            {{ $t('projects.manager') }}: {{ project.consultant?.name || $t('projects.assigning') }}
           </span>
         </div>
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div v-if="!isLoading && (!projects || projects.length === 0)" class="flex flex-col items-center justify-center py-20 rounded-3xl bg-glass/10 border border-white/5 border-dashed">
-      <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-        <component :is="FolderOpen" class="w-8 h-8 text-text-muted" />
-      </div>
-      <p class="text-text-muted">暂无相关项目</p>
-    </div>
+    <EmptyState v-else-if="!isLoading && (!filteredProjects || filteredProjects.length === 0)" icon="folder" :title="$t('projects.emptyTitle')" :description="$t('projects.emptyDesc')" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { Component } from 'vue'
 import { storeToRefs } from 'pinia'
 import { 
   Building2, 
   Stamp, 
   FileText, 
-  FolderOpen, // Default 
-  Calendar
+  FolderOpen,
+  Calendar,
+  Search
 } from 'lucide-vue-next'
 import { useProjectStore } from '@/stores/projectStore'
 import { formatDate, getStatusLabel } from '@/utils/formatters'
+import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 
 const projectStore = useProjectStore()
 const { projects, isLoading } = storeToRefs(projectStore)
+
+const searchQuery = ref('')
+const filteredProjects = computed(() => {
+  if (!searchQuery.value) return projects.value
+  const q = searchQuery.value.toLowerCase()
+  return projects.value?.filter((p: any) => 
+    p.title?.toLowerCase().includes(q) || 
+    p.projectType?.toLowerCase().includes(q)
+  )
+})
 
 onMounted(() => {
   projectStore.fetchMyProjects()

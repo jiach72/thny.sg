@@ -94,19 +94,19 @@ export const deleteTemplate = (id: string): Promise<void> =>
     apiClient.delete(`/email-templates/${id}`)
 
 // 预览模板
-export const previewTemplate = (id: string, context: any): Promise<PreviewResult> =>
+export const previewTemplate = (id: string, context: Record<string, string>): Promise<PreviewResult> =>
     apiClient.post(`/email-templates/${id}/preview`, { context })
 
 // 使用模板发送邮件
-export const sendWithTemplate = (id: string, data: { recipient: string; context?: any; leadId?: string; customerId?: string }): Promise<any> =>
+export const sendWithTemplate = (id: string, data: { recipient: string; context?: Record<string, string>; leadId?: string; customerId?: string }): Promise<{ success: boolean; messageId?: string }> =>
     apiClient.post(`/email-templates/${id}/send`, data)
 
 // 直接发送邮件
-export const sendDirectEmail = (data: SendEmailInput): Promise<any> =>
+export const sendDirectEmail = (data: SendEmailInput): Promise<{ success: boolean; messageId?: string }> =>
     apiClient.post('/email-templates/send-direct', data)
 
 // 获取发送记录
-export const getEmailLogs = (filters?: { leadId?: string; customerId?: string; templateId?: string; status?: string }, pagination?: { page: number; limit: number }): Promise<{ data: EmailLog[]; pagination: any }> =>
+export const getEmailLogs = (filters?: { leadId?: string; customerId?: string; templateId?: string; status?: string }, pagination?: { page: number; limit: number }): Promise<{ data: EmailLog[]; pagination: { total: number; page: number; limit: number; totalPages: number } }> =>
     apiClient.get('/email-templates/logs', {
         params: { ...filters, ...pagination }
     })

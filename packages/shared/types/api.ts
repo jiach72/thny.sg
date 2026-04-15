@@ -56,6 +56,7 @@ export interface LoginResponse {
 // 刷新 Token 响应
 export interface RefreshTokenResponse {
     accessToken: string
+    refreshToken: string
     expiresIn: number
 }
 

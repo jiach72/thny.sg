@@ -1,5 +1,7 @@
+import { NotFoundError } from '../middlewares/errorHandler.js'
 import { prisma } from '../config/index.js'
 import type { Lead, ScoringRule } from '@prisma/client'
+import logger from '../config/logger.js'
 
 interface ScoreResult {
     score: number
@@ -184,13 +186,13 @@ export const scoringService = {
     /**
      * 获取字段值（支持嵌套字段）
      */
-    getFieldValue(lead: Lead, field: string): any {
+    getFieldValue(lead: Lead, field: string): unknown {
         const parts = field.split('.')
-        let value: any = lead
+        let value: unknown = lead
 
         for (const part of parts) {
             if (value == null) return null
-            value = value[part as keyof typeof value]
+            value = (value as Record<string, unknown>)[part]
         }
 
         return value
@@ -199,7 +201,7 @@ export const scoringService = {
     /**
      * 解析规则值（JSON 格式）
      */
-    parseValue(value: string): any {
+    parseValue(value: string): unknown {
         try {
             return JSON.parse(value)
         } catch {
@@ -216,7 +218,7 @@ export const scoringService = {
         })
 
         if (!lead) {
-            throw new Error('线索不存在')
+            throw new NotFoundError('线索不存在')
         }
 
         const { score, breakdown } = await this.calculateScore(lead)
@@ -289,7 +291,7 @@ export const scoringService = {
 
         const existingCount = await prisma.scoringRule.count()
         if (existingCount > 0) {
-            console.log('评分规则已存在，跳过初始化')
+            logger.info('评分规则已存在，跳过初始化')
             return
         }
 
@@ -297,7 +299,7 @@ export const scoringService = {
             await this.createRule(rule)
         }
 
-        console.log(`已创建 ${defaultRules.length} 条默认评分规则`)
+        logger.info(`已创建 ${defaultRules.length} 条默认评分规则`)
     }
 }
 

@@ -1,13 +1,17 @@
-import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middlewares/auth.js'
+import { Router, Request, Response, NextFunction } from 'express'
+import { body } from 'express-validator'
+import { adminAuth } from '../middlewares/auth.js'
+import { validate, ConflictError } from '../middlewares/index.js'
+import { sendSuccess, sendError } from '../utils/responseHelper.js'
 import { newsService } from '../services/newsService.js'
 import { rssFetchService } from '../services/rssFetchService.js'
 import { prisma } from '../config/index.js'
+import { validateSafeUrl } from '../config/ssrfProtection.js'
 
 const router = Router()
 
-// 所有路由需要认证
-router.use(authMiddleware)
+// 所有路由需要管理员权限
+router.use(adminAuth)
 
 // ==================== 文章管理 ====================
 
@@ -15,7 +19,7 @@ router.use(authMiddleware)
  * 获取所有文章（管理端）
  * GET /api/v1/news-admin/articles
  */
-router.get('/articles', async (req: Request, res: Response) => {
+router.get('/articles', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { type, category, status, source, search, page = '1', pageSize = '20' } = req.query
 
@@ -31,10 +35,9 @@ router.get('/articles', async (req: Request, res: Response) => {
             pageSize: parseInt(pageSize as string, 10),
         })
 
-        res.json({ success: true, data: result })
+        sendSuccess(res, result)
     } catch (error) {
-        console.error('Error fetching articles:', error)
-        res.status(500).json({ success: false, message: '获取文章失败' })
+        next(error)
     }
 })
 
@@ -42,16 +45,15 @@ router.get('/articles', async (req: Request, res: Response) => {
  * 获取单篇文章
  * GET /api/v1/news-admin/articles/:id
  */
-router.get('/articles/:id', async (req: Request, res: Response) => {
+router.get('/articles/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const article = await newsService.getArticleByIdAdmin(req.params.id)
         if (!article) {
-            return res.status(404).json({ success: false, message: '文章不存在' })
+            return sendError(res, '文章不存在', 404)
         }
-        res.json({ success: true, data: article })
+        sendSuccess(res, article)
     } catch (error) {
-        console.error('Error fetching article:', error)
-        res.status(500).json({ success: false, message: '获取文章失败' })
+        next(error)
     }
 })
 
@@ -59,16 +61,25 @@ router.get('/articles/:id', async (req: Request, res: Response) => {
  * 创建文章
  * POST /api/v1/news-admin/articles
  */
-router.post('/articles', async (req: Request, res: Response) => {
+router.post('/articles',
+    [
+        body('title').notEmpty().withMessage('标题不能为空'),
+        body('content').notEmpty().withMessage('内容不能为空'),
+        body('category').optional().isString(),
+        body('tags').optional().isArray(),
+        body('coverImage').optional().isString(),
+        body('summary').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const article = await newsService.createArticle({
             ...req.body,
             source: req.body.source || 'manual',
         })
-        res.json({ success: true, data: article, message: '文章创建成功' })
+        sendSuccess(res, article, '文章创建成功')
     } catch (error) {
-        console.error('Error creating article:', error)
-        res.status(500).json({ success: false, message: '创建文章失败' })
+        next(error)
     }
 })
 
@@ -76,13 +87,23 @@ router.post('/articles', async (req: Request, res: Response) => {
  * 更新文章
  * PUT /api/v1/news-admin/articles/:id
  */
-router.put('/articles/:id', async (req: Request, res: Response) => {
+router.put('/articles/:id',
+    [
+        body('title').optional().isString(),
+        body('content').optional().isString(),
+        body('category').optional().isString(),
+        body('tags').optional().isArray(),
+        body('coverImage').optional().isString(),
+        body('summary').optional().isString(),
+        body('status').optional().isIn(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const article = await newsService.updateArticle(req.params.id, req.body)
-        res.json({ success: true, data: article, message: '文章更新成功' })
+        sendSuccess(res, article, '文章更新成功')
     } catch (error) {
-        console.error('Error updating article:', error)
-        res.status(500).json({ success: false, message: '更新文章失败' })
+        next(error)
     }
 })
 
@@ -90,13 +111,12 @@ router.put('/articles/:id', async (req: Request, res: Response) => {
  * 发布文章
  * POST /api/v1/news-admin/articles/:id/publish
  */
-router.post('/articles/:id/publish', async (req: Request, res: Response) => {
+router.post('/articles/:id/publish', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const article = await newsService.publishArticle(req.params.id)
-        res.json({ success: true, data: article, message: '文章已发布' })
+        sendSuccess(res, article, '文章已发布')
     } catch (error) {
-        console.error('Error publishing article:', error)
-        res.status(500).json({ success: false, message: '发布失败' })
+        next(error)
     }
 })
 
@@ -104,13 +124,12 @@ router.post('/articles/:id/publish', async (req: Request, res: Response) => {
  * 取消发布
  * POST /api/v1/news-admin/articles/:id/unpublish
  */
-router.post('/articles/:id/unpublish', async (req: Request, res: Response) => {
+router.post('/articles/:id/unpublish', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const article = await newsService.unpublishArticle(req.params.id)
-        res.json({ success: true, data: article, message: '已取消发布' })
+        sendSuccess(res, article, '已取消发布')
     } catch (error) {
-        console.error('Error unpublishing article:', error)
-        res.status(500).json({ success: false, message: '操作失败' })
+        next(error)
     }
 })
 
@@ -118,17 +137,12 @@ router.post('/articles/:id/unpublish', async (req: Request, res: Response) => {
  * 置顶/取消置顶
  * POST /api/v1/news-admin/articles/:id/toggle-top
  */
-router.post('/articles/:id/toggle-top', async (req: Request, res: Response) => {
+router.post('/articles/:id/toggle-top', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const article = await newsService.toggleTop(req.params.id)
-        res.json({
-            success: true,
-            data: article,
-            message: article.isTop ? '已置顶' : '已取消置顶',
-        })
+        sendSuccess(res, article, article.isTop ? '已置顶' : '已取消置顶')
     } catch (error) {
-        console.error('Error toggling top:', error)
-        res.status(500).json({ success: false, message: '操作失败' })
+        next(error)
     }
 })
 
@@ -136,13 +150,12 @@ router.post('/articles/:id/toggle-top', async (req: Request, res: Response) => {
  * 删除文章
  * DELETE /api/v1/news-admin/articles/:id
  */
-router.delete('/articles/:id', async (req: Request, res: Response) => {
+router.delete('/articles/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await newsService.deleteArticle(req.params.id)
-        res.json({ success: true, message: '文章已删除' })
+        sendSuccess(res, null, '文章已删除')
     } catch (error) {
-        console.error('Error deleting article:', error)
-        res.status(500).json({ success: false, message: '删除失败' })
+        next(error)
     }
 })
 
@@ -150,17 +163,22 @@ router.delete('/articles/:id', async (req: Request, res: Response) => {
  * 批量删除
  * POST /api/v1/news-admin/articles/batch-delete
  */
-router.post('/articles/batch-delete', async (req: Request, res: Response) => {
+router.post('/articles/batch-delete',
+    [
+        body('ids').isArray().withMessage('ids必须为数组'),
+        body('ids.*').isString().withMessage('每个id必须为字符串'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { ids } = req.body
         if (!Array.isArray(ids) || ids.length === 0) {
-            return res.status(400).json({ success: false, message: '请选择要删除的文章' })
+            return sendError(res, '请选择要删除的文章', 400)
         }
         await newsService.deleteArticles(ids)
-        res.json({ success: true, message: `已删除 ${ids.length} 篇文章` })
+        sendSuccess(res, null, `已删除 ${ids.length} 篇文章`)
     } catch (error) {
-        console.error('Error batch deleting:', error)
-        res.status(500).json({ success: false, message: '批量删除失败' })
+        next(error)
     }
 })
 
@@ -168,20 +186,27 @@ router.post('/articles/batch-delete', async (req: Request, res: Response) => {
  * 导入微信公众号文章
  * POST /api/v1/news-admin/articles/import-wechat
  */
-router.post('/articles/import-wechat', async (req: Request, res: Response) => {
+router.post('/articles/import-wechat',
+    [
+        body('url').isURL().withMessage('请提供有效的URL'),
+        body('type').optional().isIn(['article', 'feed']),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { url, type = 'COMPANY' } = req.body
 
         if (!url) {
-            return res.status(400).json({ success: false, message: '请输入公众号文章链接' })
+            return sendError(res, '请输入公众号文章链接', 400)
         }
 
         // 验证是微信链接
         if (!url.includes('mp.weixin.qq.com')) {
-            return res.status(400).json({ success: false, message: '请输入有效的微信公众号文章链接' })
+            return sendError(res, '请输入有效的微信公众号文章链接', 400)
         }
 
-        // 获取文章内容
+        await validateSafeUrl(url)
+
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -189,7 +214,7 @@ router.post('/articles/import-wechat', async (req: Request, res: Response) => {
         })
 
         if (!response.ok) {
-            return res.status(400).json({ success: false, message: '无法访问文章链接' })
+            return sendError(res, '无法访问文章链接', 400)
         }
 
         const html = await response.text()
@@ -247,14 +272,9 @@ router.post('/articles/import-wechat', async (req: Request, res: Response) => {
             tags: ['公众号'],
         })
 
-        res.json({
-            success: true,
-            data: article,
-            message: '文章导入成功，已保存为草稿'
-        })
+        sendSuccess(res, article, '文章导入成功，已保存为草稿')
     } catch (error) {
-        console.error('Error importing wechat article:', error)
-        res.status(500).json({ success: false, message: '导入失败，请检查链接是否有效' })
+        next(error)
     }
 })
 
@@ -264,13 +284,12 @@ router.post('/articles/import-wechat', async (req: Request, res: Response) => {
  * 获取所有 RSS 源
  * GET /api/v1/news-admin/feeds
  */
-router.get('/feeds', async (req: Request, res: Response) => {
+router.get('/feeds', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const feeds = await rssFetchService.getAllFeeds(true)
-        res.json({ success: true, data: feeds })
+        sendSuccess(res, feeds)
     } catch (error) {
-        console.error('Error fetching feeds:', error)
-        res.status(500).json({ success: false, message: '获取订阅源失败' })
+        next(error)
     }
 })
 
@@ -278,16 +297,15 @@ router.get('/feeds', async (req: Request, res: Response) => {
  * 获取单个 RSS 源
  * GET /api/v1/news-admin/feeds/:id
  */
-router.get('/feeds/:id', async (req: Request, res: Response) => {
+router.get('/feeds/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const feed = await rssFetchService.getFeedById(req.params.id)
         if (!feed) {
-            return res.status(404).json({ success: false, message: '订阅源不存在' })
+            return sendError(res, '订阅源不存在', 404)
         }
-        res.json({ success: true, data: feed })
+        sendSuccess(res, feed)
     } catch (error) {
-        console.error('Error fetching feed:', error)
-        res.status(500).json({ success: false, message: '获取订阅源失败' })
+        next(error)
     }
 })
 
@@ -295,17 +313,21 @@ router.get('/feeds/:id', async (req: Request, res: Response) => {
  * 测试 RSS 源
  * POST /api/v1/news-admin/feeds/test
  */
-router.post('/feeds/test', async (req: Request, res: Response) => {
+router.post('/feeds/test',
+    [
+        body('url').isURL().withMessage('请提供有效的RSS源URL'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { url } = req.body
         if (!url) {
-            return res.status(400).json({ success: false, message: '请输入 RSS URL' })
+            return sendError(res, '请输入 RSS URL', 400)
         }
         const result = await rssFetchService.testFeed(url)
-        res.json({ success: true, data: result })
+        sendSuccess(res, result)
     } catch (error) {
-        console.error('Error testing feed:', error)
-        res.status(500).json({ success: false, message: '测试失败' })
+        next(error)
     }
 })
 
@@ -313,16 +335,23 @@ router.post('/feeds/test', async (req: Request, res: Response) => {
  * 创建 RSS 源
  * POST /api/v1/news-admin/feeds
  */
-router.post('/feeds', async (req: Request, res: Response) => {
+router.post('/feeds',
+    [
+        body('name').notEmpty().withMessage('名称不能为空'),
+        body('url').isURL().withMessage('请提供有效的URL'),
+        body('category').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const feed = await rssFetchService.createFeed(req.body)
-        res.json({ success: true, data: feed, message: '订阅源创建成功' })
+        sendSuccess(res, feed, '订阅源创建成功')
     } catch (error: any) {
-        console.error('Error creating feed:', error)
+        // P2002: 唯一约束冲突，转换为 ConflictError 交给错误中间件处理
         if (error.code === 'P2002') {
-            return res.status(400).json({ success: false, message: '该 RSS URL 已存在' })
+            return next(new ConflictError('该 RSS URL 已存在'))
         }
-        res.status(500).json({ success: false, message: '创建订阅源失败' })
+        next(error)
     }
 })
 
@@ -330,13 +359,20 @@ router.post('/feeds', async (req: Request, res: Response) => {
  * 更新 RSS 源
  * PUT /api/v1/news-admin/feeds/:id
  */
-router.put('/feeds/:id', async (req: Request, res: Response) => {
+router.put('/feeds/:id',
+    [
+        body('name').optional().isString(),
+        body('url').optional().isURL(),
+        body('category').optional().isString(),
+        body('enabled').optional().isBoolean(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const feed = await rssFetchService.updateFeed(req.params.id, req.body)
-        res.json({ success: true, data: feed, message: '订阅源更新成功' })
+        sendSuccess(res, feed, '订阅源更新成功')
     } catch (error) {
-        console.error('Error updating feed:', error)
-        res.status(500).json({ success: false, message: '更新订阅源失败' })
+        next(error)
     }
 })
 
@@ -344,13 +380,12 @@ router.put('/feeds/:id', async (req: Request, res: Response) => {
  * 删除 RSS 源
  * DELETE /api/v1/news-admin/feeds/:id
  */
-router.delete('/feeds/:id', async (req: Request, res: Response) => {
+router.delete('/feeds/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await rssFetchService.deleteFeed(req.params.id)
-        res.json({ success: true, message: '订阅源已删除' })
+        sendSuccess(res, null, '订阅源已删除')
     } catch (error) {
-        console.error('Error deleting feed:', error)
-        res.status(500).json({ success: false, message: '删除订阅源失败' })
+        next(error)
     }
 })
 
@@ -358,21 +393,16 @@ router.delete('/feeds/:id', async (req: Request, res: Response) => {
  * 手动抓取单个 RSS 源
  * POST /api/v1/news-admin/feeds/:id/fetch
  */
-router.post('/feeds/:id/fetch', async (req: Request, res: Response) => {
+router.post('/feeds/:id/fetch', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await rssFetchService.fetchFeed(req.params.id)
         if (result.success) {
-            res.json({
-                success: true,
-                message: `抓取成功，新增 ${result.newCount} 篇文章`,
-                data: result,
-            })
+            sendSuccess(res, result, `抓取成功，新增 ${result.newCount} 篇文章`)
         } else {
-            res.status(400).json({ success: false, message: result.error })
+            sendError(res, result.error || '抓取失败', 400)
         }
     } catch (error) {
-        console.error('Error fetching feed:', error)
-        res.status(500).json({ success: false, message: '抓取失败' })
+        next(error)
     }
 })
 
@@ -380,17 +410,12 @@ router.post('/feeds/:id/fetch', async (req: Request, res: Response) => {
  * 抓取所有 RSS 源
  * POST /api/v1/news-admin/feeds/fetch-all
  */
-router.post('/feeds/fetch-all', async (req: Request, res: Response) => {
+router.post('/feeds/fetch-all', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const result = await rssFetchService.fetchAllFeeds()
-        res.json({
-            success: true,
-            message: `抓取完成：${result.successCount}/${result.totalFeeds} 成功，新增 ${result.newArticles} 篇`,
-            data: result,
-        })
+        sendSuccess(res, result, `抓取完成：${result.successCount}/${result.totalFeeds} 成功，新增 ${result.newArticles} 篇`)
     } catch (error) {
-        console.error('Error fetching all feeds:', error)
-        res.status(500).json({ success: false, message: '批量抓取失败' })
+        next(error)
     }
 })
 
@@ -400,7 +425,7 @@ router.post('/feeds/fetch-all', async (req: Request, res: Response) => {
  * 获取新闻统计
  * GET /api/v1/news-admin/stats
  */
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const [
             totalArticles,
@@ -418,20 +443,16 @@ router.get('/stats', async (req: Request, res: Response) => {
             prisma.newsArticle.aggregate({ _sum: { viewCount: true } }),
         ])
 
-        res.json({
-            success: true,
-            data: {
+        sendSuccess(res, {
                 totalArticles,
                 publishedCount,
                 draftCount,
                 totalFeeds,
                 activeFeeds,
                 totalViews: totalViews._sum.viewCount || 0,
-            },
-        })
+            })
     } catch (error) {
-        console.error('Error fetching stats:', error)
-        res.status(500).json({ success: false, message: '获取统计失败' })
+        next(error)
     }
 })
 

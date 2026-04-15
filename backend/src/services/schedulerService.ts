@@ -2,6 +2,7 @@ import { prisma } from '../config/index.js'
 import { scoringService } from './scoringService.js'
 import { workflowService } from './workflowService.js'
 import { invoiceService } from './invoiceService.js'
+import logger from '../config/logger.js'
 
 interface ScheduledTask {
     name: string
@@ -81,7 +82,7 @@ export const schedulerService = {
         // 从数据库加载自定义任务配置
         await this.loadTaskConfig()
 
-        console.log(`⏰ 定时任务服务已初始化，共 ${tasks.size} 个任务`)
+        logger.info(`⏰ 定时任务服务已初始化，共 ${tasks.size} 个任务`)
     },
 
     /**
@@ -118,7 +119,7 @@ export const schedulerService = {
                 }
             }
         } catch (error) {
-            console.warn('加载定时任务配置失败:', error)
+            logger.warn('加载定时任务配置失败:', error)
         }
     },
 
@@ -222,7 +223,7 @@ export const schedulerService = {
      * 手动触发任务
      */
     async triggerTask(taskName: string): Promise<TaskResult> {
-        console.log(`🔧 手动触发任务: ${taskName}`)
+        logger.info(`🔧 手动触发任务: ${taskName}`)
         return this.runTask(taskName)
     },
 
@@ -231,7 +232,7 @@ export const schedulerService = {
      */
     async checkAndRunDueTasks(): Promise<TaskResult[]> {
         if (isRunning) {
-            console.log('⏳ 任务检查已在进行中，跳过')
+            logger.info('⏳ 任务检查已在进行中，跳过')
             return []
         }
 
@@ -244,7 +245,7 @@ export const schedulerService = {
                 if (!task.enabled) continue
                 if (!task.nextRun || task.nextRun > now) continue
 
-                console.log(`⏰ 执行定时任务: ${name}`)
+                logger.info(`⏰ 执行定时任务: ${name}`)
                 const result = await this.runTask(name)
                 results.push(result)
             }
@@ -261,7 +262,7 @@ export const schedulerService = {
     async logTaskExecution(
         taskName: string,
         success: boolean,
-        result: any,
+        result: Record<string, unknown> | null,
         duration: number,
         error?: string
     ): Promise<void> {
@@ -274,13 +275,13 @@ export const schedulerService = {
                     description: success
                         ? `定时任务 ${taskName} 执行成功，耗时 ${duration}ms`
                         : `定时任务 ${taskName} 执行失败: ${error}`,
-                    changes: result ? result : null,
+                    changes: result ? (result as unknown as import('@prisma/client').Prisma.InputJsonValue) : undefined,
                     actorId: 'system' // 需要一个系统用户 ID
                 }
             })
         } catch {
             // 日志记录失败不影响主流程
-            console.warn('任务日志记录失败')
+            logger.warn('任务日志记录失败')
         }
     },
 
@@ -331,12 +332,12 @@ export const schedulerService = {
      * 生产环境建议使用外部 Cron 服务触发
      */
     startPolling(intervalMs = 60000): NodeJS.Timeout {
-        console.log(`⏰ 启动任务轮询，间隔 ${intervalMs / 1000} 秒`)
+        logger.info(`⏰ 启动任务轮询，间隔 ${intervalMs / 1000} 秒`)
 
         return setInterval(async () => {
             const results = await this.checkAndRunDueTasks()
             if (results.length > 0) {
-                console.log(`✅ 执行了 ${results.length} 个定时任务`)
+                logger.info(`✅ 执行了 ${results.length} 个定时任务`)
             }
         }, intervalMs)
     }

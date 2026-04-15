@@ -29,12 +29,15 @@ services:
     container_name: tonghai-redis
     restart: always
     command: redis-server --requirepass ${REDIS_PASSWORD:-changeme_redis}
+    environment:
+      # 使用环境变量传递密码给 healthcheck，避免在进程列表中暴露
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-changeme_redis}
     volumes:
       - redis_data:/data
     networks:
       - tonghai-network
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme_redis}", "ping" ]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,15 +52,16 @@ services:
     image: ghcr.io/jiach72/thny-backend:latest
     container_name: tonghai-backend
     restart: always
-    ports:
-      - "4000:4000"
+    # 后端仅通过 Nginx 反向代理访问，不直接暴露端口到宿主机
+    # ports:
+    #   - "4000:4000"
     environment:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://crm_user:${DB_PASSWORD:-changeme}@postgres:5432/crm_db
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme_redis}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: 7d
+      JWT_EXPIRES_IN: 15m
       FRONTEND_URL: ${FRONTEND_URL}
       MANAGEMENT_URL: ${MANAGEMENT_URL}
       PORTAL_URL: ${PORTAL_URL}
@@ -168,8 +172,15 @@ services:
       BACKUP_KEEP_DAYS: 14
       BACKUP_KEEP_WEEKS: 4
       BACKUP_KEEP_MONTHS: 3
+      # S3 异地备份配置（启用后备份文件自动上传至 S3）
+      S3_BACKUP: "${S3_BACKUP:-false}"
+      S3_BUCKET: "${S3_BACKUP_BUCKET:-}"
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-ap-southeast-1}"
     volumes:
       - db_backups:/backups
+      - ./scripts/backup-upload.sh:/scripts/backup-upload.sh:ro
     depends_on:
       postgres:
         condition: service_healthy

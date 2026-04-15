@@ -162,6 +162,7 @@ model User {
   recordedMinutes       MeetingMinutes[] @relation("MinutesRecorder")
 
   @@index([roleId])
+  @@index([status])
   @@map("users")
 }
 
@@ -200,6 +201,7 @@ model Lead {
   @@index([status])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([sourceChannel])
   @@map("leads")
 }
 
@@ -214,7 +216,7 @@ model Customer {
   companyName   String?   @map("company_name")
   email         String?
   phone         String?
-  familyMembers Json?     @map("family_members")
+  familyMembers FamilyMember[]
   companyInfo   Json?     @map("company_info")
   kycStatus     KycStatus @default(PENDING) @map("kyc_status")
   riskGrade     RiskGrade @default(LOW) @map("risk_grade")
@@ -233,7 +235,27 @@ model Customer {
   appointments Appointment[]
 
   @@index([deletedAt])
+  @@index([kycStatus])
+  @@index([companyName])
   @@map("customers")
+}
+
+// 家庭成员
+model FamilyMember {
+  id             String   @id @default(cuid())
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId     String   @map("customer_id")
+  name           String
+  relationship   String
+  isBeneficiary  Boolean  @default(false) @map("is_beneficiary")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  @@index([customerId])
+  @@index([isBeneficiary])
+  @@index([relationship])
+  @@map("family_members")
 }
 
 // 项目
@@ -450,6 +472,8 @@ model Inquiry {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([status])
+  @@index([createdAt])
   @@map("inquiries")
 }
 
@@ -895,6 +919,8 @@ model SignatureRequest {
   documentUrl       String?   @map("document_url")
   signedDocumentUrl String?   @map("signed_document_url")
 
+  signatureUrl      String?   @map("signature_url")
+  signedAt          DateTime? @map("signed_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   completedAt       DateTime? @map("completed_at")

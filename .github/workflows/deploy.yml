@@ -1,64 +1,177 @@
-name: Build & Deploy
+name: CI/CD Pipeline
 
 on:
   push:
+    branches: [main, develop]
+  pull_request:
     branches: [main]
-  workflow_dispatch:
 
 env:
+  NODE_VERSION: '20'
   REGISTRY: ghcr.io
-  # format: jiach72/thny.sg -> jiach72
-  IMAGE_OWNER: ${{ github.repository_owner }}
 
 jobs:
-  # ========== 代码质量检查 ==========
-  quality-check:
+  # ==================== 代码质量检查 ====================
+  lint:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
-      - name: Lint Codebase
-        run: npm run lint
-      - name: Backend Unit Tests
-        run: cd packages/backend && npm run test -- --run || cd backend && npm run test -- --run
-      - name: Dependency Audit
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+
+      - name: Type check backend
+        run: cd backend && npx tsc --noEmit
+
+      - name: Type check management
+        run: cd packages/management && npx vue-tsc --noEmit
+
+      - name: Type check customer-portal
+        run: cd packages/customer-portal && npx vue-tsc --noEmit
+
+  # ==================== 后端测试 ====================
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-jwt-secret-for-ci
+      METRICS_BEARER_TOKEN: test-metrics-token
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: cd backend && npx prisma generate
+
+      - name: Run database migrations
+        run: cd backend && npx prisma migrate deploy || true
+
+      - name: Run tests with coverage
+        run: cd backend && npx vitest run --coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+          retention-days: 7
+
+  # ==================== 安全审计 ====================
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
         run: npm audit --audit-level=high || true
 
-  # ========== 构建并推送镜像 (并行) ==========
-  build-push-images:
-    needs: [quality-check]
+  # ==================== 构建前端 ====================
+  build-frontend:
+    name: Build Frontend
     runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        app: [website, management, customer-portal]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build ${{ matrix.app }}
+        run: npm run build:${{ matrix.app == 'customer-portal' && 'portal' || matrix.app }}
+
+  # ==================== 构建并推送 Docker 镜像 ====================
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-backend, build-frontend, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
       packages: write
+
     strategy:
-      fail-fast: false
       matrix:
         include:
-          - name: backend
-            file: docker/backend.Dockerfile
-            image: thny-backend
-          - name: management
-            file: docker/management.Dockerfile
-            image: thny-management
-          - name: portal
-            file: docker/portal.Dockerfile
-            image: thny-portal
-          - name: website
-            file: docker/website.Dockerfile
-            image: thny-website
-    steps:
-      - uses: actions/checkout@v6
+          - app: backend
+            dockerfile: docker/Dockerfile.backend
+          - app: website
+            dockerfile: docker/Dockerfile.website
+          - app: management
+            dockerfile: docker/Dockerfile.management
+          - app: portal
+            dockerfile: docker/Dockerfile.portal
 
-      - name: Log in to GitHub Container Registry
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -69,141 +182,41 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ matrix.image }}
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/thny-${{ matrix.app }}
           tags: |
             type=sha
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+      - name: Build and push
+        uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.file }}
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # ========== 部署到服务器 ==========
+  # ==================== 部署到生产环境 ====================
   deploy:
-    needs: [build-push-images]
+    name: Deploy to Production
     runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Prepare target directory
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            sudo mkdir -p /var/www/tonghai
-            sudo chown -R $USER:$USER /var/www/tonghai
-            sudo chmod -R 755 /var/www/tonghai
-
-      - name: Upload config files via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker/docker-compose.prod.yml,docker/nginx.conf"
-          target: "/var/www/tonghai"
-          strip_components: 1
+      - uses: actions/checkout@v4
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          IMAGE_OWNER: ${{ github.repository_owner }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DEPLOY_GHCR_TOKEN: ${{ secrets.DEPLOY_GHCR_TOKEN }}
+        uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: IMAGE_OWNER,JWT_SECRET,DB_PASSWORD,DEPLOY_GHCR_TOKEN
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
           script: |
-            cd /var/www/tonghai
-            
-            # 0. 确保当前用户有 docker 权限
-            sudo usermod -aG docker $USER || true
-            
-            # 1. 生成 .env (逐行写入，避免 heredoc 缩进问题)
-            echo "IMAGE_OWNER=$IMAGE_OWNER" > .env
-            echo "JWT_SECRET=$JWT_SECRET" >> .env
-            echo "DB_PASSWORD=$DB_PASSWORD" >> .env
-            echo "FRONTEND_URL=https://www.thny.sg" >> .env
-            echo "MANAGEMENT_URL=https://crm.thny.sg" >> .env
-            echo "PORTAL_URL=https://portal.thny.sg" >> .env
-            
-            # 2. 准备 docker-compose.yml (cp 而非 mv，确保重复部署安全)
-            cp -f docker-compose.prod.yml docker-compose.yml
-            
-            # 3. 登录 GHCR 并拉取最新镜像
-            echo "$DEPLOY_GHCR_TOKEN" | sudo docker login ghcr.io -u "$IMAGE_OWNER" --password-stdin
-            echo "Pulling latest images..."
-            sudo docker compose pull
-            
-            # 4. 先确保 postgres 和 redis 启动
-            echo "Starting postgres and redis first..."
-            sudo docker compose up -d postgres redis
-            
-            # 5. 等待数据库就绪
-            echo "Waiting for postgres to be ready..."
-            for i in $(seq 1 10); do
-              if sudo docker compose exec -T postgres pg_isready -U crm_user -d crm_db > /dev/null 2>&1; then
-                echo "Postgres is ready!"
-                break
-              fi
-              echo "Waiting for postgres ($i/10)..."
-              sleep 3
-            done
-            
-            # 6. 在数据库就绪后运行迁移（使用 backend 镜像一次性运行）
-            echo "Running database migrations..."
-            sudo docker compose run --rm --no-deps \
-              -e DATABASE_URL="postgresql://crm_user:${DB_PASSWORD}@postgres:5432/crm_db" \
-              backend npx prisma migrate deploy
-            
-            # 7. 启动所有剩余服务
-            echo "Starting all services..."
-            sudo docker compose up -d --remove-orphans
-            
-            # 8. 清理旧镜像
-            sudo docker image prune -f
-            
-            # 9. 首次部署时播种初始数据
-            echo "Checking if database needs seeding..."
-            sleep 10
-            USER_COUNT=$(sudo docker compose exec -T postgres psql -U crm_user -d crm_db -tAc "SELECT COUNT(*) FROM users;" 2>/dev/null || echo "0")
-            if [ "$USER_COUNT" = "0" ] || [ -z "$USER_COUNT" ]; then
-              echo "First deployment detected, seeding database..."
-              sudo docker compose exec -T backend npx prisma db seed
-            else
-              echo "Database already has $USER_COUNT users, skipping seed."
-            fi
-            
-            echo "Deployment complete!"
-
-      - name: Health Check
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "等待服务启动..."
-            sleep 10
-            for i in $(seq 1 6); do
-              if curl -sf http://localhost:4000/api/v1/health > /dev/null 2>&1; then
-                echo "✅ 健康检查通过"
-                exit 0
-              fi
-              echo "⏳ 第 $i 次检查失败，等待 10 秒..."
-              sleep 10
-            done
-            echo "❌ 健康检查失败，输出日志:"
-            cd /var/www/tonghai
-            sudo docker compose logs --tail=50 backend
-            exit 1
+            cd ${{ secrets.PRODUCTION_PATH }}
+            docker compose -f docker/docker-compose.prod.yml pull
+            docker compose -f docker/docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f

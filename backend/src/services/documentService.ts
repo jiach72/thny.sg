@@ -1,4 +1,5 @@
 import { prisma } from '../config/index.js'
+import { NotFoundError } from '../middlewares/errorHandler.js'
 
 export const documentService = {
     /**
@@ -42,11 +43,23 @@ export const documentService = {
         uploadedById: string
         accessLevel?: 'PRIVATE' | 'TEAM' | 'PUBLIC'
     }) {
-        // 验证项目是否存在且用户有权限
-        // 对于客户，只能上传到自己的项目
-        // 简化起见，这里假设 Controller 层或 Middleware 已经做了基本校验，
-        // 或者在这里查一下 Project 的 customerId/ownerId。
-        // 但 MVP 阶段先直接写入。
+        // 验证项目存在且上传者有权限
+        if (data.projectId) {
+            const project = await prisma.project.findUnique({
+                where: { id: data.projectId, deletedAt: null },
+            })
+            if (!project) {
+                throw new NotFoundError('项目不存在')
+            }
+        }
+
+        // 验证上传者存在
+        const uploader = await prisma.user.findUnique({
+            where: { id: data.uploadedById },
+        })
+        if (!uploader) {
+            throw new NotFoundError('上传者不存在')
+        }
 
         return prisma.document.create({
             data: {
@@ -56,7 +69,7 @@ export const documentService = {
                 fileType: data.fileType,
                 fileSize: data.fileSize,
                 uploadedById: data.uploadedById,
-                accessLevel: (data.accessLevel as any) || 'private', // default
+                accessLevel: data.accessLevel || 'PRIVATE',
                 documentType: 'UPLOAD'
             }
         })

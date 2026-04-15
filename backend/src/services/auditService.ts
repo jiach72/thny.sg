@@ -1,4 +1,5 @@
 import { prisma } from '../config/index.js'
+import { Prisma } from '@prisma/client'
 import logger from '../config/logger.js'
 
 interface AuditLogInput {
@@ -35,7 +36,7 @@ export const auditService = {
                     resourceId: input.resourceId,
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
-                    details: input.details ? (input.details as any) : undefined,
+                    details: input.details ? (input.details as Prisma.InputJsonValue) : undefined,
                 },
             })
         } catch (error) {

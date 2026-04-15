@@ -1,4 +1,6 @@
+import { ValidationError } from '../middlewares/errorHandler.js'
 import { prisma } from '../config/index.js'
+import { Prisma } from '@prisma/client'
 import logger from '../config/logger.js'
 
 interface CreateFaqCategoryInput {
@@ -113,7 +115,7 @@ export const faqService = {
      * 获取所有 FAQ 条目
      */
     async getItems(categoryId?: string, includeInactive = false) {
-        const where: any = {}
+        const where: Prisma.FaqItemWhereInput = {}
 
         if (!includeInactive) {
             where.isActive = true
@@ -302,7 +304,7 @@ export const faqService = {
         // 读取第一个 sheet
         const worksheet = workbook.worksheets[0]
         if (!worksheet) {
-            throw new Error('Excel 文件中没有工作表')
+            throw new ValidationError('Excel 文件中没有工作表')
         }
 
         // 读取表头（第一行）
@@ -344,9 +346,9 @@ export const faqService = {
 
             try {
                 // 必填字段检查
-                if (!row['Category'] && !row['分类']) throw new Error('缺少分类')
-                if (!row['Question'] && !row['问题']) throw new Error('缺少问题')
-                if (!row['Answer'] && !row['答案']) throw new Error('缺少答案')
+                if (!row['Category'] && !row['分类']) throw new ValidationError('缺少分类')
+                if (!row['Question'] && !row['问题']) throw new ValidationError('缺少问题')
+                if (!row['Answer'] && !row['答案']) throw new ValidationError('缺少答案')
 
                 const catName = (row['Category'] || row['分类']).trim()
                 const question = (row['Question'] || row['问题']).trim()

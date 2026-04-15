@@ -174,7 +174,7 @@
           <strong>主题：</strong>{{ previewData?.subject }}
         </div>
         <el-divider />
-        <div class="preview-body" v-html="previewData?.body"></div>
+        <div class="preview-body" v-html="sanitizeRichContent(previewData?.body || '')"></div>
       </div>
     </el-dialog>
 
@@ -218,6 +218,7 @@ import emailTemplateApi, {
   type CreateTemplateInput, 
   type UpdateTemplateInput 
 } from '@/api/emailTemplateApi'
+import { sanitizeRichContent, sanitizeHtml } from '@/utils/sanitize'
 
 // 状态
 const loading = ref(false)
@@ -325,8 +326,8 @@ function getStatusType(status: string): string {
 
 function truncateHtml(html: string, maxLength: number): string {
   const text = html.replace(/<[^>]*>/g, '')
-  if (text.length <= maxLength) return html
-  return text.substring(0, maxLength) + '...'
+  if (text.length <= maxLength) return sanitizeHtml(html)
+  return sanitizeHtml(text.substring(0, maxLength) + '...')
 }
 
 function formatDate(dateStr: string): string {

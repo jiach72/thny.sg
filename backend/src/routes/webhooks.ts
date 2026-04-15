@@ -4,10 +4,14 @@
  */
 import { Router, Request, Response, NextFunction } from 'express'
 import { body, param } from 'express-validator'
-import { validate, authMiddleware } from '../middlewares/index.js'
+import { validate, authMiddleware, adminAuth } from '../middlewares/index.js'
 import { webhookService } from '../services/webhookService.js'
+import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
+
+// 所有路由需要管理员权限
+router.use(adminAuth)
 
 /**
  * GET /webhooks - 获取所有 Webhook 端点
@@ -15,7 +19,7 @@ const router = Router()
 router.get('/', authMiddleware, async (_req: Request, res: Response, next: NextFunction) => {
     try {
         const endpoints = await webhookService.listEndpoints()
-        res.json(endpoints)
+        sendSuccess(res, endpoints)
     } catch (error) {
         next(error)
     }
@@ -41,7 +45,7 @@ router.post(
                 name: req.body.name,
                 createdById: req.user!.id,
             })
-            res.status(201).json(endpoint)
+            res.status(201).json(success(endpoint))
         } catch (error) {
             next(error)
         }
@@ -54,12 +58,18 @@ router.post(
 router.put(
     '/:id',
     authMiddleware,
-    [param('id').notEmpty()],
+    [
+        param('id').notEmpty(),
+        body('url').optional().isURL(),
+        body('events').optional().isArray(),
+        body('secret').optional().isString(),
+        body('enabled').optional().isBoolean(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const endpoint = await webhookService.updateEndpoint(req.params.id, req.body)
-            res.json(endpoint)
+            sendSuccess(res, endpoint)
         } catch (error) {
             next(error)
         }
@@ -77,7 +87,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await webhookService.deleteEndpoint(req.params.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }

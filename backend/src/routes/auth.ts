@@ -5,8 +5,9 @@ import { authService } from '../services/index.js'
 import { rbacService } from '../services/rbacService.js'
 import { validate } from '../middlewares/index.js'
 import { authMiddleware } from '../middlewares/index.js'
-import { sendSuccess, success } from '../utils/responseHelper.js'
+import { sendSuccess, sendError, success } from '../utils/responseHelper.js'
 import { config } from '../config/index.js'
+import logger from '../config/logger.js'
 
 const router = Router()
 
@@ -196,10 +197,7 @@ router.post(
             const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] || req.body.refreshToken
 
             if (!refreshToken) {
-                return res.status(400).json({
-                    code: 400,
-                    message: '刷新令牌不能为空',
-                })
+                return sendError(res, '刷新令牌不能为空', 400)
             }
 
             const result = await authService.refreshToken(refreshToken)
@@ -346,7 +344,7 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response, next:
     } catch (error) {
         // 即使黑名单失败，也清除 cookie 并返回成功
         clearRefreshTokenCookie(res)
-        console.error('Token 黑名单添加失败:', error)
+        logger.error('Token 黑名单添加失败:', error)
         sendSuccess(res, null, '已成功登出')
     }
 })
@@ -429,7 +427,15 @@ router.post(
         body('token').notEmpty().withMessage('重置令牌不能为空'),
         body('password')
             .isLength({ min: 8 })
-            .withMessage('密码至少 8 位'),
+            .withMessage('密码至少需要8个字符')
+            .matches(/[A-Z]/)
+            .withMessage('密码需包含至少一个大写字母')
+            .matches(/[a-z]/)
+            .withMessage('密码需包含至少一个小写字母')
+            .matches(/[0-9]/)
+            .withMessage('密码需包含至少一个数字')
+            .matches(/[!@#$%^&*(),.?":{}|<>]/)
+            .withMessage('密码需包含至少一个特殊字符'),
     ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
@@ -481,6 +487,42 @@ router.post(
             const { email, password, name } = req.body
             const result = await authService.setupFirstAdmin({ email, password, name })
             sendSuccess(res, result, '首次超级管理员创建成功，正在刷新环境')
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /auth/sso/ticket - 生成短命单点登录票据
+ */
+router.post('/sso/ticket', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await authService.generateSSOTicket(req.user!.id)
+        sendSuccess(res, result)
+    } catch (error) {
+        next(error)
+    }
+})
+
+/**
+ * POST /auth/sso/exchange - 核销票据并获取 JWT
+ */
+router.post(
+    '/sso/exchange',
+    authLimiter,
+    [body('ticket').notEmpty().withMessage('票据不能为空')],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { ticket } = req.body
+            const result = await authService.exchangeSSOTicket(ticket)
+            
+            if (result.refreshToken) {
+                setRefreshTokenCookie(res, result.refreshToken)
+            }
+            
+            sendSuccess(res, result, '授权成功')
         } catch (error) {
             next(error)
         }

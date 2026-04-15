@@ -95,6 +95,12 @@ const routes: RouteRecordRaw[] = [
                 meta: { title: '工作日历' },
             },
             {
+                path: 'inquiries/:id',
+                name: 'InquiryDetail',
+                component: () => import('@/views/inquiries/InquiryDetail.vue'),
+                meta: { title: '咨询详情' },
+            },
+            {
                 path: 'projects/:id',
                 name: 'ProjectDetail',
                 component: () => import('@/views/projects/ProjectDetail.vue'),

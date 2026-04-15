@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import { ChatDotRound, ArrowRight } from '@element-plus/icons-vue'
 import { useInquiryStore } from '@/stores'
 import dayjs from 'dayjs'
@@ -34,6 +35,7 @@ import 'dayjs/locale/zh-cn'
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 
+const router = useRouter()
 const inquiryStore = useInquiryStore()
 const { inquiries } = storeToRefs(inquiryStore)
 
@@ -41,8 +43,10 @@ const formatTimeAgo = (date: string) => {
   return dayjs(date).fromNow()
 }
 
-const handleInquiryClick = (_inquiry: any) => {
-  // TODO: 实现咨询详情查看逻辑
+const handleInquiryClick = (inquiry: any) => {
+  if (inquiry.id) {
+    router.push(`/inquiries/${inquiry.id}`)
+  }
 }
 </script>
 

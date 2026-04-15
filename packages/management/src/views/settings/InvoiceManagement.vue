@@ -325,6 +325,7 @@ import invoiceApi, {
   type CreateInvoiceInput,
   type CreatePaymentInput
 } from '@/api/invoiceApi'
+import { logger } from '@/utils/logger'
 
 // 状态
 const loading = ref(false)
@@ -419,7 +420,7 @@ async function loadStats() {
       }))
     }
   } catch (err) {
-    console.error('加载统计失败:', err)
+    logger.error('InvoiceManagement', '加载统计失败:', err)
   }
 }
 
@@ -520,7 +521,7 @@ async function openDetailDialog(invoice: Invoice) {
   try {
     payments.value = await invoiceApi.getPayments(invoice.id)
   } catch (err) {
-    console.error('加载付款记录失败:', err)
+    logger.error('InvoiceManagement', '加载付款记录失败:', err)
   } finally {
     paymentsLoading.value = false
   }

@@ -1,7 +1,9 @@
 /**
  * 新闻服务 - 文章管理
  */
+import { NotFoundError } from '../middlewares/errorHandler.js'
 import { prisma } from '../config/index.js'
+import { Prisma } from '@prisma/client'
 
 export interface CreateArticleInput {
     title: string
@@ -183,7 +185,7 @@ export const newsService = {
     }) {
         const { filters = {}, page = 1, pageSize = 20 } = options
 
-        const where: any = {}
+        const where: Prisma.NewsArticleWhereInput = {}
 
         if (filters.type) {
             where.type = filters.type
@@ -339,7 +341,7 @@ export const newsService = {
         })
 
         if (!article) {
-            throw new Error('文章不存在')
+            throw new NotFoundError('文章不存在')
         }
 
         return prisma.newsArticle.update({

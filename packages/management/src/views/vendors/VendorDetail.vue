@@ -39,7 +39,7 @@
 
           <div class="section-actions">
             <el-button type="primary" @click="showEditDialog = true">编辑信息</el-button>
-            <el-button type="danger" plain @click="handleDelete">删除供应商</el-button>
+            <el-button type="danger" plain v-permission="['vendors:delete']" @click="handleDelete">删除供应商</el-button>
           </div>
         </el-tab-pane>
 

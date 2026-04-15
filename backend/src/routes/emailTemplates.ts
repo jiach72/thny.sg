@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body, param, query } from 'express-validator'
 import { emailTemplateService } from '../services/emailTemplateService.js'
 import { validate, authMiddleware } from '../middlewares/index.js'
+import { sendSuccess, sendError, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -18,7 +19,7 @@ router.get(
             const category = req.query.category as string | undefined
             const includeInactive = req.query.includeInactive === 'true'
             const templates = await emailTemplateService.getTemplates(category, includeInactive)
-            res.json(templates)
+            sendSuccess(res, templates)
         } catch (error) {
             next(error)
         }
@@ -37,9 +38,9 @@ router.get(
         try {
             const template = await emailTemplateService.getTemplateById(req.params.id)
             if (!template) {
-                return res.status(404).json({ message: '模板不存在' })
+                return sendError(res, '模板不存在', 404)
             }
-            res.json(template)
+            sendSuccess(res, template)
         } catch (error) {
             next(error)
         }
@@ -61,7 +62,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const template = await emailTemplateService.createTemplate(req.body, req.user!.id)
-            res.status(201).json(template)
+            res.status(201).json(success(template))
         } catch (error) {
             next(error)
         }
@@ -74,12 +75,18 @@ router.post(
 router.put(
     '/:id',
     authMiddleware,
-    [param('id').notEmpty()],
+    [
+        param('id').notEmpty(),
+        body('name').optional().isString(),
+        body('subject').optional().isString(),
+        body('body').optional().isString(),
+        body('variables').optional().isArray(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const template = await emailTemplateService.updateTemplate(req.params.id, req.body)
-            res.json(template)
+            sendSuccess(res, template)
         } catch (error) {
             next(error)
         }
@@ -97,7 +104,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await emailTemplateService.deleteTemplate(req.params.id)
-            res.json({ success: true, message: '模板已删除' })
+            sendSuccess(res, null, '模板已删除')
         } catch (error) {
             next(error)
         }
@@ -112,7 +119,10 @@ router.delete(
 router.post(
     '/:id/preview',
     authMiddleware,
-    [param('id').notEmpty()],
+    [
+        param('id').notEmpty(),
+        body('context').optional().isObject(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
@@ -122,7 +132,7 @@ router.post(
                 custom: req.body.custom
             }
             const preview = await emailTemplateService.previewTemplate(req.params.id, context)
-            res.json(preview)
+            sendSuccess(res, preview)
         } catch (error) {
             next(error)
         }
@@ -154,7 +164,7 @@ router.post(
                 { leadId: req.body.leadId, customerId: req.body.customerId },
                 req.user!.id
             )
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -182,7 +192,7 @@ router.post(
                 leadId: req.body.leadId,
                 customerId: req.body.customerId
             }, req.user!.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -215,7 +225,7 @@ router.get(
                 limit: Number(req.query.limit) || 20
             }
             const result = await emailTemplateService.getEmailLogs(filters, pagination)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -231,7 +241,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await emailTemplateService.seedDefaultTemplates()
-            res.json({ success: true, message: '默认邮件模板已初始化' })
+            sendSuccess(res, null, '默认邮件模板已初始化')
         } catch (error) {
             next(error)
         }

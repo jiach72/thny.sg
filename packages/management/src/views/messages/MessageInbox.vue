@@ -148,7 +148,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">关闭</el-button>
-          <el-button type="danger" plain @click="handleDelete(currentMessage, true)">
+          <el-button type="danger" plain @click="currentMessage ? handleDelete(currentMessage, true) : undefined">
             删除此消息
           </el-button>
         </div>
@@ -163,13 +163,16 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import messageApi from '@/api/messageApi'
+import type { MessageItem, MessageListResponse } from '@/api/messageApi'
+import { sanitizeText } from '@/utils/sanitize'
 
 const router = useRouter()
 
 // 状态字典
+
 const loading = ref(false)
 const loadingAction = ref(false)
-const messages = ref<any[]>([])
+const messages = ref<MessageItem[]>([])
 
 const pagination = reactive({
   page: 1,
@@ -183,11 +186,10 @@ const filters = reactive({
 })
 
 const dialogVisible = ref(false)
-const currentMessage = ref<any>(null)
+const currentMessage = ref<MessageItem | null>(null)
 
-// 派生状态
 const hasUnread = computed(() => {
-  return messages.value.some((m: any) => !m.isRead)
+  return messages.value.some((m) => !m.isRead)
 })
 
 // 生命周期
@@ -202,25 +204,24 @@ const fetchMessages = async () => {
     const isReadParam = filters.isRead === '' ? undefined : filters.isRead as boolean
     // 这里如果后端支持 type 过滤，可以直接传 params，或者在前端过滤
     // 目前 apiClient.getMyMessages 接受 isRead
-    const res: any = await messageApi.getMyMessages(
+    const res: MessageListResponse = await messageApi.getMyMessages(
       pagination.page, 
       pagination.limit, 
       isReadParam
     )
     
-    // 如果返回里带有 list
     const data = res.data || res.messages || []
     
-    // 前端简单补全一下 type 过滤，因为我们在 getMyMessages API 目前只开放了 isRead
     let filteredData = data
     if (filters.type) {
-      filteredData = data.filter((m: any) => m.type === filters.type)
+      filteredData = data.filter((m) => m.type === filters.type)
     }
 
     messages.value = filteredData
     pagination.total = res.total || data.length || 0
-  } catch (error: any) {
-    ElMessage.error(error?.message || '获取消息列表失败')
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : '获取消息列表失败'
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }
@@ -231,7 +232,7 @@ const handleSearch = () => {
   fetchMessages()
 }
 
-const handleViewMessage = async (row: any) => {
+const handleViewMessage = async (row: MessageItem) => {
   currentMessage.value = row
   dialogVisible.value = true
   
@@ -251,14 +252,15 @@ const handleMarkAllRead = async () => {
     await messageApi.markAllAsRead()
     ElMessage.success('已全部标记为已读')
     fetchMessages()
-  } catch (error: any) {
-    ElMessage.error(error?.message || '操作失败')
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : '操作失败'
+    ElMessage.error(msg)
   } finally {
     loadingAction.value = false
   }
 }
 
-const handleDelete = async (row: any, closeDialog = false) => {
+const handleDelete = async (row: MessageItem, closeDialog = false) => {
   try {
     await ElMessageBox.confirm('确定要删除这条消息吗？此操作不可逆。', '提示', {
       type: 'warning'
@@ -272,9 +274,10 @@ const handleDelete = async (row: any, closeDialog = false) => {
     }
     
     fetchMessages()
-  } catch (err: any) {
+  } catch (err) {
     if (err !== 'cancel') {
-      ElMessage.error(err?.message || '删除失败')
+      const msg = err instanceof Error ? err.message : '删除失败'
+      ElMessage.error(msg)
     }
   }
 }
@@ -290,10 +293,9 @@ const formatDateTime = (dateStr: string) => {
   return dayjs(dateStr).format('YYYY-MM-DD HH:mm')
 }
 
-// 简单处理换行
 const formatContent = (content: string) => {
   if (!content) return ''
-  return content.replace(/\n/g, '<br/>')
+  return sanitizeText(content.replace(/\n/g, '<br/>'))
 }
 
 const getTypeLabel = (type: string) => {

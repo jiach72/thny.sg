@@ -145,6 +145,7 @@ import {
   Document,
   DataAnalysis,
 } from '@element-plus/icons-vue'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 // 定义类型
 interface SearchResult {
@@ -309,11 +310,14 @@ function getTagType(meta: string) {
   return types[meta] || 'info'
 }
 
-// 高亮搜索词
 function highlightQuery(text: string) {
   if (!query.value.trim()) return text
-  const regex = new RegExp(`(${query.value})`, 'gi')
-  return text.replace(regex, '<mark>$1</mark>')
+  const escaped = query.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escaped})`, 'gi')
+  return sanitizeHtml(text.replace(regex, '<mark>$1</mark>'), {
+    allowedTags: ['mark'],
+    allowedAttr: [],
+  })
 }
 
 // 选择状态管理

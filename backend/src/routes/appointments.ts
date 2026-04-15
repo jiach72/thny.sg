@@ -2,9 +2,51 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body, query } from 'express-validator'
 import { appointmentService } from '../services/index.js'
 import { validate, authMiddleware } from '../middlewares/index.js'
+import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
+/**
+ * @openapi
+ * /appointments:
+ *   get:
+ *     tags: [Appointments]
+ *     summary: 获取预约列表
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 成功获取预约列表
+ *       401:
+ *         description: 未授权
+ */
 // 获取预约列表
 router.get(
     '/',
@@ -31,13 +73,43 @@ router.get(
             }
 
             const result = await appointmentService.getAppointments(filters, { page, limit })
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
     }
 )
 
+/**
+ * @openapi
+ * /appointments:
+ *   post:
+ *     tags: [Appointments]
+ *     summary: 创建预约
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, startTime, endTime]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               startTime:
+ *                 type: string
+ *                 format: date-time
+ *               endTime:
+ *                 type: string
+ *                 format: date-time
+ *               userId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: 预约创建成功
+ *       401:
+ *         description: 未授权
+ */
 // 创建预约
 router.post(
     '/',
@@ -55,7 +127,7 @@ router.post(
                 req.body.userId = req.user!.id
             }
             const result = await appointmentService.createAppointment(req.body)
-            res.status(201).json(result)
+            res.status(201).json(success(result))
         } catch (error) {
             next(error)
         }
@@ -66,10 +138,18 @@ router.post(
 router.put(
     '/:id',
     authMiddleware,
+    [
+        body('date').optional().isISO8601(),
+        body('time').optional().isString(),
+        body('duration').optional().isInt({min:15}),
+        body('notes').optional().isString(),
+        body('status').optional().isIn(['SCHEDULED','COMPLETED','CANCELLED','NO_SHOW']),
+    ],
+    validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await appointmentService.updateAppointment(req.params.id, req.body)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -83,7 +163,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await appointmentService.deleteAppointment(req.params.id)
-            res.json({ success: true })
+            sendSuccess(res, null)
         } catch (error) {
             next(error)
         }

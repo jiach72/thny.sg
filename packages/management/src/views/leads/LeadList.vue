@@ -103,11 +103,11 @@
           <span class="selected-count">已选择 <strong>{{ selectedLeads.length }}</strong> 条线索</span>
         </div>
         <div class="batch-buttons">
-          <el-button size="small" @click="handleBatchAssign">
+          <el-button size="small" v-permission="['leads:update']" @click="handleBatchAssign">
             <el-icon><UserFilled /></el-icon>
             批量分配
           </el-button>
-          <el-button size="small" @click="handleBatchUpdateStatus">
+          <el-button size="small" v-permission="['leads:update']" @click="handleBatchUpdateStatus">
             <el-icon><Edit /></el-icon>
             批量改状态
           </el-button>
@@ -115,7 +115,7 @@
             <el-icon><Download /></el-icon>
             导出选中
           </el-button>
-          <el-button size="small" type="danger" @click="handleBatchDelete">
+          <el-button size="small" type="danger" v-permission="['leads:delete']" @click="handleBatchDelete">
             <el-icon><Delete /></el-icon>
             批量删除
           </el-button>
@@ -134,6 +134,7 @@
         v-else
         ref="leadTableRef"
         :data="leads"
+        v-loading="loading"
         class="lead-table"
         row-class-name="lead-row"
         border
@@ -357,6 +358,7 @@ import LeadConvertDialog from './components/LeadConvertDialog.vue'
 import LeadImportDialog from '@/components/LeadImportDialog.vue'
 import ScoreRing from '@/components/common/ScoreRing.vue'
 import { userApi } from '@/api/userApi'
+import { logger } from '@/utils/logger'
 
 const router = useRouter()
 const leadStore = useLeadStore()
@@ -422,7 +424,7 @@ async function fetchStatusCounts() {
     })
     statusCounts.value = counts
   } catch (e) {
-    console.error('获取状态计数失败:', e)
+    logger.error('LeadList', '获取状态计数失败:', e)
   }
 }
 
@@ -441,7 +443,7 @@ onMounted(async () => {
       assignees.value = userList.map((u: any) => ({ id: u.id, name: u.name }))
     }
   } catch (e) {
-    console.error('获取所有员工列表失败:', e)
+    logger.error('LeadList', '获取所有员工列表失败:', e)
   }
 })
 
@@ -465,7 +467,7 @@ function restoreColumnWidths() {
       })
     }, 100)
   } catch (e) {
-    console.warn('恢复列宽失败:', e)
+    logger.warn('LeadList', '恢复列宽失败:', e)
   }
 }
 

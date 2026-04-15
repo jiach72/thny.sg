@@ -145,14 +145,15 @@ async function main(): Promise<void> {
                 email: 'client@example.com',
                 kycStatus: 'APPROVED',
                 riskGrade: 'LOW',
-                familyMembers: {
-                    spouse: { name: '李梅', relation: 'Spouse' },
-                    children: [
-                        { name: '陈小明', relation: 'Son', age: 10 },
-                        { name: '陈小红', relation: 'Daughter', age: 8 }
-                    ]
-                }
             }
+        })
+
+        await prisma.familyMember.createMany({
+            data: [
+                { customerId: customer.id, name: '李梅', relationship: 'Spouse', isBeneficiary: true },
+                { customerId: customer.id, name: '陈小明', relationship: 'Son', isBeneficiary: false },
+                { customerId: customer.id, name: '陈小红', relationship: 'Daughter', isBeneficiary: false },
+            ]
         })
     }
 

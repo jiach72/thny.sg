@@ -1,5 +1,8 @@
-import { Router, Request, Response } from 'express'
-import { authMiddleware } from '../middlewares/auth.js'
+import { Router, Request, Response, NextFunction } from 'express'
+import { body } from 'express-validator'
+import { authMiddleware, adminAuth } from '../middlewares/auth.js'
+import { validate } from '../middlewares/index.js'
+import { sendSuccess, sendError } from '../utils/responseHelper.js'
 import { prisma } from '../config/index.js'
 import { faqService } from '../services/faqService.js'
 import { chatService } from '../services/chatService.js'
@@ -12,7 +15,7 @@ const router = Router()
  * 下载导入模板（无需认证，模板是空白文件）
  * GET /api/v1/faq-admin/import/template
  */
-router.get('/import/template', async (req: Request, res: Response) => {
+router.get('/import/template', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const ExcelJS = await import('exceljs')
         const workbook = new ExcelJS.Workbook()
@@ -31,13 +34,14 @@ router.get('/import/template', async (req: Request, res: Response) => {
         res.setHeader('Content-Disposition', 'attachment; filename=faq_template.xlsx')
         res.send(Buffer.from(buffer))
     } catch (error) {
-        console.error('Template gen error:', error)
-        res.status(500).send('Error generating template')
+        next(error)
     }
 })
 
 // ==================== 需要认证的路由 ====================
 router.use(authMiddleware)
+// 所有管理路由需要管理员权限
+router.use(adminAuth)
 
 // ==================== FAQ 分类管理 ====================
 
@@ -45,13 +49,12 @@ router.use(authMiddleware)
  * 获取所有 FAQ 分类（包含已禁用）
  * GET /api/v1/faq-admin/categories
  */
-router.get('/categories', async (req: Request, res: Response) => {
+router.get('/categories', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const categories = await faqService.getCategories(true) // 包含已禁用
-        res.json({ success: true, data: categories })
+        sendSuccess(res, categories)
     } catch (error) {
-        console.error('Error fetching FAQ categories:', error)
-        res.status(500).json({ success: false, message: '获取分类失败' })
+        next(error)
     }
 })
 
@@ -59,12 +62,19 @@ router.get('/categories', async (req: Request, res: Response) => {
  * 创建 FAQ 分类
  * POST /api/v1/faq-admin/categories
  */
-router.post('/categories', async (req: Request, res: Response) => {
+router.post('/categories',
+    [
+        body('name').notEmpty().withMessage('分类名称不能为空'),
+        body('icon').optional().isString(),
+        body('sortOrder').optional().isInt(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { name, nameEn, description, sortOrder } = req.body
 
         if (!name) {
-            return res.status(400).json({ success: false, message: '分类名称不能为空' })
+            return sendError(res, '分类名称不能为空', 400)
         }
 
         const category = await faqService.createCategory({
@@ -74,10 +84,9 @@ router.post('/categories', async (req: Request, res: Response) => {
             sortOrder
         })
 
-        res.json({ success: true, data: category, message: '分类创建成功' })
+        sendSuccess(res, category, '分类创建成功')
     } catch (error) {
-        console.error('Error creating FAQ category:', error)
-        res.status(500).json({ success: false, message: '创建分类失败' })
+        next(error)
     }
 })
 
@@ -85,7 +94,14 @@ router.post('/categories', async (req: Request, res: Response) => {
  * 更新 FAQ 分类
  * PUT /api/v1/faq-admin/categories/:id
  */
-router.put('/categories/:id', async (req: Request, res: Response) => {
+router.put('/categories/:id',
+    [
+        body('name').optional().isString(),
+        body('icon').optional().isString(),
+        body('sortOrder').optional().isInt(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { name, nameEn, description, sortOrder, isActive } = req.body
 
@@ -97,10 +113,9 @@ router.put('/categories/:id', async (req: Request, res: Response) => {
             isActive
         })
 
-        res.json({ success: true, data: category, message: '分类更新成功' })
+        sendSuccess(res, category, '分类更新成功')
     } catch (error) {
-        console.error('Error updating FAQ category:', error)
-        res.status(500).json({ success: false, message: '更新分类失败' })
+        next(error)
     }
 })
 
@@ -108,13 +123,12 @@ router.put('/categories/:id', async (req: Request, res: Response) => {
  * 删除（禁用）FAQ 分类
  * DELETE /api/v1/faq-admin/categories/:id
  */
-router.delete('/categories/:id', async (req: Request, res: Response) => {
+router.delete('/categories/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await faqService.deleteCategory(req.params.id)
-        res.json({ success: true, message: '分类已禁用' })
+        sendSuccess(res, null, '分类已禁用')
     } catch (error) {
-        console.error('Error deleting FAQ category:', error)
-        res.status(500).json({ success: false, message: '删除分类失败' })
+        next(error)
     }
 })
 
@@ -124,14 +138,13 @@ router.delete('/categories/:id', async (req: Request, res: Response) => {
  * 获取所有 FAQ 条目
  * GET /api/v1/faq-admin/items
  */
-router.get('/items', async (req: Request, res: Response) => {
+router.get('/items', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const categoryId = req.query.categoryId as string | undefined
         const items = await faqService.getItems(categoryId, true) // 包含已禁用
-        res.json({ success: true, data: items })
+        sendSuccess(res, items)
     } catch (error) {
-        console.error('Error fetching FAQ items:', error)
-        res.status(500).json({ success: false, message: '获取条目失败' })
+        next(error)
     }
 })
 
@@ -139,16 +152,15 @@ router.get('/items', async (req: Request, res: Response) => {
  * 获取单个 FAQ 条目
  * GET /api/v1/faq-admin/items/:id
  */
-router.get('/items/:id', async (req: Request, res: Response) => {
+router.get('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const item = await faqService.getItemById(req.params.id)
         if (!item) {
-            return res.status(404).json({ success: false, message: 'FAQ 不存在' })
+            return sendError(res, 'FAQ 不存在', 404)
         }
-        res.json({ success: true, data: item })
+        sendSuccess(res, item)
     } catch (error) {
-        console.error('Error fetching FAQ item:', error)
-        res.status(500).json({ success: false, message: '获取条目失败' })
+        next(error)
     }
 })
 
@@ -156,12 +168,21 @@ router.get('/items/:id', async (req: Request, res: Response) => {
  * 创建 FAQ 条目
  * POST /api/v1/faq-admin/items
  */
-router.post('/items', async (req: Request, res: Response) => {
+router.post('/items',
+    [
+        body('question').notEmpty().withMessage('问题不能为空'),
+        body('answer').notEmpty().withMessage('答案不能为空'),
+        body('categoryId').notEmpty().withMessage('分类不能为空'),
+        body('sortOrder').optional().isInt(),
+        body('tags').optional().isArray(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { question, questionEn, answer, answerEn, keywords, categoryId, sortOrder } = req.body
 
         if (!question || !answer || !categoryId) {
-            return res.status(400).json({ success: false, message: '问题、答案和分类为必填项' })
+            return sendError(res, '问题、答案和分类为必填项', 400)
         }
 
         const item = await faqService.createItem({
@@ -174,10 +195,9 @@ router.post('/items', async (req: Request, res: Response) => {
             sortOrder
         })
 
-        res.json({ success: true, data: item, message: 'FAQ 创建成功' })
+        sendSuccess(res, item, 'FAQ 创建成功')
     } catch (error) {
-        console.error('Error creating FAQ item:', error)
-        res.status(500).json({ success: false, message: '创建条目失败' })
+        next(error)
     }
 })
 
@@ -185,7 +205,17 @@ router.post('/items', async (req: Request, res: Response) => {
  * 更新 FAQ 条目
  * PUT /api/v1/faq-admin/items/:id
  */
-router.put('/items/:id', async (req: Request, res: Response) => {
+router.put('/items/:id',
+    [
+        body('question').optional().isString(),
+        body('answer').optional().isString(),
+        body('categoryId').optional().isString(),
+        body('sortOrder').optional().isInt(),
+        body('tags').optional().isArray(),
+        body('enabled').optional().isBoolean(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { question, questionEn, answer, answerEn, keywords, categoryId, sortOrder, isActive } = req.body
 
@@ -200,10 +230,9 @@ router.put('/items/:id', async (req: Request, res: Response) => {
             isActive
         })
 
-        res.json({ success: true, data: item, message: 'FAQ 更新成功' })
+        sendSuccess(res, item, 'FAQ 更新成功')
     } catch (error) {
-        console.error('Error updating FAQ item:', error)
-        res.status(500).json({ success: false, message: '更新条目失败' })
+        next(error)
     }
 })
 
@@ -212,13 +241,12 @@ router.put('/items/:id', async (req: Request, res: Response) => {
  * 删除（禁用）FAQ 条目
  * DELETE /api/v1/faq-admin/items/:id
  */
-router.delete('/items/:id', async (req: Request, res: Response) => {
+router.delete('/items/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await faqService.deleteItem(req.params.id)
-        res.json({ success: true, message: 'FAQ 已禁用' })
+        sendSuccess(res, null, 'FAQ 已禁用')
     } catch (error) {
-        console.error('Error deleting FAQ item:', error)
-        res.status(500).json({ success: false, message: '删除条目失败' })
+        next(error)
     }
 })
 
@@ -231,22 +259,17 @@ const upload = multer({ storage: multer.memoryStorage() })
  * 导入 FAQ 数据
  * POST /api/v1/faq-admin/import
  */
-router.post('/import', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/import', upload.single('file'), async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ success: false, message: '请上传文件' })
+            return sendError(res, '请上传文件', 400)
         }
 
         const result = await faqService.importFromBuffer(req.file.buffer)
 
-        res.json({
-            success: true,
-            data: result,
-            message: `导入完成: 成功 ${result.success} 条，失败 ${result.failed} 条`
-        })
+        sendSuccess(res, result, `导入完成: 成功 ${result.success} 条，失败 ${result.failed} 条`)
     } catch (error) {
-        console.error('Import error:', error)
-        res.status(500).json({ success: false, message: '导入失败: ' + (error as Error).message })
+        next(error)
     }
 })
 
@@ -256,7 +279,7 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
  * 获取聊天会话列表
  * GET /api/v1/faq-admin/sessions
  */
-router.get('/sessions', async (req: Request, res: Response) => {
+router.get('/sessions', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { status, page = 1, pageSize = 20 } = req.query
 
@@ -280,19 +303,14 @@ router.get('/sessions', async (req: Request, res: Response) => {
             prisma.chatSession.count({ where })
         ])
 
-        res.json({
-            success: true,
-            data: sessions,
-            pagination: {
+        sendSuccess(res, { items: sessions, pagination: {
                 page: Number(page),
                 pageSize: Number(pageSize),
                 total,
                 totalPages: Math.ceil(total / Number(pageSize))
-            }
-        })
+            } })
     } catch (error) {
-        console.error('Error fetching chat sessions:', error)
-        res.status(500).json({ success: false, message: '获取会话列表失败' })
+        next(error)
     }
 })
 
@@ -300,7 +318,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
  * 获取会话详情和消息
  * GET /api/v1/faq-admin/sessions/:id
  */
-router.get('/sessions/:id', async (req: Request, res: Response) => {
+router.get('/sessions/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const session = await prisma.chatSession.findUnique({
             where: { id: req.params.id },
@@ -312,13 +330,12 @@ router.get('/sessions/:id', async (req: Request, res: Response) => {
         })
 
         if (!session) {
-            return res.status(404).json({ success: false, message: '会话不存在' })
+            return sendError(res, '会话不存在', 404)
         }
 
-        res.json({ success: true, data: session })
+        sendSuccess(res, session)
     } catch (error) {
-        console.error('Error fetching chat session:', error)
-        res.status(500).json({ success: false, message: '获取会话详情失败' })
+        next(error)
     }
 })
 
@@ -326,12 +343,17 @@ router.get('/sessions/:id', async (req: Request, res: Response) => {
  * 关闭/归档会话
  * PUT /api/v1/faq-admin/sessions/:id/status
  */
-router.put('/sessions/:id/status', async (req: Request, res: Response) => {
+router.put('/sessions/:id/status',
+    [
+        body('status').isIn(['ACTIVE', 'RESOLVED', 'CLOSED']).withMessage('状态值无效'),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { status } = req.body
 
         if (!['active', 'closed', 'archived'].includes(status)) {
-            return res.status(400).json({ success: false, message: '无效的状态' })
+            return sendError(res, '无效的状态', 400)
         }
 
         const session = await prisma.chatSession.update({
@@ -342,10 +364,9 @@ router.put('/sessions/:id/status', async (req: Request, res: Response) => {
             }
         })
 
-        res.json({ success: true, data: session, message: '状态更新成功' })
+        sendSuccess(res, session, '状态更新成功')
     } catch (error) {
-        console.error('Error updating session status:', error)
-        res.status(500).json({ success: false, message: '更新状态失败' })
+        next(error)
     }
 })
 
@@ -355,14 +376,13 @@ router.put('/sessions/:id/status', async (req: Request, res: Response) => {
  * 获取未识别问题列表
  * GET /api/v1/faq-admin/unrecognized
  */
-router.get('/unrecognized', async (req: Request, res: Response) => {
+router.get('/unrecognized', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const status = (req.query.status as string) || 'pending'
         const questions = await chatService.getUnrecognizedQuestions(status)
-        res.json({ success: true, data: questions })
+        sendSuccess(res, questions)
     } catch (error) {
-        console.error('Error fetching unrecognized questions:', error)
-        res.status(500).json({ success: false, message: '获取失败' })
+        next(error)
     }
 })
 
@@ -370,12 +390,18 @@ router.get('/unrecognized', async (req: Request, res: Response) => {
  * 更新未识别问题状态
  * PUT /api/v1/faq-admin/unrecognized/:id
  */
-router.put('/unrecognized/:id', async (req: Request, res: Response) => {
+router.put('/unrecognized/:id',
+    [
+        body('status').isIn(['PENDING', 'RESOLVED', 'IGNORED']).withMessage('状态值无效'),
+        body('resolvedAnswer').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { status } = req.body
 
         if (!['pending', 'added', 'ignored'].includes(status)) {
-            return res.status(400).json({ success: false, message: '无效的状态' })
+            return sendError(res, '无效的状态', 400)
         }
 
         const question = await prisma.unrecognizedQuestion.update({
@@ -383,10 +409,9 @@ router.put('/unrecognized/:id', async (req: Request, res: Response) => {
             data: { status }
         })
 
-        res.json({ success: true, data: question, message: '状态更新成功' })
+        sendSuccess(res, question, '状态更新成功')
     } catch (error) {
-        console.error('Error updating unrecognized question:', error)
-        res.status(500).json({ success: false, message: '更新失败' })
+        next(error)
     }
 })
 
@@ -396,7 +421,7 @@ router.put('/unrecognized/:id', async (req: Request, res: Response) => {
  * 获取聊天机器人统计
  * GET /api/v1/faq-admin/stats
  */
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const [
             totalSessions,
@@ -419,20 +444,16 @@ router.get('/stats', async (req: Request, res: Response) => {
             })
         ])
 
-        res.json({
-            success: true,
-            data: {
+        sendSuccess(res, {
                 totalSessions,
                 activeSessions,
                 totalMessages,
                 totalFaqs,
                 pendingUnrecognized,
                 topFaqs
-            }
-        })
+            })
     } catch (error) {
-        console.error('Error fetching stats:', error)
-        res.status(500).json({ success: false, message: '获取统计失败' })
+        next(error)
     }
 })
 

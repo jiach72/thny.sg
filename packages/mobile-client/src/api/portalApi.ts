@@ -86,10 +86,24 @@ export const portalApi = {
   updatePreferences(prefs: { email?: boolean; sms?: boolean; projectUpdate?: boolean; documentReminder?: boolean }) {
     return http.put<void>('/portal/preferences', prefs)
   },
+  getPreferences() {
+    return http.get<{ email: boolean; sms: boolean; projectUpdate: boolean; documentReminder: boolean }>('/portal/preferences')
+  },
   
   // 导出数据
   exportMyData() {
     return http.get<any>('/portal/export-data')
+  },
+
+  // 家庭成员
+  addFamilyMember(data: { name: string; relationship: string; isBeneficiary?: boolean }) {
+    return http.post<IdResponse>('/portal/family-members', data)
+  },
+  updateFamilyMember(id: string, data: { name?: string; relationship?: string; isBeneficiary?: boolean }) {
+    return http.put<void>(`/portal/family-members/${id}`, data)
+  },
+  deleteFamilyMember(id: string) {
+    return http.del<void>(`/portal/family-members/${id}`)
   },
 }
 
@@ -130,4 +144,11 @@ export const authApi = {
   disable2fa(payload: { code: string }) {
     return http.post<void>('/auth/2fa/disable', payload)
   },
+  forgotPassword(email: string) {
+    return http.post<void>('/auth/forgot-password', { email })
+  },
+  resetPassword(data: { token: string; password: string }) {
+    return http.post<void>('/auth/reset-password', data)
+  },
 }
+

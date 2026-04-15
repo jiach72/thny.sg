@@ -1,12 +1,43 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body, param } from 'express-validator'
 import { scoringService } from '../services/index.js'
-import { validate, authMiddleware } from '../middlewares/index.js'
+import { validate, authMiddleware, adminAuth } from '../middlewares/index.js'
+import { sendSuccess, sendError, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
 // ==================== 评分规则管理 ====================
 
+/**
+ * @openapi
+ * /scoring/rules:
+ *   get:
+ *     tags: [Scoring]
+ *     summary: 获取所有评分规则
+ *     parameters:
+ *       - in: query
+ *         name: includeInactive
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: 是否包含已停用的规则
+ *     responses:
+ *       200:
+ *         description: 成功获取评分规则列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: 未授权
+ */
 /**
  * GET /scoring/rules - 获取所有评分规则
  */
@@ -17,7 +48,7 @@ router.get(
         try {
             const includeInactive = req.query.includeInactive === 'true'
             const rules = await scoringService.getRules(includeInactive)
-            res.json(rules)
+            sendSuccess(res, rules)
         } catch (error) {
             next(error)
         }
@@ -36,9 +67,9 @@ router.get(
         try {
             const rule = await scoringService.getRuleById(req.params.id)
             if (!rule) {
-                return res.status(404).json({ message: '规则不存在' })
+                return sendError(res, '规则不存在', 404)
             }
-            res.json(rule)
+            sendSuccess(res, rule)
         } catch (error) {
             next(error)
         }
@@ -61,7 +92,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const rule = await scoringService.createRule(req.body)
-            res.status(201).json(rule)
+            res.status(201).json(success(rule))
         } catch (error) {
             next(error)
         }
@@ -74,12 +105,18 @@ router.post(
 router.put(
     '/rules/:id',
     authMiddleware,
-    [param('id').notEmpty()],
+    [
+        param('id').notEmpty(),
+        body('name').optional().isString(),
+        body('weight').optional().isFloat({min:0,max:100}),
+        body('conditions').optional().isArray(),
+        body('enabled').optional().isBoolean(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const rule = await scoringService.updateRule(req.params.id, req.body)
-            res.json(rule)
+            sendSuccess(res, rule)
         } catch (error) {
             next(error)
         }
@@ -97,7 +134,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await scoringService.deleteRule(req.params.id)
-            res.json({ success: true, message: '规则已删除' })
+            sendSuccess(res, null, '规则已删除')
         } catch (error) {
             next(error)
         }
@@ -106,6 +143,46 @@ router.delete(
 
 // ==================== 评分操作 ====================
 
+/**
+ * @openapi
+ * /scoring/leads/{id}/calculate:
+ *   post:
+ *     tags: [Scoring]
+ *     summary: 计算单个线索评分
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 线索ID
+ *     responses:
+ *       200:
+ *         description: 评分计算成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     leadId:
+ *                       type: string
+ *                     score:
+ *                       type: integer
+ *                     breakdown:
+ *                       type: object
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 线索不存在
+ */
 /**
  * POST /scoring/leads/:id/calculate - 计算单个线索评分
  */
@@ -117,7 +194,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const lead = await scoringService.updateLeadScore(req.params.id) as any
-            res.json({
+            sendSuccess(res, {
                 leadId: lead.id,
                 score: lead.score,
                 breakdown: lead.scoreBreakdown,
@@ -130,19 +207,45 @@ router.post(
 )
 
 /**
+ * @openapi
+ * /scoring/batch:
+ *   post:
+ *     tags: [Scoring]
+ *     summary: 批量更新所有线索评分
+ *     description: 仅管理员可用，重新计算所有线索的评分
+ *     responses:
+ *       200:
+ *         description: 批量评分完成
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     updated:
+ *                       type: integer
+ *                     failed:
+ *                       type: integer
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 非管理员无权操作
+ */
+/**
  * POST /scoring/batch - 批量更新所有线索评分
  */
 router.post(
     '/batch',
     authMiddleware,
+    adminAuth,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await scoringService.batchUpdateScores()
-            res.json({
-                success: true,
-                ...result,
-                message: `已更新 ${result.updated} 条线索评分，失败 ${result.failed} 条`
-            })
+            sendSuccess(res, result, `已更新 ${result.updated} 条线索评分，失败 ${result.failed} 条`)
         } catch (error) {
             next(error)
         }
@@ -155,10 +258,11 @@ router.post(
 router.post(
     '/seed',
     authMiddleware,
+    adminAuth,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await scoringService.seedDefaultRules()
-            res.json({ success: true, message: '默认评分规则已初始化' })
+            sendSuccess(res, null, '默认评分规则已初始化')
         } catch (error) {
             next(error)
         }

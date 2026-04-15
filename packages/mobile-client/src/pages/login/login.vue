@@ -1,90 +1,104 @@
 <template>
-  <view class="login-page">
-    <!-- 顶部品牌区 -->
-    <view class="brand-zone">
-      <view class="brand-icon">
-        <text class="icon-text">TH</text>
-      </view>
-      <text class="brand-title">TongHai Nanyang</text>
-      <text class="brand-subtitle">通海南洋 · 专业移民服务平台</text>
-    </view>
-
-    <!-- 登录表单卡片 -->
-    <view class="login-card">
-      <view v-if="!show2FA">
-        <view class="field-group">
-          <view class="field-label">邮箱</view>
-          <input
-            v-model="form.email"
-            placeholder="请输入邮箱"
-            type="text"
-            class="field-input"
-          />
+  <base-layout>
+    <view class="login-page">
+      <!-- 顶部品牌区 -->
+      <view class="brand-zone">
+        <view class="brand-icon">
+          <text class="icon-text">TH</text>
         </view>
-        <view class="field-group">
-          <view class="field-label">密码</view>
-          <input
-            v-model="form.password"
-            placeholder="请输入密码"
-            :password="true"
-            class="field-input"
-          />
-        </view>
-
-        <view class="form-footer">
-          <nut-button
-            type="primary"
-            size="large"
-            block
-            :loading="authStore.loading"
-            @click="handleLogin"
-          >
-            登录
-          </nut-button>
-        </view>
+        <text class="brand-title">TongHai Nanyang</text>
+        <text class="brand-subtitle">通海南洋 · 专业移民服务平台</text>
       </view>
 
-      <!-- 2FA 验证面板 -->
-      <view v-else class="twofa-panel">
-        <text class="twofa-hint">请输入您的双重认证验证码</text>
-        <input
-          v-model="tfaCode"
-          placeholder="6 位验证码"
-          type="number"
-          :maxlength="6"
-          class="field-input twofa-input"
-        />
-        <nut-button
-          type="primary"
-          size="large"
-          block
-          :loading="authStore.loading"
-          @click="handle2FA"
-        >
-          验证
-        </nut-button>
-        <nut-button
-          plain
-          size="large"
-          block
-          class="mt-3"
-          @click="show2FA = false; tfaTempToken = ''"
-        >
-          返回
-        </nut-button>
+      <!-- 登录向导式卡片 -->
+      <view class="login-card">
+        <WizardTimeline :steps="['账户认证', '安全验证']" :currentStep="show2FA ? 1 : 0">
+          <template #step-0>
+            <view v-show="!show2FA" class="step-container">
+              <view class="field-group">
+                <view class="field-label">邮箱</view>
+                <input
+                  v-model="form.email"
+                  placeholder="请输入邮箱"
+                  type="text"
+                  class="field-input"
+                />
+              </view>
+              <view class="field-group">
+                <view class="field-label">密码</view>
+                <input
+                  v-model="form.password"
+                  placeholder="请输入密码"
+                  :password="true"
+                  class="field-input"
+                />
+              </view>
+
+              <view class="form-footer">
+                <nut-button
+                  type="primary"
+                  size="large"
+                  block
+                  :loading="authStore.loading"
+                  @click="handleLogin"
+                >
+                  下一步
+                </nut-button>
+                <view class="forgot-link" @click="goForgotPassword">
+                  <text>忘记密码？</text>
+                </view>
+              </view>
+            </view>
+          </template>
+
+          <template #step-1>
+            <view v-show="show2FA" class="twofa-panel step-container">
+              <text class="twofa-hint">保障您的账户安全</text>
+              <input
+                v-model="tfaCode"
+                placeholder="请输入 6 位动态刷新验证码"
+                type="number"
+                :maxlength="6"
+                class="field-input twofa-input"
+              />
+              
+              <view class="form-footer">
+                <nut-button
+                  type="primary"
+                  size="large"
+                  block
+                  :loading="authStore.loading"
+                  @click="handle2FA"
+                >
+                  完成验证并登录
+                </nut-button>
+                <nut-button
+                  plain
+                  size="large"
+                  block
+                  class="mt-3 button-back"
+                  @click="show2FA = false; tfaTempToken = ''"
+                >
+                  返回修改
+                </nut-button>
+              </view>
+            </view>
+          </template>
+        </WizardTimeline>
+      </view>
+
+      <!-- 底部版权 -->
+      <view class="footer">
+        <text class="copyright">© 2026 TongHai Nanyang Pte. Ltd.</text>
       </view>
     </view>
-
-    <!-- 底部版权 -->
-    <view class="footer">
-      <text class="copyright">© 2026 TongHai Nanyang Pte. Ltd.</text>
-    </view>
-  </view>
+  </base-layout>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useAuthStore } from '../../stores/auth'
+import WizardTimeline from '../../components/WizardTimeline.vue'
 
 const authStore = useAuthStore()
 
@@ -138,6 +152,10 @@ async function handle2FA() {
     const msg = e instanceof Error ? e.message : '验证失败'
     uni.showToast({ title: msg, icon: 'none' })
   }
+}
+
+function goForgotPassword() {
+  uni.navigateTo({ url: '/pages/auth/forgot-password' })
 }
 </script>
 
@@ -257,5 +275,22 @@ async function handle2FA() {
 .copyright {
   font-size: 22rpx;
   color: #475569;
+}
+
+.step-container {
+  padding-top: 16rpx;
+}
+
+.button-back {
+  color: var(--th-text-main);
+  border-color: var(--th-border-color);
+  background: transparent;
+}
+
+.forgot-link {
+  text-align: center;
+  margin-top: 24rpx;
+  color: #94a3b8;
+  font-size: 26rpx;
 }
 </style>

@@ -3,6 +3,7 @@
     :model-value="visible"
     title="线索转化核验"
     width="650px"
+    custom-class="convert-dialog"
     @update:model-value="emit('update:visible', $event)"
   >
     <div class="convert-notice">
@@ -104,6 +105,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Message, Phone } from '@element-plus/icons-vue'
 import { useLeadStore } from '@/stores'
 import type { Lead } from '@tonghai/shared/types'
+import { logger } from '@/utils/logger'
 
 const props = defineProps<{
   visible: boolean
@@ -181,7 +183,7 @@ async function handleCheckDuplicates() {
       duplicates.customers = []
     }
   } catch (error) {
-    console.warn('查重失败', error)
+    logger.warn('LeadConvertDialog', '查重失败', error)
   }
 }
 
@@ -191,28 +193,28 @@ function close() {
 
 async function handleConvert() {
   if (!formRef.value || !props.lead) return
-  
-  const leadId = props.lead.id
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    
-    converting.value = true
-    try {
-      // 若邮箱被用户修改，需在 conversion API 附带 overrides (后侧需配合支持接收这些参数)
-      await leadStore.convertToCustomer(leadId, {
-        email: form.email,
-        phone: form.phone
-      })
-      
-      ElMessage.success('已成功转化为正式客户并开通门户账户')
-      emit('success')
-      close()
-    } catch (error: any) {
-      ElMessage.error(error.message || '转化失败，请检查数据后重试')
-    } finally {
-      converting.value = false
-    }
-  })
+
+  try {
+    await formRef.value.validate()
+  } catch {
+    return // 验证不通过
+  }
+
+  converting.value = true
+  try {
+    await leadStore.convertToCustomer(props.lead.id, {
+      email: form.email,
+      phone: form.phone
+    })
+
+    ElMessage.success('已成功转化为正式客户并开通门户账户')
+    emit('success')
+    close()
+  } catch (error: any) {
+    ElMessage.error(error.message || '转化失败，请检查数据后重试')
+  } finally {
+    converting.value = false
+  }
 }
 </script>
 
@@ -247,5 +249,21 @@ async function handleConvert() {
 
 .duplicate-list li {
   margin-bottom: 4px;
+}
+</style>
+
+<style>
+/* 移动端对话框自适应宽度 */
+@media (max-width: 768px) {
+  .convert-dialog .el-dialog {
+    width: 95vw !important;
+    margin: 16px auto !important;
+  }
+  .convert-dialog .el-dialog__body {
+    padding: 16px !important;
+  }
+  .convert-dialog .convert-form .el-form-item__label {
+    width: 80px !important;
+  }
 }
 </style>

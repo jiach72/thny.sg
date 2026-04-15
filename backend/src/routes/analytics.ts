@@ -1,11 +1,12 @@
 import { Router } from 'express'
-import { authMiddleware } from '../middlewares/auth.js'
+import { adminAuth } from '../middlewares/auth.js'
 import { analyticsService } from '../services/analyticsService.js'
+import { sendSuccess } from '../utils/responseHelper.js'
 
 const router = Router()
 
-// 所有路由需要认证
-router.use(authMiddleware)
+// 所有路由需要管理员权限
+router.use(adminAuth)
 
 // 销售漏斗数据
 router.get('/sales-funnel', async (req, res, next) => {
@@ -15,7 +16,7 @@ router.get('/sales-funnel', async (req, res, next) => {
             startDate: startDate as string,
             endDate: endDate as string,
         })
-        res.json({ success: true, data })
+        sendSuccess(res, data)
     } catch (error) {
         next(error)
     }
@@ -29,7 +30,7 @@ router.get('/trend', async (req, res, next) => {
             period as string,
             Number(months)
         )
-        res.json({ success: true, data })
+        sendSuccess(res, data)
     } catch (error) {
         next(error)
     }
@@ -43,7 +44,7 @@ router.get('/revenue-trend', async (req, res, next) => {
             period as string,
             Number(months)
         )
-        res.json({ success: true, data })
+        sendSuccess(res, data)
     } catch (error) {
         next(error)
     }
@@ -57,7 +58,7 @@ router.get('/channels', async (req, res, next) => {
             startDate: startDate as string,
             endDate: endDate as string,
         })
-        res.json({ success: true, data })
+        sendSuccess(res, data)
     } catch (error) {
         next(error)
     }
@@ -71,7 +72,7 @@ router.get('/team-performance', async (req, res, next) => {
             startDate: startDate as string,
             endDate: endDate as string,
         })
-        res.json({ success: true, data })
+        sendSuccess(res, data)
     } catch (error) {
         next(error)
     }
@@ -82,7 +83,7 @@ router.get('/forecast', async (req, res, next) => {
     try {
         const { months = '3' } = req.query
         const data = await analyticsService.getForecast(Number(months))
-        res.json({ success: true, data })
+        sendSuccess(res, data)
     } catch (error) {
         next(error)
     }

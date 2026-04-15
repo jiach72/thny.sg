@@ -96,6 +96,7 @@ import type { FormInstance } from 'element-plus'
 import type { FollowUpItem } from '@/api/workflowApi'
 import { taskApi, appointmentApi } from '@/api'
 import { useAuthStore } from '@/stores/authStore'
+import { logger } from '@/utils/logger'
 
 // 状态
 const authStore = useAuthStore()
@@ -195,19 +196,7 @@ async function loadEvents() {
       })
     }
 
-    formattedEvents.push({
-        id: 'mock-1',
-        type: 'TASK',
-        title: '这是一个测试任务，看是否显示',
-        description: '测试描述',
-        priority: 'HIGH',
-        dueDate: new Date().toISOString(),
-        status: 'NOT_STARTED',
-        isOverdue: false
-    })
-
     // 更新到响应式变量
-    console.log('--- Calendar loaded formatted events:', formattedEvents)
     events.value = formattedEvents
 
   } catch (error: any) {
@@ -222,7 +211,7 @@ const eventsMap = computed(() => {
   const map = new Map<string, FollowUpItem[]>()
   events.value.forEach(event => {
     if (!event.dueDate) {
-        console.warn('Event without dueDate:', event)
+        logger.warn('CalendarView', 'Event without dueDate:', event)
         return
     }
     const dObj = new Date(event.dueDate as string)
@@ -238,7 +227,6 @@ const eventsMap = computed(() => {
     map.get(dStr)!.push(event)
   })
   
-  console.log('--- Calendar Computed eventsMap:', map)
   return map
 })
 

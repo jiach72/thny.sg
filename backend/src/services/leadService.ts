@@ -1,7 +1,8 @@
 import { prisma } from '../config/index.js'
-import { NotFoundError, ConflictError } from '../middlewares/index.js'
+import { NotFoundError, ConflictError, BadRequestError, ValidationError } from '../middlewares/index.js'
 import { scoringService } from './scoringService.js'
 import { webhookService } from './webhookService.js'
+import logger from '../config/logger.js'
 import type { LeadStatus, Prisma } from '@prisma/client'
 
 interface CreateLeadInput {
@@ -54,6 +55,14 @@ interface CsvRecord {
     email?: string
     phone?: string
     [key: string]: string | undefined
+}
+
+interface ImportResult {
+    id: string
+    contactName: string
+    email?: string | null
+    phone?: string | null
+    companyName?: string | null
 }
 
 export const leadService = {
@@ -206,43 +215,48 @@ export const leadService = {
             }
         }
 
-        const lead = await prisma.lead.create({
-            data: {
-                contactName: data.contactName,
-                email: data.email,
-                phone: data.phone,
-                companyName: data.companyName,
-                country: data.country,
-                serviceTypes: data.serviceTypes || [],
-                budgetRange: data.budgetRange,
-                sourceChannel: data.sourceChannel,
-                inquiryMessage: data.inquiryMessage,
-                tags: data.tags || [],
-                status: 'NEW',
-            },
-            include: {
-                assignedTo: {
-                    select: { id: true, name: true, email: true },
-                },
-            },
-        })
-
-        // 记录活动
-        if (creatorId) {
-            await prisma.activity.create({
+        // 使用事务保证线索创建与活动记录的原子性
+        const lead = await prisma.$transaction(async (tx) => {
+            const created = await tx.lead.create({
                 data: {
-                    actorId: creatorId,
-                    actionType: 'CREATED',
-                    entityType: 'LEAD',
-                    entityId: lead.id,
-                    leadId: lead.id,
-                    description: `创建了线索: ${lead.contactName}`,
+                    contactName: data.contactName,
+                    email: data.email,
+                    phone: data.phone,
+                    companyName: data.companyName,
+                    country: data.country,
+                    serviceTypes: data.serviceTypes || [],
+                    budgetRange: data.budgetRange,
+                    sourceChannel: data.sourceChannel,
+                    inquiryMessage: data.inquiryMessage,
+                    tags: data.tags || [],
+                    status: 'NEW',
+                },
+                include: {
+                    assignedTo: {
+                        select: { id: true, name: true, email: true },
+                    },
                 },
             })
-        }
+
+            // 记录活动
+            if (creatorId) {
+                await tx.activity.create({
+                    data: {
+                        actorId: creatorId,
+                        actionType: 'CREATED',
+                        entityType: 'LEAD',
+                        entityId: created.id,
+                        leadId: created.id,
+                        description: `创建了线索: ${created.contactName}`,
+                    },
+                })
+            }
+
+            return created
+        })
 
         // Webhook 推送
-        webhookService.emit('lead.created', lead).catch(console.error)
+        webhookService.emit('lead.created', lead).catch((err: Error) => logger.error('Webhook emit failed:', err))
 
         return lead
     },
@@ -256,50 +270,55 @@ export const leadService = {
             throw new NotFoundError('线索不存在')
         }
 
-        const lead = await prisma.lead.update({
-            where: { id },
-            data: {
-                ...(data.contactName && { contactName: data.contactName }),
-                ...(data.email !== undefined && { email: data.email }),
-                ...(data.phone !== undefined && { phone: data.phone }),
-                ...(data.companyName !== undefined && { companyName: data.companyName }),
-                ...(data.country !== undefined && { country: data.country }),
-                ...(data.serviceTypes && { serviceTypes: data.serviceTypes }),
-                ...(data.budgetRange !== undefined && { budgetRange: data.budgetRange }),
-                ...(data.inquiryMessage !== undefined && { inquiryMessage: data.inquiryMessage }),
-                ...(data.status && { status: data.status }),
-                ...(data.tags && { tags: data.tags }),
-                ...(data.score !== undefined && { score: data.score }),
-                ...(data.lastContactedAt && { lastContactedAt: new Date(data.lastContactedAt) }),
-            },
-            include: {
-                assignedTo: {
-                    select: { id: true, name: true, email: true },
-                },
-            },
-        })
-
-        // 记录活动
-        if (updaterId) {
-            await prisma.activity.create({
+        // 使用事务保证线索更新与活动记录的原子性
+        const lead = await prisma.$transaction(async (tx) => {
+            const updated = await tx.lead.update({
+                where: { id },
                 data: {
-                    actorId: updaterId,
-                    actionType: 'UPDATED',
-                    entityType: 'LEAD',
-                    entityId: lead.id,
-                    leadId: lead.id,
-                    changes: data as object,
-                    description: `更新了线索: ${lead.contactName}`,
+                    ...(data.contactName && { contactName: data.contactName }),
+                    ...(data.email !== undefined && { email: data.email }),
+                    ...(data.phone !== undefined && { phone: data.phone }),
+                    ...(data.companyName !== undefined && { companyName: data.companyName }),
+                    ...(data.country !== undefined && { country: data.country }),
+                    ...(data.serviceTypes && { serviceTypes: data.serviceTypes }),
+                    ...(data.budgetRange !== undefined && { budgetRange: data.budgetRange }),
+                    ...(data.inquiryMessage !== undefined && { inquiryMessage: data.inquiryMessage }),
+                    ...(data.status && { status: data.status }),
+                    ...(data.tags && { tags: data.tags }),
+                    ...(data.score !== undefined && { score: data.score }),
+                    ...(data.lastContactedAt && { lastContactedAt: new Date(data.lastContactedAt) }),
+                },
+                include: {
+                    assignedTo: {
+                        select: { id: true, name: true, email: true },
+                    },
                 },
             })
-        }
+
+            // 记录活动
+            if (updaterId) {
+                await tx.activity.create({
+                    data: {
+                        actorId: updaterId,
+                        actionType: 'UPDATED',
+                        entityType: 'LEAD',
+                        entityId: updated.id,
+                        leadId: updated.id,
+                        changes: data as object,
+                        description: `更新了线索: ${updated.contactName}`,
+                    },
+                })
+            }
+
+            return updated
+        })
         // 活动后自动重新评分 (fire-and-forget，不阻塞主流程)
         scoringService.updateLeadScore(id).catch((err: Error) => {
-            console.warn(`⚠️ 线索 ${id} 自动评分失败:`, err.message)
+            logger.warn(`线索 ${id} 自动评分失败:`, err.message)
         })
 
         // Webhook 推送
-        webhookService.emit('lead.updated', lead).catch(console.error)
+        webhookService.emit('lead.updated', lead).catch((err: Error) => logger.error('Webhook emit failed:', err))
 
         return lead
     },
@@ -328,7 +347,7 @@ export const leadService = {
         })
         // 活动后自动重新评分 (fire-and-forget)
         scoringService.updateLeadScore(id).catch((err: Error) => {
-            console.warn(`⚠️ 线索 ${id} 备注后自动评分失败:`, err.message)
+            logger.warn(`线索 ${id} 备注后自动评分失败:`, err.message)
         })
 
         return activity
@@ -350,31 +369,36 @@ export const leadService = {
 
         const previousAssignee = lead.assignedToId
 
-        const updated = await prisma.lead.update({
-            where: { id },
-            data: { assignedToId },
-            include: {
-                assignedTo: {
-                    select: { id: true, name: true, email: true },
+        // 使用事务保证线索分配与活动记录的原子性
+        const updated = await prisma.$transaction(async (tx) => {
+            const assigned = await tx.lead.update({
+                where: { id },
+                data: { assignedToId },
+                include: {
+                    assignedTo: {
+                        select: { id: true, name: true, email: true },
+                    },
                 },
-            },
-        })
+            })
 
-        // 记录活动
-        await prisma.activity.create({
-            data: {
-                actorId: assignerId,
-                actionType: 'ASSIGNED',
-                entityType: 'LEAD',
-                entityId: id,
-                leadId: id,
-                changes: { previousAssignee, newAssignee: assignedToId, reason },
-                description: `将线索分配给 ${assignee.name}`,
-            },
+            // 记录活动
+            await tx.activity.create({
+                data: {
+                    actorId: assignerId,
+                    actionType: 'ASSIGNED',
+                    entityType: 'LEAD',
+                    entityId: id,
+                    leadId: id,
+                    changes: { previousAssignee, newAssignee: assignedToId, reason },
+                    description: `将线索分配给 ${assignee.name}`,
+                },
+            })
+
+            return assigned
         })
 
         // Webhook 推送
-        webhookService.emit('lead.assigned', updated).catch(console.error)
+        webhookService.emit('lead.assigned', updated).catch((err: Error) => logger.error('Webhook emit failed:', err))
 
         return updated
     },
@@ -514,7 +538,7 @@ export const leadService = {
             const hashedPassword = await bcrypt.hash(tempPassword, 10)
 
             const customerRole = await tx.role.findUnique({ where: { code: 'CUSTOMER' } })
-            if (!customerRole) throw new Error('System error: CUSTOMER role not found')
+            if (!customerRole) throw new BadRequestError('系统配置错误: CUSTOMER 角色不存在')
 
             const user = await tx.user.create({
                 data: {
@@ -582,11 +606,11 @@ export const leadService = {
                 `,
             })
         } catch (error) {
-            console.error('Failed to send customer activation email:', error)
+            logger.error('Failed to send customer activation email:', error)
         }
 
         // Webhook 推送
-        webhookService.emit('lead.converted', result.customer).catch(console.error)
+        webhookService.emit('lead.converted', result.customer).catch((err: Error) => logger.error('Webhook emit failed:', err))
 
         return {
             success: true,
@@ -610,13 +634,13 @@ export const leadService = {
             trim: true,
         })
 
-        const successful: any[] = []
+        const successful: ImportResult[] = []
         const failed: Array<CsvRecord & { reason: string }> = []
 
         for (const record of records) {
             try {
                 // Simple validation
-                if (!record.contactName) throw new Error('缺少联系人姓名 (contactName)')
+                if (!record.contactName) throw new ValidationError('缺少联系人姓名')
 
                 // Map fields (adjust based on CSV headers)
                 const leadData = {
@@ -632,15 +656,16 @@ export const leadService = {
                 // Check duplicates by email
                 if (leadData.email) {
                     const existing = await prisma.lead.findFirst({ where: { email: leadData.email } })
-                    if (existing) throw new Error(`邮箱 ${leadData.email} 已存在`)
+                    if (existing) throw new ConflictError(`邮箱 ${leadData.email} 已存在`)
                 }
 
                 const lead = await prisma.lead.create({
                     data: leadData
                 })
                 successful.push(lead)
-            } catch (error: any) {
-                failed.push({ ...record, reason: error.message })
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : '导入失败'
+                failed.push({ ...record, reason: message })
             }
         }
 

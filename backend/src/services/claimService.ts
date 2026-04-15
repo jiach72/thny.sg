@@ -1,6 +1,6 @@
 import { prisma } from '../config/index.js'
 import { NotFoundError, ConflictError, ForbiddenError } from '../middlewares/index.js'
-import type { Prisma, ClaimStatus } from '@prisma/client'
+import type { Prisma, ClaimStatus, ExpenseCategory } from '@prisma/client'
 
 // ==================== 接口定义 ====================
 
@@ -46,29 +46,31 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 
 export const claimService = {
     /**
-     * 生成报销单号 CLM-YYYYMMDD-NNN
+     * 生成报销单号 CLM-YYYYMMDD-NNN（事务内查询防止并发冲突）
      */
     async generateClaimNumber(): Promise<string> {
         const today = new Date()
         const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
         const prefix = `CLM-${dateStr}-`
 
-        // 查找今天已有的最大序号
-        const lastClaim = await prisma.claim.findFirst({
-            where: {
-                claimNumber: { startsWith: prefix },
-            },
-            orderBy: { claimNumber: 'desc' },
-            select: { claimNumber: true },
+        // 在事务内查询最大序号，防止并发时生成重复编号
+        return prisma.$transaction(async (tx) => {
+            const lastClaim = await tx.claim.findFirst({
+                where: {
+                    claimNumber: { startsWith: prefix },
+                },
+                orderBy: { claimNumber: 'desc' },
+                select: { claimNumber: true },
+            })
+
+            let seq = 1
+            if (lastClaim) {
+                const lastSeq = parseInt(lastClaim.claimNumber.split('-').pop() || '0', 10)
+                seq = lastSeq + 1
+            }
+
+            return `${prefix}${String(seq).padStart(3, '0')}`
         })
-
-        let seq = 1
-        if (lastClaim) {
-            const lastSeq = parseInt(lastClaim.claimNumber.split('-').pop() || '0', 10)
-            seq = lastSeq + 1
-        }
-
-        return `${prefix}${String(seq).padStart(3, '0')}`
     },
 
     /**
@@ -104,19 +106,31 @@ export const claimService = {
         if (claim.submitterId !== submitterId) throw new ForbiddenError('只能编辑自己的报销单')
         if (claim.status !== 'DRAFT') throw new ConflictError('只有草稿状态的报销单可以添加明细')
 
-        const item = await prisma.claimItem.create({
-            data: {
-                claimId,
-                category: (data.category as any) || 'OTHER',
-                description: data.description,
-                amount: data.amount,
-                expenseDate: new Date(data.expenseDate),
-                notes: data.notes,
-            },
-        })
+        // 使用事务保证明细创建与总金额重算的原子性
+        const item = await prisma.$transaction(async (tx) => {
+            const created = await tx.claimItem.create({
+                data: {
+                    claimId,
+                    category: (data.category as ExpenseCategory) ?? 'OTHER',
+                    description: data.description,
+                    amount: data.amount,
+                    expenseDate: new Date(data.expenseDate),
+                    notes: data.notes,
+                },
+            })
 
-        // 重新计算总金额
-        await claimService.recalculateTotal(claimId)
+            // 重新计算总金额
+            const result = await tx.claimItem.aggregate({
+                where: { claimId },
+                _sum: { amount: true },
+            })
+            await tx.claim.update({
+                where: { id: claimId },
+                data: { totalAmount: result._sum.amount || 0 },
+            })
+
+            return created
+        })
 
         return item
     },
@@ -133,12 +147,22 @@ export const claimService = {
         if (claim.submitterId !== submitterId) throw new ForbiddenError('只能编辑自己的报销单')
         if (claim.status !== 'DRAFT') throw new ConflictError('只有草稿状态可以删除明细')
 
-        await prisma.claimItem.delete({
-            where: { id: itemId, claimId },
-        })
+        // 使用事务保证明细删除与总金额重算的原子性
+        await prisma.$transaction(async (tx) => {
+            await tx.claimItem.delete({
+                where: { id: itemId, claimId },
+            })
 
-        // 重新计算总金额
-        await claimService.recalculateTotal(claimId)
+            // 重新计算总金额
+            const result = await tx.claimItem.aggregate({
+                where: { claimId },
+                _sum: { amount: true },
+            })
+            await tx.claim.update({
+                where: { id: claimId },
+                data: { totalAmount: result._sum.amount || 0 },
+            })
+        })
     },
 
     /**

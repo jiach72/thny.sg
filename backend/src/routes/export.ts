@@ -1,9 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { query } from 'express-validator'
-import { authMiddleware, validate } from '../middlewares/index.js'
+import { authMiddleware, adminAuth, validate } from '../middlewares/index.js'
 import { exportService } from '../services/exportService.js'
 
 const router = Router()
+
+// 数据导出路由仅限管理端用户（敏感数据不可被 CUSTOMER 角色导出）
+router.use(authMiddleware)
+router.use(adminAuth)
 
 /**
  * @swagger

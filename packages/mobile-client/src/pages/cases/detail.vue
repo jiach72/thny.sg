@@ -3,14 +3,14 @@
     <view class="detail-page" v-if="project">
       <!-- 项目头部 -->
       <view class="project-hero">
-        <view class="hero-badges" v-if="(project as any).projectType">
-          <text class="type-badge">{{ getTypeLabel((project as any).projectType) }}</text>
+        <view class="hero-badges" v-if="project.projectType">
+          <text class="type-badge">{{ getTypeLabel(project.projectType) }}</text>
           <text class="status-badge" :class="getStatusCls(project.status)">{{ getStatusLabel(project.status) }}</text>
         </view>
         <text class="hero-title">{{ project.title || '服务项目' }}</text>
         <view class="hero-meta">
-          <text v-if="(project as any).startDate" class="meta-item">📅 {{ formatDate((project as any).startDate) }}</text>
-          <text v-if="(project as any).estimatedEndDate" class="meta-item">⏰ 预计 {{ formatDate((project as any).estimatedEndDate) }}</text>
+          <text v-if="project.startDate" class="meta-item">📅 {{ formatDate(project.startDate) }}</text>
+          <text v-if="project.estimatedEndDate" class="meta-item">⏰ 预计 {{ formatDate(project.estimatedEndDate) }}</text>
         </view>
         <nut-button type="primary" size="small" @click="showContactSheet = true">联系团队</nut-button>
       </view>
@@ -33,8 +33,8 @@
       <!-- 项目文档 -->
       <view class="docs-section">
         <text class="section-title">项目文档</text>
-        <view v-if="(project as any).documents && (project as any).documents.length > 0" class="doc-list">
-          <view v-for="doc in (project as any).documents" :key="doc.id" class="doc-row">
+        <view v-if="project.documents && project.documents.length > 0" class="doc-list">
+          <view v-for="doc in project.documents" :key="doc.id" class="doc-row">
             <view class="doc-row-info">
               <text class="doc-row-icon">📄</text>
               <view>
@@ -52,12 +52,12 @@
       </view>
 
       <!-- 顾问信息 -->
-      <view class="consultant-section" v-if="(project as any).consultant">
+      <view class="consultant-section" v-if="project.consultant">
         <text class="section-title">首席顾问</text>
         <view class="consultant-card">
-          <view class="consultant-avatar">{{ ((project as any).consultant.name || 'C')[0] }}</view>
+          <view class="consultant-avatar">{{ (project.consultant.name || 'C')[0] }}</view>
           <view class="consultant-info">
-            <text class="consultant-name">{{ (project as any).consultant.name }}</text>
+            <text class="consultant-name">{{ project.consultant.name }}</text>
             <text class="consultant-role">项目负责人</text>
           </view>
         </view>
@@ -111,8 +111,8 @@ onLoad(async (options: any) => {
 })
 
 const steps = computed(() => {
-  if (!(project.value as any)?.tasks) return []
-  return (project.value as any).tasks.map((t: any) => ({
+  if (!project.value?.tasks) return []
+  return project.value.tasks.map((t: any) => ({
     id: t.id,
     title: t.title,
     status: t.status === 'DONE' ? 'completed' : t.status === 'IN_PROGRESS' ? 'current' : 'pending',

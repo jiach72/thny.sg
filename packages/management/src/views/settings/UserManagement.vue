@@ -121,6 +121,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiClient } from '@/api'
+import { logger } from '@/utils/logger'
 
 interface Role {
   id: string
@@ -179,9 +180,9 @@ onMounted(() => {
 async function loadRoles() {
   try {
     const res = await apiClient.get('/rbac/roles') as any
-    roles.value = res.data || []
+    roles.value = Array.isArray(res) ? res : (res?.data || [])
   } catch (error) {
-    console.error('加载角色失败:', error)
+    logger.error('UserManagement', '加载角色失败:', error)
   }
 }
 
@@ -194,9 +195,9 @@ async function loadUsers() {
     if (filters.status) params.append('status', filters.status)
     
     const res = await apiClient.get(`/users?${params}`) as any
-    users.value = res.data || res || []
+    users.value = Array.isArray(res) ? res : (res?.data || res || [])
   } catch (error) {
-    console.error('加载用户失败:', error)
+    logger.error('UserManagement', '加载用户失败:', error)
     users.value = []
   } finally {
     loading.value = false

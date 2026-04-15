@@ -1,5 +1,6 @@
 ---
 name: nodejs-best-practices
+version: "2.1"
 description: Node.js development principles and decision-making. Framework selection, async patterns, security, and architecture. Teaches thinking, not copying.
 allowed-tools: Read, Write, Edit, Glob, Grep
 ---
@@ -71,6 +72,27 @@ Node.js 22+: --experimental-strip-types
 ├── Run .ts files directly
 ├── No build step needed for simple projects
 └── Consider for: scripts, simple APIs
+```
+
+### ESM/CJS Interoperability
+
+```
+ESM importing CJS:
+├── Default: import pkg from 'cjs-pkg' (works if cjs-pkg has named exports)
+├── Named: import { method } from 'cjs-pkg' (may need (await import()).default)
+├── Dynamic: const pkg = await import('cjs-pkg') (always works)
+└── Package.json "exports" field controls resolution
+
+CJS requiring ESM:
+├── NOT supported: require() cannot load ESM
+├── Use dynamic import: const pkg = await import('esm-pkg')
+├── Or use async boundaries in CJS
+└── Best: migrate consumer to ESM
+
+Node 22 --experimental-require-module:
+├── Allows require() of ESM in some cases
+├── Experimental, not production-ready
+└── Only works for synchronous ESM graphs
 ```
 
 ### Module System Decision

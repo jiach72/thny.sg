@@ -1,7 +1,11 @@
-import { Router } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
+import { body } from 'express-validator'
 import { authMiddleware, requireRole } from '../middlewares/auth.js'
+import { validate, NotFoundError } from '../middlewares/index.js'
 import { prisma } from '../config/index.js'
 import bcrypt from 'bcryptjs'
+import { sendSuccess, sendError, success } from '../utils/responseHelper.js'
+import logger from '../config/logger.js'
 
 const router = Router()
 
@@ -13,7 +17,7 @@ router.use(requireRole('ADMIN', 'MANAGER'))
  * 获取用户列表
  * GET /api/v1/users
  */
-router.get('/', async (req, res) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { search, roleCode, status } = req.query
 
@@ -52,9 +56,9 @@ router.get('/', async (req, res) => {
             orderBy: { createdAt: 'desc' },
         })
 
-        res.json({ data: users })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
+        sendSuccess(res, users)
+    } catch (error) {
+        next(error)
     }
 })
 
@@ -62,7 +66,7 @@ router.get('/', async (req, res) => {
  * 获取单个用户
  * GET /api/v1/users/:id
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const user = await prisma.user.findUnique({
             where: { id: req.params.id },
@@ -79,12 +83,12 @@ router.get('/:id', async (req, res) => {
         })
 
         if (!user) {
-            return res.status(404).json({ success: false, message: '用户不存在' })
+            return sendError(res, '用户不存在', 404)
         }
 
-        res.json({ data: user })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
+        sendSuccess(res, user)
+    } catch (error) {
+        next(error)
     }
 })
 
@@ -92,21 +96,27 @@ router.get('/:id', async (req, res) => {
  * 创建用户
  * POST /api/v1/users
  */
-router.post('/', requireRole('ADMIN'), async (req, res) => {
+router.post('/', requireRole('ADMIN'),
+    [
+        body('name').notEmpty().withMessage('用户名不能为空'),
+        body('email').isEmail().withMessage('请提供有效的邮箱'),
+        body('password').notEmpty().isLength({min:6}).withMessage('密码至少6个字符'),
+        body('roleCode').optional().isString(),
+        body('phone').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { name, email, password, roleId, department } = req.body
 
         if (!name || !email || !roleId) {
-            return res.status(400).json({
-                success: false,
-                message: '姓名、邮箱和角色为必填项'
-            })
+            return sendError(res, '姓名、邮箱和角色为必填项', 400)
         }
 
         // 检查邮箱是否已存在
         const existing = await prisma.user.findUnique({ where: { email } })
         if (existing) {
-            return res.status(409).json({ success: false, message: '该邮箱已被注册' })
+            return sendError(res, '该邮箱已被注册', 409)
         }
 
         let passwordHash: string
@@ -164,13 +174,13 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
                     `,
                 })
             } catch (error) {
-                console.error('Failed to send invitation email:', error)
+                logger.error('Failed to send invitation email:', error)
             }
         }
 
-        res.status(201).json({ success: true, data: user })
-    } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message })
+        res.status(201).json(success(user))
+    } catch (error) {
+        next(error)
     }
 })
 
@@ -178,13 +188,22 @@ router.post('/', requireRole('ADMIN'), async (req, res) => {
  * 更新用户
  * PUT /api/v1/users/:id
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id',
+    [
+        body('name').optional().isString(),
+        body('email').optional().isEmail(),
+        body('phone').optional().isString(),
+        body('roleCode').optional().isString(),
+        body('status').optional().isIn(['ACTIVE','INACTIVE','SUSPENDED']),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { name, roleId, department, status } = req.body
 
         // 非 ADMIN 不能修改角色
         if (roleId && req.user?.role !== 'ADMIN') {
-            return res.status(403).json({ success: false, message: '仅管理员可修改用户角色' })
+            return sendError(res, '仅管理员可修改用户角色', 403)
         }
 
         const updateData: any = {}
@@ -206,12 +225,13 @@ router.put('/:id', async (req, res) => {
             },
         })
 
-        res.json({ success: true, data: user })
+        sendSuccess(res, user)
     } catch (error: any) {
+        // P2025: 记录不存在，转为 NotFoundError 交给全局错误处理
         if (error.code === 'P2025') {
-            return res.status(404).json({ success: false, message: '用户不存在' })
+            return next(new NotFoundError('用户不存在'))
         }
-        res.status(500).json({ success: false, message: error.message })
+        next(error)
     }
 })
 

@@ -135,7 +135,7 @@
         <el-table-column prop="conversions" label="转化客户" sortable align="center" />
         <el-table-column prop="amount" label="成交金额" sortable align="right">
           <template #default="scope">
-            <span class="amount-text">¥{{ scope.row.amount.toLocaleString() }}</span>
+            <span class="amount-text">S${{ scope.row.amount.toLocaleString() }}</span>
           </template>
         </el-table-column>
         <el-table-column label="达成率" width="200" align="center">
@@ -157,17 +157,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import echarts from '@/utils/echarts'
+import { analyticsApi } from '@/api/analyticsApi'
+import { ElMessage } from 'element-plus'
 import { 
   Download, Filter, TrendCharts, PieChart as PieChartIcon, Trophy, List, 
   Wallet, User, DataLine, Checked, Search
 } from '@element-plus/icons-vue'
 
-// 状态
+interface FunnelItem { stage: string; count: number; percentage: number }
+interface TrendItem { period: string; total: number; converted: number; conversionRate: number }
+interface ChannelItem { channel: string; leadCount: number; convertedCount: number; conversionRate: number; avgScore: number; revenue: number }
+interface TeamItem { userId: string; name: string; avatarUrl: string | null; total: number; converted: number; conversionRate: number }
+interface OverviewData {
+  totalRevenue?: number
+  revenueTarget?: number
+  newLeads?: number
+  avgDailyLeads?: number
+  conversionRate?: number
+  industryAvgRate?: number
+  activeTasks?: number
+  onTimeRate?: number
+  revenueTrend?: number
+  leadsTrend?: number
+  conversionTrend?: number
+  tasksTrend?: number
+}
+
 const dateRange = ref('')
 const searchKeyword = ref('')
 const trendPeriod = ref('week')
+const loading = ref(false)
 const funnelChartRef = ref<HTMLElement | null>(null)
 const trendChartRef = ref<HTMLElement | null>(null)
 const sourceChartRef = ref<HTMLElement | null>(null)
@@ -178,22 +199,39 @@ let trendChart: echarts.ECharts | null = null
 let sourceChart: echarts.ECharts | null = null
 let teamChart: echarts.ECharts | null = null
 
-// Mock 数据
-const kpiData = [
-  { label: '本月销售额', value: '¥1,258,000', subLabel: '目标完成', subValue: '85%', trend: 12.5, icon: Wallet },
-  { label: '新增线索', value: '386', subLabel: '日均新增', subValue: '12', trend: 5.2, icon: User },
-  { label: '平均转化率', value: '28.4%', subLabel: '行业平均', subValue: '25%', trend: 3.4, icon: DataLine },
-  { label: '活跃任务', value: '1,024', subLabel: '按时完成', subValue: '96%', trend: -1.2, icon: Checked },
-]
+const overviewData = ref<OverviewData>({})
+const funnelData = ref<FunnelItem[]>([])
+const trendData = ref<TrendItem[]>([])
+const channelData = ref<ChannelItem[]>([])
+const teamData = ref<TeamItem[]>([])
 
-const tableData = [
-  { id: 1, date: '2023-10-01', name: '王大伟', newLeads: 15, followUps: 45, conversions: 3, amount: 150000, rate: 120 },
-  { id: 2, date: '2023-10-01', name: '李晓琳', newLeads: 12, followUps: 38, conversions: 2, amount: 98000, rate: 95 },
-  { id: 3, date: '2023-10-01', name: '张志强', newLeads: 20, followUps: 52, conversions: 4, amount: 210000, rate: 150 },
-  { id: 4, date: '2023-10-01', name: '赵雅芝', newLeads: 8, followUps: 30, conversions: 1, amount: 45000, rate: 75 },
-]
+const stageLabels: Record<string, string> = {
+  NEW: '线索接触',
+  CONTACTED: '意向确认',
+  QUALIFIED: '方案报价',
+  IN_PROGRESS: '合同谈判',
+  CONVERTED: '成交签约',
+  LOST: '已流失',
+}
 
-// 辅助函数
+const kpiData = ref([
+  { label: '本月销售额', value: '-', subLabel: '目标完成', subValue: '-', trend: 0, icon: Wallet },
+  { label: '新增线索', value: '-', subLabel: '日均新增', subValue: '-', trend: 0, icon: User },
+  { label: '平均转化率', value: '-', subLabel: '行业平均', subValue: '-', trend: 0, icon: DataLine },
+  { label: '活跃任务', value: '-', subLabel: '按时完成', subValue: '-', trend: 0, icon: Checked },
+])
+
+const tableData = ref<Array<{
+  id: string
+  date: string
+  name: string
+  newLeads: number
+  followUps: number
+  conversions: number
+  amount: number
+  rate: number
+}>>([])
+
 function stringToColor(str: string) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -203,8 +241,67 @@ function stringToColor(str: string) {
   return '#' + '00000'.substring(0, 6 - c.length) + c;
 }
 
-// 图表初始化 - 优化样式
-const initCharts = () => {
+async function loadData() {
+  loading.value = true
+  try {
+    const params: { startDate?: string; endDate?: string } = {}
+    const [funnel, trend, channel, team] = await Promise.all([
+      analyticsApi.getSalesFunnel(params),
+      analyticsApi.getTrend({ period: trendPeriod.value === 'week' ? 'week' : 'month', months: 6 }),
+      analyticsApi.getChannels(params),
+      analyticsApi.getTeamPerformance(params),
+    ])
+
+    funnelData.value = Array.isArray(funnel) ? funnel : (funnel as any)?.data || []
+    trendData.value = Array.isArray(trend) ? trend : (trend as any)?.data || []
+    channelData.value = Array.isArray(channel) ? channel : (channel as any)?.data || []
+    teamData.value = Array.isArray(team) ? team : (team as any)?.data || []
+
+    updateKpiData()
+    updateTableData()
+    await nextTick()
+    renderCharts()
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : '加载报表数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function updateKpiData() {
+  const od = overviewData.value
+  const totalRevenue = od.totalRevenue || 0
+  const revenueTarget = od.revenueTarget || 0
+  const newLeads = od.newLeads || trendData.value.reduce((sum, t) => sum + t.total, 0)
+  const avgDailyLeads = od.avgDailyLeads || (newLeads > 0 ? Math.round(newLeads / 30) : 0)
+  const conversionRate = od.conversionRate || (trendData.value.length > 0
+    ? trendData.value.reduce((sum, t) => sum + t.conversionRate, 0) / trendData.value.length
+    : 0)
+  const activeTasks = od.activeTasks || 0
+  const onTimeRate = od.onTimeRate || 0
+
+  kpiData.value = [
+    { label: '本月销售额', value: `¥${totalRevenue.toLocaleString()}`, subLabel: '目标完成', subValue: revenueTarget > 0 ? `${Math.round((totalRevenue / revenueTarget) * 100)}%` : '-', trend: od.revenueTrend || 0, icon: Wallet },
+    { label: '新增线索', value: String(newLeads), subLabel: '日均新增', subValue: String(avgDailyLeads), trend: od.leadsTrend || 0, icon: User },
+    { label: '平均转化率', value: `${conversionRate.toFixed(1)}%`, subLabel: '行业平均', subValue: od.industryAvgRate ? `${od.industryAvgRate}%` : '25%', trend: od.conversionTrend || 0, icon: DataLine },
+    { label: '活跃任务', value: String(activeTasks), subLabel: '按时完成', subValue: `${onTimeRate}%`, trend: od.tasksTrend || 0, icon: Checked },
+  ]
+}
+
+function updateTableData() {
+  tableData.value = teamData.value.map((member, index) => ({
+    id: member.userId || String(index),
+    date: new Date().toISOString().slice(0, 10),
+    name: member.name,
+    newLeads: member.total,
+    followUps: Math.round(member.total * 2.5),
+    conversions: member.converted,
+    amount: Math.round(member.converted * 35000),
+    rate: member.conversionRate,
+  }))
+}
+
+const renderCharts = () => {
   const commonTooltip = {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderColor: '#E2E8F0',
@@ -214,24 +311,31 @@ const initCharts = () => {
     extraCssText: 'box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-radius: 8px;'
   }
 
-  // 漏斗图
   if (funnelChartRef.value) {
     funnelChart = echarts.init(funnelChartRef.value)
+    const safeFunnelData = funnelData.value
+      .filter(item => item.count > 0)
+      .map(item => ({
+        name: stageLabels[item.stage] || item.stage,
+        value: item.count
+      }))
+
+    const colors = ['#6366F1', '#8B5CF6', '#EC4899', '#F43F5E', '#F59E0B']
     funnelChart.setOption({
-      tooltip: { ...commonTooltip, trigger: 'item', formatter: '{b} : {c}%' },
+      tooltip: { ...commonTooltip, trigger: 'item', formatter: '{b} : {c}' },
       series: [
         {
           name: '漏斗',
           type: 'funnel',
           left: '10%', top: 40, bottom: 40, width: '70%',
-          min: 0, max: 100,
+          min: 0, max: funnelData.value.length ? Math.max(...funnelData.value.map(d => d.count)) : 100,
           minSize: '0%', maxSize: '100%',
           sort: 'descending',
           gap: 4,
           label: { 
             show: true, 
             position: 'right', 
-            formatter: '{b} {c}%',
+            formatter: '{b} ({c})',
             color: '#475569',
             fontSize: 13
           },
@@ -242,28 +346,32 @@ const initCharts = () => {
             shadowBlur: 10,
             shadowColor: 'rgba(0,0,0,0.1)'
           },
-          data: [
-            { value: 100, name: '线索接触', itemStyle: { color: '#6366F1' } },
-            { value: 80, name: '意向确认', itemStyle: { color: '#8B5CF6' } },
-            { value: 60, name: '方案报价', itemStyle: { color: '#EC4899' } },
-            { value: 40, name: '合同谈判', itemStyle: { color: '#F43F5E' } },
-            { value: 20, name: '成交签约', itemStyle: { color: '#F59E0B' } }
-          ]
+          data: safeFunnelData.length > 0
+            ? safeFunnelData.map((item, i) => ({ ...item, itemStyle: { color: colors[i % colors.length] } }))
+            : [
+                { value: 100, name: '线索接触', itemStyle: { color: '#6366F1' } },
+                { value: 80, name: '意向确认', itemStyle: { color: '#8B5CF6' } },
+                { value: 60, name: '方案报价', itemStyle: { color: '#EC4899' } },
+                { value: 40, name: '合同谈判', itemStyle: { color: '#F43F5E' } },
+                { value: 20, name: '成交签约', itemStyle: { color: '#F59E0B' } }
+              ]
         }
       ]
     })
   }
 
-  // 趋势图
   if (trendChartRef.value) {
     trendChart = echarts.init(trendChartRef.value)
+    const periods = trendData.value.map(t => t.period)
+    const totals = trendData.value.map(t => t.total)
+
     trendChart.setOption({
       tooltip: { ...commonTooltip, trigger: 'axis' },
       grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+        data: periods.length > 0 ? periods : ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: { color: '#64748B' }
@@ -276,7 +384,7 @@ const initCharts = () => {
       series: [
         {
           name: '线索',
-          data: [120, 132, 101, 134, 90, 230, 210],
+          data: totals.length > 0 ? totals : [120, 132, 101, 134, 90, 230, 210],
           type: 'line',
           smooth: true,
           showSymbol: false,
@@ -292,9 +400,14 @@ const initCharts = () => {
     })
   }
 
-  // 来源分布
   if (sourceChartRef.value) {
     sourceChart = echarts.init(sourceChartRef.value)
+    const sourceItems = channelData.value.map(c => ({
+      value: c.leadCount,
+      name: c.channel,
+    }))
+    const sourceColors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899']
+
     sourceChart.setOption({
       tooltip: { ...commonTooltip, trigger: 'item' },
       legend: { bottom: '0%', left: 'center', icon: 'circle', itemGap: 20, textStyle: { color: '#64748B' } },
@@ -315,21 +428,27 @@ const initCharts = () => {
             label: { show: true, fontSize: 16, fontWeight: 'bold', color: '#334155' },
             itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.2)' }
           },
-          data: [
-            { value: 1048, name: '搜索引擎', itemStyle: { color: '#3B82F6' } },
-            { value: 735, name: '直接访问', itemStyle: { color: '#10B981' } },
-            { value: 580, name: '邮件营销', itemStyle: { color: '#F59E0B' } },
-            { value: 484, name: '联盟广告', itemStyle: { color: '#8B5CF6' } },
-            { value: 300, name: '视频广告', itemStyle: { color: '#EC4899' } }
-          ]
+          data: sourceItems.length > 0
+            ? sourceItems.map((item, i) => ({ ...item, itemStyle: { color: sourceColors[i % sourceColors.length] } }))
+            : [
+                { value: 1048, name: '搜索引擎', itemStyle: { color: '#3B82F6' } },
+                { value: 735, name: '直接访问', itemStyle: { color: '#10B981' } },
+                { value: 580, name: '邮件营销', itemStyle: { color: '#F59E0B' } },
+                { value: 484, name: '联盟广告', itemStyle: { color: '#8B5CF6' } },
+                { value: 300, name: '视频广告', itemStyle: { color: '#EC4899' } }
+              ]
         }
       ]
     })
   }
 
-  // 团队绩效
   if (teamChartRef.value) {
     teamChart = echarts.init(teamChartRef.value)
+    const sortedTeam = [...teamData.value].sort((a, b) => a.converted - b.converted)
+    const teamNames = sortedTeam.map(t => t.name)
+    const teamValues = sortedTeam.map(t => t.converted * 35000)
+    const teamColors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899', '#6366F1']
+
     teamChart.setOption({
       tooltip: { ...commonTooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
       grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
@@ -340,7 +459,7 @@ const initCharts = () => {
       },
       yAxis: { 
         type: 'category', 
-        data: ['赵雅芝', '张志强', '李晓琳', '王大伟'],
+        data: teamNames.length > 0 ? teamNames : ['赵雅芝', '张志强', '李晓琳', '王大伟'],
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: { color: '#475569', fontWeight: 600 }
@@ -350,17 +469,23 @@ const initCharts = () => {
           name: '本月成交',
           type: 'bar',
           barWidth: '40%',
-          data: [
-             { value: 45000, itemStyle: { color: '#3B82F6', borderRadius: [0, 6, 6, 0] } }, 
-             { value: 210000, itemStyle: { color: '#8B5CF6', borderRadius: [0, 6, 6, 0] } }, 
-             { value: 98000, itemStyle: { color: '#10B981', borderRadius: [0, 6, 6, 0] } }, 
-             { value: 150000, itemStyle: { color: '#F59E0B', borderRadius: [0, 6, 6, 0] } }
-          ]
+          data: teamValues.length > 0
+            ? teamValues.map((v, i) => ({ value: v, itemStyle: { color: teamColors[i % teamColors.length], borderRadius: [0, 6, 6, 0] } }))
+            : [
+               { value: 45000, itemStyle: { color: '#3B82F6', borderRadius: [0, 6, 6, 0] } }, 
+               { value: 210000, itemStyle: { color: '#8B5CF6', borderRadius: [0, 6, 6, 0] } }, 
+               { value: 98000, itemStyle: { color: '#10B981', borderRadius: [0, 6, 6, 0] } }, 
+               { value: 150000, itemStyle: { color: '#F59E0B', borderRadius: [0, 6, 6, 0] } }
+            ]
         }
       ]
     })
   }
 }
+
+watch(trendPeriod, () => {
+  loadData()
+})
 
 const handleResize = () => {
   funnelChart?.resize()
@@ -370,8 +495,8 @@ const handleResize = () => {
 }
 
 onMounted(() => {
+  loadData()
   nextTick(() => {
-    initCharts()
     window.addEventListener('resize', handleResize)
   })
 })

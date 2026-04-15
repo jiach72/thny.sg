@@ -2,11 +2,13 @@
   <ErrorBoundary>
     <router-view />
   </ErrorBoundary>
+  <CookieConsent />
 </template>
 
 <script setup lang="ts">
 // CRM 管理端根组件
 import ErrorBoundary from './components/ErrorBoundary.vue'
+import CookieConsent from './components/CookieConsent.vue'
 </script>
 
 <style>

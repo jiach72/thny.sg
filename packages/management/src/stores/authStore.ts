@@ -1,51 +1,52 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, apiClient } from '@/api'
-import type { LoginPayload } from '@tonghai/shared/types'
+import type { LoginPayload, LoginResponse, RefreshTokenResponse } from '@tonghai/shared/types'
+import { logger } from '@/utils/logger'
 
-interface User {
+interface RefreshResult {
+  accessToken: string
+}
+
+interface AdminUser {
     id: string
     name: string
     email: string
-    role: string       // roleCode
-    roleId?: string    // Role 表 ID
-    roleName?: string  // 角色名称
+    role: string
+    roleId?: string
+    roleName?: string
     avatarUrl?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
-    // 状态
-    // accessToken 仅存内存，页面刷新后通过 httpOnly cookie 中的 refreshToken 静默刷新
-    const accessToken = ref<string | null>(localStorage.getItem('accessToken'))
-    const user = ref<User | null>(null)
+    const accessToken = ref<string | null>(null)
+    const user = ref<AdminUser | null>(null)
     const permissions = ref<string[]>([])
     const loading = ref(false)
     const isInitialized = ref(false)
 
-    // 计算属性
     const isAuthenticated = computed(() => !!accessToken.value)
     const isAdmin = computed(() => user.value?.role === 'ADMIN')
     const isManager = computed(() => ['ADMIN', 'MANAGER'].includes(user.value?.role || ''))
 
-    // 方法
     async function login(payload: LoginPayload) {
         loading.value = true
         try {
-            const data = await authApi.login(payload) as any
+            const data: LoginResponse = await authApi.login(payload)
 
-            // 检查用户角色 - 客户不能登录管理端
             if (data.user?.role === 'CUSTOMER') {
                 throw new Error('客户账号无法登录管理系统，请使用客户门户')
             }
 
-            // accessToken 存内存 + localStorage（页面刷新恢复用）
-            // refreshToken 已由后端通过 httpOnly cookie 设置，前端无需处理
             accessToken.value = data.accessToken
-            user.value = data.user
+            user.value = {
+                id: data.user.id,
+                name: data.user.name,
+                email: data.user.email,
+                role: data.user.role,
+                avatarUrl: data.user.avatarUrl,
+            }
 
-            localStorage.setItem('accessToken', data.accessToken)
-
-            // 获取用户权限
             await fetchPermissions()
 
             return data
@@ -58,17 +59,15 @@ export const useAuthStore = defineStore('auth', () => {
         if (!accessToken.value || !user.value) return
 
         try {
-            // ADMIN 拥有所有权限
             if (user.value.role === 'ADMIN') {
                 permissions.value = ['*']
                 return
             }
 
-            // 从后端获取当前用户的权限
-            const response = await apiClient.get(`/auth/me/permissions`) as any
-            permissions.value = response.data || []
+            const response = await apiClient.get('/auth/me/permissions')
+            permissions.value = Array.isArray(response) ? response : (response as any)?.data || []
         } catch (error) {
-            console.error('获取权限失败:', error)
+            logger.error('AuthStore', '获取权限失败:', error)
             permissions.value = []
         }
     }
@@ -77,8 +76,8 @@ export const useAuthStore = defineStore('auth', () => {
         if (!accessToken.value) return null
 
         try {
-            const data = await authApi.getCurrentUser() as any
-            const role = data.roleCode || data.role?.code || data.role
+            const data: Record<string, unknown> = await authApi.getCurrentUser() as Record<string, unknown>
+            const role = (data.roleCode as string) || ((data.role as Record<string, string>)?.code) || (data.role as string)
 
             if (role === 'CUSTOMER') {
                 logout()
@@ -86,11 +85,13 @@ export const useAuthStore = defineStore('auth', () => {
             }
 
             user.value = {
-                ...data,
+                id: data.id as string,
+                name: data.name as string,
+                email: data.email as string,
                 role,
+                avatarUrl: data.avatarUrl as string | undefined,
             }
 
-            // 获取用户权限
             await fetchPermissions()
 
             return data
@@ -100,27 +101,28 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    let refreshPromise: Promise<any> | null = null
+    let refreshPromise: Promise<RefreshResult> | null = null
 
-    async function refreshAccessToken() {
+    async function refreshAccessToken(): Promise<RefreshResult> {
         if (refreshPromise) return refreshPromise
 
         refreshPromise = (async () => {
             try {
-                // refreshToken 通过 httpOnly cookie 自动携带，无需手动发送
-                const data = await authApi.refreshToken('') as any
+                const data: RefreshTokenResponse = await authApi.refreshToken('')
                 accessToken.value = data.accessToken
-                localStorage.setItem('accessToken', data.accessToken)
 
-                const userProfile = await authApi.getCurrentUser() as any
-                const role = userProfile.roleCode || userProfile.role?.code || userProfile.role
+                const userProfile: Record<string, unknown> = await authApi.getCurrentUser() as Record<string, unknown>
+                const role = (userProfile.roleCode as string) || ((userProfile.role as Record<string, string>)?.code) || (userProfile.role as string)
                 if (role === 'CUSTOMER') {
                     throw new Error('客户账号无法登录管理系统，请使用客户门户')
                 }
 
                 user.value = {
-                    ...userProfile,
+                    id: userProfile.id as string,
+                    name: userProfile.name as string,
+                    email: userProfile.email as string,
                     role,
+                    avatarUrl: userProfile.avatarUrl as string | undefined,
                 }
 
                 await fetchPermissions()
@@ -141,13 +143,8 @@ export const useAuthStore = defineStore('auth', () => {
         accessToken.value = null
         user.value = null
         permissions.value = []
-        localStorage.removeItem('accessToken')
-        // refreshToken cookie 由后端 /auth/logout 清除
     }
 
-    /**
-     * 检查是否拥有某权限
-     */
     function can(permissionCode: string): boolean {
         if (user.value?.role === 'ADMIN' || permissions.value.includes('*')) {
             return true
@@ -157,26 +154,29 @@ export const useAuthStore = defineStore('auth', () => {
 
     async function initAuth() {
         if (isInitialized.value) return
-        
+
         if (accessToken.value && !user.value) {
             await fetchCurrentUser()
+        } else if (!accessToken.value) {
+            try {
+                await refreshAccessToken()
+            } catch {
+                // refreshToken cookie 不存在或已过期，保持未登录状态
+            }
         }
-        
+
         isInitialized.value = true
     }
 
     return {
-        // 状态
         accessToken,
         user,
         permissions,
         loading,
         isInitialized,
-        // 计算属性
         isAuthenticated,
         isAdmin,
         isManager,
-        // 方法
         login,
         logout,
         fetchCurrentUser,

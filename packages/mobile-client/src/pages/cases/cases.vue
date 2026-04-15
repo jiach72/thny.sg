@@ -80,7 +80,7 @@ const uploadHeaders = computed(() => ({
 onMounted(async () => {
   try {
     const res = await portalApi.getMyProjects()
-    projects.value = res || []
+    projects.value = Array.isArray(res) ? res : ((res as any)?.data || [])
     if (projects.value.length > 0) {
       activeNames.value = [projects.value[0].id]
     }

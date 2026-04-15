@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { UploadFilled, Download } from '@element-plus/icons-vue'
 import { ElMessage, type UploadRawFile } from 'element-plus'
 import { leadApi } from '../api'
+import { logger } from '@/utils/logger'
 
 const visible = ref(false)
 const uploading = ref(false)
@@ -37,7 +38,7 @@ const handleUpload = async () => {
     visible.value = false
     emit('success')
   } catch (error: any) {
-    console.error(error)
+    logger.error('LeadImportDialog', 'Error:', error)
     ElMessage.error((error as Error).message || '导入失败')
   } finally {
     uploading.value = false

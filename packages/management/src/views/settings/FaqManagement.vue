@@ -357,6 +357,7 @@ import {
 } from '@element-plus/icons-vue'
 import apiClient from '@/api/apiClient'
 import type { FaqCategory, FaqItem } from '@tonghai/shared/types'
+import { logger } from '@/utils/logger'
 
 // 状态
 const loading = ref(false)
@@ -448,38 +449,36 @@ function refreshData() {
 // API 调用
 async function fetchStats() {
   try {
-    const response = await apiClient.get(`/faq-admin/stats`)
+    const response = await apiClient.get<Record<string, any>>(`/faq-admin/stats`)
     
     // Normalize response: output is either response.data (if wrapped) or response itself
     const data = response.data || response
     // Basic check: stats should have totalFaqs
     if (data && typeof data.totalFaqs === 'number') {
          stats.value = data
-    } else if (response?.success) {
-         stats.value = response.data
     }
   } catch (error: unknown) {
-    console.error('Error fetching stats:', error)
+    logger.error('FaqManagement', 'Error fetching stats:', error)
   }
 }
 
 async function fetchCategories() {
   try {
-    const response = await apiClient.get(`/faq-admin/categories`)
+    const response = await apiClient.get<FaqCategory[] | { data: FaqCategory[] }>(`/faq-admin/categories`)
     // Handle both {success:true, data:[]} and []
     const data = Array.isArray(response) ? response : (response.data || [])
     categories.value = data
   } catch (error: unknown) {
-    console.error('Error fetching categories:', error)
+    logger.error('FaqManagement', 'Error fetching categories:', error)
   }
 }
 
 async function fetchItems() {
   try {
-    const response = await apiClient.get(`/faq-admin/items`)
+    const response = await apiClient.get<FaqItem[] | { data: FaqItem[] }>(`/faq-admin/items`)
     
     // Normalize data: raw array OR wrapped data
-    let data: any[] = []
+    let data: FaqItem[] = []
     if (Array.isArray(response)) {
         data = response
     } else if (Array.isArray(response.data)) {
@@ -508,19 +507,19 @@ async function fetchSessions() {
       params.status = sessionStatus.value
     }
     
-    const response = await apiClient.get(`/faq-admin/sessions`, { params })
+    const response = await apiClient.get<Record<string, any>>(`/faq-admin/sessions`, { params })
     // Handle both wrapped and unwrapped (though pagination usually implies wrapped)
     // If raw array, assume no pagination or simplified structure
-    if (response.success && response.data) {
-       sessions.value = response.data
-       sessionPagination.value = { ...sessionPagination.value, ...response.pagination }
-    } else if (Array.isArray(response)) {
+    if (Array.isArray(response)) {
          sessions.value = response
     } else if (response.data && Array.isArray(response.data)) {
          sessions.value = response.data
+         if (response.pagination) {
+           sessionPagination.value = { ...sessionPagination.value, ...response.pagination }
+         }
     }
   } catch (error) {
-    console.error('Error fetching sessions:', error)
+    logger.error('FaqManagement', 'Error fetching sessions:', error)
   } finally {
     sessionsLoading.value = false
   }
@@ -528,11 +527,11 @@ async function fetchSessions() {
 
 async function fetchUnrecognized() {
   try {
-    const response = await apiClient.get(`/faq-admin/unrecognized`)
+    const response = await apiClient.get<any[] | { data: any[] }>(`/faq-admin/unrecognized`)
     const data = Array.isArray(response) ? response : (response.data || [])
     unrecognizedQuestions.value = data
   } catch (error) {
-    console.error('Error fetching unrecognized:', error)
+    logger.error('FaqManagement', 'Error fetching unrecognized:', error)
   }
 }
 
@@ -706,22 +705,19 @@ async function handleImport(options: any) {
     
     loading.value = false
     
-    if (response.success) {
-      const result = response.data
-      if (result) {
-        const msg = `导入完成！成功 ${result.success} 条，失败 ${result.failed} 条`
-        
-        if (result.errors && result.errors.length > 0) {
-          ElMessageBox.alert(
-            `${msg}\n\n错误详情：\n${result.errors.slice(0, 10).join('\n')}`,
-            '导入结果',
-            { confirmButtonText: '确定', type: result.failed > 0 ? 'warning' : 'success' }
-          )
-        } else {
-          ElMessage.success(msg)
-        }
+    // 拦截器解包后，response 可能是直接的导入结果对象
+    const result = response?.data || response
+    if (result && (result.success !== undefined || result.failed !== undefined)) {
+      const msg = `导入完成！成功 ${result.success} 条，失败 ${result.failed} 条`
+      
+      if (result.errors && result.errors.length > 0) {
+        ElMessageBox.alert(
+          `${msg}\n\n错误详情：\n${result.errors.slice(0, 10).join('\n')}`,
+          '导入结果',
+          { confirmButtonText: '确定', type: result.failed > 0 ? 'warning' : 'success' }
+        )
       } else {
-        ElMessage.success(response.message || '导入完成')
+        ElMessage.success(msg)
       }
       
       showImportDialog.value = false
@@ -731,11 +727,11 @@ async function handleImport(options: any) {
         fetchCategories()
       ])
     } else {
-      ElMessage.error(response.message || '导入失败')
+      ElMessage.error('导入失败')
     }
   } catch (error: any) {
     loading.value = false
-    console.error('Import error:', error)
+    logger.error('FaqManagement', 'Import error:', error)
     const errMsg = error.response?.data?.message || error.message || '导入失败，请检查文件格式'
     ElMessage.error(errMsg)
   }

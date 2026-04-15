@@ -565,6 +565,22 @@ function handleCommand(command: string) {
   display: none;
 }
 
+/* 平板端适配 (768px-1024px) */
+@media (max-width: 1024px) {
+  .content {
+    padding: 24px;
+  }
+
+  .search-trigger {
+    min-width: 200px;
+  }
+
+  .user-name {
+    display: none;
+  }
+}
+
+/* 移动端适配 (<768px) */
 @media (max-width: 768px) {
   .mobile-hamburger {
     display: flex;
@@ -600,6 +616,42 @@ function handleCommand(command: string) {
 
   .main-area {
     margin-left: 0 !important;
+  }
+
+  .header {
+    height: 56px;
+    padding: 0 16px;
+  }
+
+  .header-center {
+    display: none;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .user-info {
+    padding: 6px 10px;
+  }
+
+  .content {
+    padding: 16px;
+  }
+}
+
+/* 超小屏幕 (<480px) */
+@media (max-width: 480px) {
+  .header-left {
+    gap: 8px;
+  }
+
+  .content {
+    padding: 12px;
+  }
+
+  .search-trigger {
+    display: none;
   }
 }
 </style>

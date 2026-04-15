@@ -4,7 +4,27 @@ import path from 'path'
 
 const logDir = process.env.LOG_DIR || 'logs'
 
+// 敏感字段脱敏：防止密码、令牌等敏感信息泄露到日志中
+const sensitiveFields = ['password', 'token', 'accessToken', 'refreshToken', 'secret', 'apiKey', 'authorization', 'cookie']
+const sanitizeFormat = winston.format((info) => {
+    if (typeof info === 'object' && info !== null) {
+        for (const key of Object.keys(info)) {
+            if (sensitiveFields.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
+                info[key] = '[REDACTED]'
+            }
+            if (typeof info[key] === 'string') {
+                for (const field of sensitiveFields) {
+                    const regex = new RegExp(`(${field}\\s*[:=]\\s*)[\\S]+`, 'gi')
+                    info[key] = (info[key] as string).replace(regex, '$1[REDACTED]')
+                }
+            }
+        }
+    }
+    return info
+})
+
 const logFormat = winston.format.combine(
+    sanitizeFormat(),
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
     winston.format.json()

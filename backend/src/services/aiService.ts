@@ -3,6 +3,7 @@
  * 基于 OpenAI API 提供线索智能摘要和成交概率预测
  * 参照 Salesforce Einstein Lead Scoring 的设计思路
  */
+import { BadRequestError, NotFoundError } from '../middlewares/errorHandler.js'
 import { prisma } from '../config/index.js'
 import { config } from '../config/env.js'
 import OpenAI from 'openai'
@@ -14,7 +15,7 @@ function getClient(): OpenAI {
     if (!client) {
         const apiKey = config.openai.apiKey
         if (!apiKey) {
-            throw new Error('OPENAI_API_KEY 未配置，AI 洞察功能不可用')
+            throw new BadRequestError('OPENAI_API_KEY 未配置，AI 洞察功能不可用')
         }
         client = new OpenAI({ apiKey })
     }
@@ -72,7 +73,7 @@ export const aiService = {
             },
         })
 
-        if (!lead) throw new Error('线索不存在')
+        if (!lead) throw new NotFoundError('线索不存在')
 
         // 构建上下文信息
         const activityLines = lead.activities.map(

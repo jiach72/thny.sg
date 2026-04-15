@@ -1,5 +1,8 @@
+import { NotFoundError } from '../middlewares/errorHandler.js'
 import { prisma } from '../config/index.js'
+import { Prisma } from '@prisma/client'
 import type { Lead, Customer } from '@prisma/client'
+import logger from '../config/logger.js'
 
 interface CreateTemplateInput {
     name: string
@@ -42,7 +45,7 @@ export const emailTemplateService = {
      * 获取所有模板
      */
     async getTemplates(category?: string, includeInactive = false) {
-        const where: any = {}
+        const where: Prisma.EmailTemplateWhereInput = {}
 
         if (category) {
             where.category = category
@@ -101,7 +104,7 @@ export const emailTemplateService = {
      * 更新模板
      */
     async updateTemplate(id: string, data: UpdateTemplateInput) {
-        const updateData: any = { ...data }
+        const updateData: Prisma.EmailTemplateUpdateInput = { ...data }
 
         // 如果更新了内容，自动提取变量
         if (data.subject || data.body) {
@@ -191,7 +194,7 @@ export const emailTemplateService = {
     async previewTemplate(templateId: string, context: TemplateContext) {
         const template = await this.getTemplateById(templateId)
         if (!template) {
-            throw new Error('模板不存在')
+            throw new NotFoundError('模板不存在')
         }
 
         return {
@@ -220,7 +223,7 @@ export const emailTemplateService = {
     /**
      * 发送邮件（记录日志）
      */
-    async sendEmail(input: SendEmailInput, senderId?: string): Promise<any> {
+    async sendEmail(input: SendEmailInput, senderId?: string): Promise<{ success: boolean; logId: string; messageId?: string; error?: string }> {
         // 动态导入邮件发送服务避免循环依赖
         const { emailSenderService } = await import('./emailSenderService.js')
 
@@ -265,16 +268,16 @@ export const emailTemplateService = {
                 })
                 return { success: false, logId: log.id, error: result.error }
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             await prisma.emailLog.update({
                 where: { id: log.id },
                 data: {
                     status: 'FAILED',
-                    errorMsg: error.message
+                    errorMsg: error instanceof Error ? error.message : '发送失败'
                 }
             })
 
-            return { success: false, logId: log.id, error: error.message }
+            return { success: false, logId: log.id, error: error instanceof Error ? error.message : '发送失败' }
         }
     },
 
@@ -311,7 +314,7 @@ export const emailTemplateService = {
         const { page, limit } = pagination
         const skip = (page - 1) * limit
 
-        const where: any = {}
+        const where: Prisma.EmailLogWhereInput = {}
         if (filters.leadId) where.leadId = filters.leadId
         if (filters.customerId) where.customerId = filters.customerId
         if (filters.templateId) where.templateId = filters.templateId
@@ -403,7 +406,7 @@ export const emailTemplateService = {
 
         const existingCount = await prisma.emailTemplate.count()
         if (existingCount > 0) {
-            console.log('邮件模板已存在，跳过初始化')
+            logger.info('邮件模板已存在，跳过初始化')
             return
         }
 
@@ -411,7 +414,7 @@ export const emailTemplateService = {
             await this.createTemplate(template)
         }
 
-        console.log(`已创建 ${defaultTemplates.length} 个默认邮件模板`)
+        logger.info(`已创建 ${defaultTemplates.length} 个默认邮件模板`)
     }
 }
 

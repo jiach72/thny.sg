@@ -1,0 +1,79 @@
+# Prometheus 告警规则
+# 部署方式: 将此文件放置于 Prometheus 配置目录并引用
+# prometheus.yml 示例:
+#   rule_files:
+#     - 'alert_rules.yml'
+
+groups:
+  - name: tonghai_crm_alerts
+    rules:
+      # MON-03: 5xx 错误率告警
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 5xx 错误率超过 1%"
+          description: "过去 5 分钟内 5xx 错误率为 {{ $value | humanizePercentage }}，超过 1% 阈值"
+
+      # MON-03: CPU 使用率告警
+      - alert: HighCPUUsage
+        expr: process_cpu_seconds_total > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "后端服务 CPU 使用率过高"
+          description: "进程 CPU 使用率持续超过 80%，当前值: {{ $value }}"
+
+      # MON-03: 数据库连接池使用率告警
+      - alert: HighDBConnectionPoolUsage
+        expr: |
+          (
+            prisma_pool_active_connections
+            /
+            prisma_pool_max_connections
+          ) > 0.8
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库连接池使用率超过 80%"
+          description: "活跃连接数占最大连接数的 {{ $value | humanizePercentage }}"
+
+      # HTTP 请求延迟告警
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API P95 延迟超过 2 秒"
+          description: "95 分位请求延迟为 {{ $value }} 秒"
+
+      # 服务不可用告警
+      - alert: ServiceDown
+        expr: up{job="tonghai-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "后端服务不可用"
+          description: "TongHai CRM 后端服务已停止响应超过 1 分钟"
+
+      # Redis 连接失败告警
+      - alert: RedisConnectionFailed
+        expr: redis_up == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis 连接失败"
+          description: "Redis 服务不可用，系统将降级为内存缓存模式"

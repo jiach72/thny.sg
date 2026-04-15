@@ -6,24 +6,34 @@
     "auditLog": "logs\\.0ced9ecee1686cb67562d123fac5454e1c5b0390-audit.json",
     "files": [
         {
-            "date": 1772242926840,
-            "name": "logs\\combined-2026-02-28.log",
-            "hash": "bf7aa460e34562d887e595d44ba82584a8d38ee83b1c1bab96739cf9e479f958"
+            "date": 1775192693188,
+            "name": "logs\\combined-2026-04-03.log",
+            "hash": "d803ae219bbaeb89d77df561fd495621abe07105a029d5bbd7f6c62d4eedd3c5"
         },
         {
-            "date": 1773221075160,
-            "name": "logs\\combined-2026-03-11.log",
-            "hash": "b8f2b575171460eb227cbdd19eac720b58b4641559fe0ca2aec7f86e218bc69e"
+            "date": 1775742516755,
+            "name": "logs\\combined-2026-04-09.log",
+            "hash": "1c40b4174c77f9da682d07cd8aa57eea43bbdca177cb0655897f8691ff4bf803"
         },
         {
-            "date": 1773320251559,
-            "name": "logs\\combined-2026-03-12.log",
-            "hash": "f00aef61947225b76f59e9260d942fae9a18159f77aff8ec22c2949835dd8dd6"
+            "date": 1775771673508,
+            "name": "logs\\combined-2026-04-10.log",
+            "hash": "0b7eeb5c130c5d251a889d95ceaf8770484280ca9158390958f2acc2bd890d48"
         },
         {
-            "date": 1773403229545,
-            "name": "logs\\combined-2026-03-13.log",
-            "hash": "f1063ca9aa7e44390ef6b3e7504f81ee33d5db3f2e0521d5ea030e1160b37464"
+            "date": 1775976922456,
+            "name": "logs\\combined-2026-04-12.log",
+            "hash": "1651841063868d718de1197b59bbc5a75ca19c7d76c5116d8a1cdb9cf597c2e7"
+        },
+        {
+            "date": 1776031576595,
+            "name": "logs\\combined-2026-04-13.log",
+            "hash": "c4dfcb1b78154f0c7d454301c4ff668e1b27faf04840d643d0d9b2a0e6378cf1"
+        },
+        {
+            "date": 1776240173828,
+            "name": "logs\\combined-2026-04-15.log",
+            "hash": "9b4ab74869ebebccad77d040578e1088c673b014ff823b877ccf790c74fb9493"
         }
     ],
     "hashType": "sha256"

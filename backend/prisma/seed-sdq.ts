@@ -61,11 +61,16 @@ async function main(): Promise<void> {
             phone: '88886666',
             companyName: '苏氏家族',
             riskGrade: 'MEDIUM',
-            familyMembers: {
-                children: ['苏明哲', '苏明成', '苏明玉']
-            },
             kycStatus: 'APPROVED'
         }
+    })
+
+    await prisma.familyMember.createMany({
+        data: [
+            { customerId: customer.id, name: '苏明哲', relationship: 'Son', isBeneficiary: false },
+            { customerId: customer.id, name: '苏明成', relationship: 'Son', isBeneficiary: false },
+            { customerId: customer.id, name: '苏明玉', relationship: 'Daughter', isBeneficiary: false },
+        ]
     })
     console.log(`📋 客户档案已建立: ID ${customer.id}`)
 

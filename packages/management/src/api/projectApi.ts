@@ -22,8 +22,8 @@ export interface Project {
             companyName?: string
         }
     }
-    tasks?: any[]
-    documents?: any[]
+    tasks?: { id: string; title: string; status: string }[]
+    documents?: { id: string; name: string; type: string }[]
     _count?: {
         tasks: number
         documents: number

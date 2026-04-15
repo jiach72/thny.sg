@@ -1,4 +1,7 @@
 import { prisma } from '../config/index.js'
+import { Prisma } from '@prisma/client'
+import type { TaskPriority } from '@prisma/client'
+import { NotFoundError, BusinessLogicError } from '../middlewares/index.js'
 
 // ==================== 时间常量 (消除魔法数字) ====================
 const MS_PER_DAY = 1000 * 60 * 60 * 24
@@ -114,18 +117,18 @@ export const workflowService = {
     /**
      * 智能分配单个线索
      */
-    async autoAssignLead(leadId: string): Promise<any> {
+    async autoAssignLead(leadId: string) {
         const lead = await prisma.lead.findUnique({
             where: { id: leadId },
             include: { assignedTo: true }
         })
 
         if (!lead) {
-            throw new Error('线索不存在')
+            throw new NotFoundError('线索不存在')
         }
 
         if (lead.assignedToId) {
-            throw new Error('线索已分配')
+            throw new BusinessLogicError('线索已分配')
         }
 
         // 1. 检查是否有匹配的分配规则
@@ -135,7 +138,7 @@ export const workflowService = {
         const assignToId = matchedUserId || await this.getBestAssignee()
 
         if (!assignToId) {
-            throw new Error('没有可用的销售人员')
+            throw new BusinessLogicError('没有可用的销售人员')
         }
 
         // 3. 执行分配
@@ -168,13 +171,14 @@ export const workflowService = {
     /**
      * 批量智能分配未分配的线索
      */
-    async batchAutoAssign(): Promise<{ assigned: number; failed: number }> {
+    async batchAutoAssign(maxCount: number = 100): Promise<{ assigned: number; failed: number }> {
         const unassignedLeads = await prisma.lead.findMany({
             where: {
                 assignedToId: null,
                 status: { notIn: ['CONVERTED', 'LOST'] }
             },
-            orderBy: { score: 'desc' } // 优先分配高分线索
+            orderBy: { score: 'desc' },
+            take: maxCount,
         })
 
         let assigned = 0
@@ -195,7 +199,7 @@ export const workflowService = {
     /**
      * 匹配分配规则
      */
-    async matchAssignmentRule(lead: any): Promise<string | null> {
+    async matchAssignmentRule(lead: Record<string, unknown>): Promise<string | null> {
         // 获取系统设置中的分配规则
         const rulesSetting = await prisma.systemSetting.findUnique({
             where: { key: 'ASSIGNMENT_RULES' }
@@ -249,7 +253,7 @@ export const workflowService = {
     /**
      * 创建首次跟进任务
      */
-    async createFollowUpTask(leadId: string, assigneeId: string): Promise<any> {
+    async createFollowUpTask(leadId: string, assigneeId: string) {
         const lead = await prisma.lead.findUnique({
             where: { id: leadId },
             select: { contactName: true, companyName: true, score: true }
@@ -270,7 +274,7 @@ export const workflowService = {
                 description: `请及时联系 ${lead?.contactName}${lead?.companyName ? ` (${lead?.companyName})` : ''}，了解其需求。`,
                 leadId: leadId,
                 assignedToId: assigneeId,
-                priority: priority,
+                priority: priority as TaskPriority,
                 dueDate: dueDate,
                 slaHours: hoursMap[priority],
                 tags: ['首次跟进', '自动创建']
@@ -332,7 +336,7 @@ export const workflowService = {
 
         // 获取待完成任务
         if (!filters?.type || filters.type === 'TASK' || filters.type === 'ALL') {
-            const whereClause: any = {
+            const whereClause: Prisma.TaskWhereInput = {
                 assignedToId: userId,
                 status: { notIn: ['DONE', 'CANCELLED'] }
             }
@@ -342,7 +346,7 @@ export const workflowService = {
             }
 
             if (filters?.priority) {
-                whereClause.priority = filters.priority
+                whereClause.priority = filters.priority as unknown as import('@prisma/client').TaskPriority
             }
 
             const tasks = await prisma.task.findMany({
@@ -418,7 +422,7 @@ export const workflowService = {
                 type: 'APPOINTMENT',
                 title: apt.title,
                 description: apt.description,
-                priority: 'HIGH',
+                priority: 'HIGH' as TaskPriority,
                 dueDate: apt.startTime,
                 status: apt.status,
                 assignedTo: null
@@ -509,27 +513,31 @@ export const workflowService = {
         const endOfDay = new Date(now)
         endOfDay.setHours(23, 59, 59, 999)
 
-        const where: any = {}
-        if (userId) where.assignedToId = userId
+        const taskWhere: Prisma.TaskWhereInput = {}
+        const leadWhere: Prisma.LeadWhereInput = {}
+        if (userId) {
+            taskWhere.assignedToId = userId
+            leadWhere.assignedToId = userId
+        }
 
         const [overdueTasks, overdueLeads, upcomingToday] = await Promise.all([
             prisma.task.count({
                 where: {
-                    ...where,
+                    ...taskWhere,
                     status: { notIn: ['DONE', 'CANCELLED'] },
                     dueDate: { lt: now }
                 }
             }),
             prisma.lead.count({
                 where: {
-                    ...where,
+                    ...leadWhere,
                     status: { notIn: ['CONVERTED', 'LOST'] },
                     lastContactedAt: { lt: new Date(now.getTime() - OVERDUE_LEAD_WINDOW_MS) } // 超过逾期阈值未联系
                 }
             }),
             prisma.task.count({
                 where: {
-                    ...where,
+                    ...taskWhere,
                     status: { notIn: ['DONE', 'CANCELLED'] },
                     dueDate: {
                         gte: now,
@@ -627,15 +635,15 @@ export const workflowService = {
     /**
      * 保存或更新工作流配置
      */
-    async saveWorkflowDefinition(data: any, userId: string): Promise<any> {
+    async saveWorkflowDefinition(data: { name: string; description?: string; triggerType: string; triggerConfig?: Prisma.InputJsonValue; nodes?: Prisma.InputJsonValue; edges?: Prisma.InputJsonValue; isActive?: boolean }, userId: string) {
         return prisma.workflowDefinition.create({
             data: {
                 name: data.name,
                 description: data.description || '',
                 triggerType: data.triggerType,
-                triggerConfig: data.triggerConfig || {},
-                nodes: data.nodes || [],
-                edges: data.edges || [],
+                triggerConfig: (data.triggerConfig ?? undefined) as unknown as Prisma.InputJsonValue,
+                nodes: (data.nodes ?? undefined) as unknown as Prisma.InputJsonValue,
+                edges: (data.edges ?? undefined) as unknown as Prisma.InputJsonValue,
                 isActive: data.isActive !== false,
                 createdBy: userId
             }
@@ -645,13 +653,14 @@ export const workflowService = {
     /**
      * 测试运行工作流配置
      */
-    async testWorkflowDefinition(data: any): Promise<any> {
+    async testWorkflowDefinition(data: { triggerType: string; nodes?: Prisma.InputJsonValue }) {
         // 返回模拟日志
+        const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0
         return {
             success: true,
             logs: [
                 `[${new Date().toLocaleTimeString()}] 触发类型: ${data.triggerType} 校验通过。`,
-                `[${new Date().toLocaleTimeString()}] 解析到 ${data.nodes?.length || 0} 个执行节点。`,
+                `[${new Date().toLocaleTimeString()}] 解析到 ${nodeCount} 个执行节点。`,
                 `[${new Date().toLocaleTimeString()}] 依赖参数注入测试完成，模拟执行未发生崩溃。`
             ]
         }

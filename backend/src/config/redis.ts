@@ -1,5 +1,6 @@
 import Redis from 'ioredis'
 import { config } from './index.js'
+import logger from './logger.js'
 
 /**
  * Redis 客户端单例
@@ -10,6 +11,7 @@ let redisClient: Redis | null = null
 // 用于记录连接状态，当 Redis 断开时自动启用本地拦截
 export let isRedisConnected = false
 const memoryBlacklist = new Map<string, number>()
+const memorySSOTickets = new Map<string, { userId: string, expireAt: number }>()
 
 /**
  * 创建一个新的 Redis 客户端实例
@@ -18,21 +20,20 @@ export function createRedisClient(): Redis {
     const client = new Redis(config.redisUrl, {
         maxRetriesPerRequest: 3,
         retryStrategy: (times) => {
-            if (times > 3) {
-                console.error('❌ Redis 连接失败，已达最大重试次数')
-                return null // 停止重试
-            }
-            return Math.min(times * 200, 2000) // 指数退避
+            // 指数退避持续重连，无上限，最大延迟 5 秒
+            const delay = Math.min(times * 500, 5000)
+            logger.warn(`Redis 重连中，第 ${times} 次，${delay}ms 后重试`)
+            return delay
         },
         lazyConnect: true, // 延迟连接，只在首次使用时连接
     })
 
     client.on('error', (err) => {
-        console.error('❌ Redis 错误:', err.message)
+        logger.error('Redis 错误:', err.message)
     })
 
     client.on('connect', () => {
-        console.log('✅ Redis 独立客户端已连接')
+        logger.info('Redis 独立客户端已连接')
     })
 
     return client
@@ -56,7 +57,7 @@ export function getRedis(): Redis {
 
         redisClient.on('close', () => {
             if (isRedisConnected) {
-                console.log('⚠️ Redis 全局连接挂断，进入降级容错模式')
+                logger.warn('Redis 全局连接挂断，进入降级容错模式')
             }
             isRedisConnected = false
         })
@@ -74,11 +75,11 @@ export async function closeRedis(): Promise<void> {
             await redisClient.quit()
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err)
-            console.warn('⚠️ 忽略关闭 Redis 时的潜在错误:', message)
+            logger.warn('忽略关闭 Redis 时的潜在错误:', message)
         } finally {
             redisClient = null
             isRedisConnected = false
-            console.log('Redis 连接已清理')
+            logger.info('Redis 连接已清理')
         }
     }
 }
@@ -144,4 +145,50 @@ export const tokenBlacklist = {
     },
 }
 
-export default { getRedis, closeRedis, tokenBlacklist, isRedisConnected }
+/**
+ * SSO 票据存储服务
+ */
+export const ssoTicketStore = {
+    async create(ticket: string, userId: string, expiresIn: number): Promise<void> {
+        try {
+            if (isRedisConnected) {
+                const redis = getRedis()
+                await redis.setex(`sso_ticket:${ticket}`, expiresIn, userId)
+            } else {
+                throw new Error('Redis not connected')
+            }
+        } catch (error) {
+            memorySSOTickets.set(ticket, { userId, expireAt: Date.now() + expiresIn * 1000 })
+            // 清理过期
+            for (const [k, v] of memorySSOTickets.entries()) {
+                if (Date.now() > v.expireAt) {
+                    memorySSOTickets.delete(k)
+                }
+            }
+        }
+    },
+    async exchange(ticket: string): Promise<string | null> {
+        const mem = memorySSOTickets.get(ticket)
+        if (mem) {
+            memorySSOTickets.delete(ticket)
+            if (Date.now() < mem.expireAt) return mem.userId
+            return null
+        }
+        try {
+            if (isRedisConnected) {
+                const redis = getRedis()
+                const key = `sso_ticket:${ticket}`
+                const userId = await redis.get(key)
+                if (userId) {
+                    await redis.del(key)
+                }
+                return userId
+            }
+        } catch (error) {
+            // fallback
+        }
+        return null
+    }
+}
+
+export default { getRedis, closeRedis, tokenBlacklist, ssoTicketStore, isRedisConnected }

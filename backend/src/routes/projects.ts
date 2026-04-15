@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body, query } from 'express-validator'
 import { validate, authMiddleware } from '../middlewares/index.js'
 import { projectService } from '../services/projectService.js'
+import { sendSuccess, sendError, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -21,7 +22,7 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await projectService.getProjects(req.query)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -33,7 +34,7 @@ router.get('/mine', async (req: Request, res: Response, next: NextFunction) => {
     try {
         // req.user 由 authMiddleware 提供，包含 email 和 role
         const projects = await projectService.getMyProjects(req.user!.email)
-        res.json(projects)
+        sendSuccess(res, projects)
     } catch (error) {
         next(error)
     }
@@ -52,9 +53,9 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
         }
 
         if (!project) {
-            return res.status(404).json({ message: '项目不存在或无权访问' })
+            return sendError(res, '项目不存在或无权访问', 404)
         }
-        res.json(project)
+        sendSuccess(res, project)
     } catch (error) {
         next(error)
     }
@@ -72,7 +73,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const project = await projectService.createProject(req.body)
-            res.status(201).json(project)
+            res.status(201).json(success(project))
         } catch (error) {
             next(error)
         }
@@ -80,10 +81,20 @@ router.post(
 )
 
 // 更新项目
-router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id',
+    [
+        body('name').optional().isString(),
+        body('description').optional().isString(),
+        body('status').optional().isIn(['ACTIVE','COMPLETED','ON_HOLD','CANCELLED']),
+        body('startDate').optional().isISO8601(),
+        body('endDate').optional().isISO8601(),
+        body('budget').optional().isNumeric(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const project = await projectService.updateProject(req.params.id, req.body)
-        res.json(project)
+        sendSuccess(res, project)
     } catch (error) {
         next(error)
     }
@@ -96,7 +107,7 @@ router.patch(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const project = await projectService.updateStatus(req.params.id, req.body.status)
-            res.json(project)
+            sendSuccess(res, project)
         } catch (error) {
             next(error)
         }

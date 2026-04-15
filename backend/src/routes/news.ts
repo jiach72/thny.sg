@@ -1,6 +1,7 @@
-import { Router, Request, Response } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import { newsService } from '../services/newsService.js'
-import { sendSuccess, sendError } from '../utils/responseHelper.js'
+import { sendSuccess } from '../utils/responseHelper.js'
+import { NotFoundError } from '../middlewares/index.js'
 
 const router = Router()
 
@@ -8,7 +9,7 @@ const router = Router()
  * 获取已发布的文章列表
  * GET /api/v1/news
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { type, category, page = '1', pageSize = '10', locale = 'zh' } = req.query
 
@@ -22,8 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
 
         sendSuccess(res, result)
     } catch (error) {
-        console.error('Error fetching articles:', error)
-        sendError(res, '获取文章失败', 500)
+        next(error)
     }
 })
 
@@ -31,7 +31,7 @@ router.get('/', async (req: Request, res: Response) => {
  * 获取热门文章
  * GET /api/v1/news/popular
  */
-router.get('/popular', async (req: Request, res: Response) => {
+router.get('/popular', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { limit = '5', locale = 'zh' } = req.query
         const articles = await newsService.getPopularArticles(
@@ -40,8 +40,7 @@ router.get('/popular', async (req: Request, res: Response) => {
         )
         sendSuccess(res, articles)
     } catch (error) {
-        console.error('Error fetching popular articles:', error)
-        sendError(res, '获取热门文章失败', 500)
+        next(error)
     }
 })
 
@@ -49,19 +48,18 @@ router.get('/popular', async (req: Request, res: Response) => {
  * 获取文章详情
  * GET /api/v1/news/:id
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { locale = 'zh' } = req.query
         const article = await newsService.getArticleById(req.params.id, locale as string)
 
         if (!article) {
-            return sendError(res, '文章不存在', 404, 'NOT_FOUND')
+            return next(new NotFoundError('文章不存在'))
         }
 
         sendSuccess(res, article)
     } catch (error) {
-        console.error('Error fetching article:', error)
-        sendError(res, '获取文章失败', 500)
+        next(error)
     }
 })
 

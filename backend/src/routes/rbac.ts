@@ -3,6 +3,7 @@ import { body, param } from 'express-validator'
 import { authMiddleware, requireRole } from '../middlewares/auth.js'
 import { validate } from '../middlewares/validation.js'
 import { rbacService } from '../services/rbacService.js'
+import { sendSuccess, sendError, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -17,7 +18,7 @@ router.use(requireRole('ADMIN'))
 router.get('/roles', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const roles = await rbacService.getAllRoles()
-        res.json({ success: true, data: roles })
+        sendSuccess(res, roles)
     } catch (error) {
         next(error)
     }
@@ -46,14 +47,11 @@ router.post(
         try {
             const { code, name, description } = req.body
             const role = await rbacService.createRole({ code, name, description })
-            res.status(201).json({ success: true, data: role })
+            res.status(201).json(success(role))
         } catch (error) {
             // Prisma 唯一约束冲突
             if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-                return res.status(409).json({
-                    success: false,
-                    message: '角色代码已存在'
-                })
+                return sendError(res, '角色代码已存在', 409, 'CONFLICT')
             }
             next(error)
         }
@@ -78,13 +76,10 @@ router.delete(
             const deleted = await rbacService.deleteRole(roleCode)
 
             if (!deleted) {
-                return res.status(400).json({
-                    success: false,
-                    message: '无法删除系统内置角色或角色不存在'
-                })
+                return sendError(res, '无法删除系统内置角色或角色不存在', 400)
             }
 
-            res.json({ success: true, message: '角色已删除' })
+            sendSuccess(res, null, '角色已删除')
         } catch (error) {
             next(error)
         }
@@ -98,7 +93,7 @@ router.delete(
 router.get('/permissions', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const permissions = await rbacService.getAllPermissions()
-        res.json({ success: true, data: permissions })
+        sendSuccess(res, permissions)
     } catch (error) {
         next(error)
     }
@@ -111,7 +106,7 @@ router.get('/permissions', async (req: Request, res: Response, next: NextFunctio
 router.get('/permissions/grouped', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const grouped = await rbacService.getPermissionsGroupedByResource()
-        res.json({ success: true, data: grouped })
+        sendSuccess(res, grouped)
     } catch (error) {
         next(error)
     }
@@ -132,7 +127,7 @@ router.get(
         try {
             const { roleCode } = req.params
             const permissions = await rbacService.getRolePermissions(roleCode)
-            res.json({ success: true, data: permissions })
+            sendSuccess(res, permissions)
         } catch (error) {
             next(error)
         }
@@ -165,7 +160,7 @@ router.put(
             const { permissionCodes } = req.body
 
             await rbacService.setRolePermissions(roleCode, permissionCodes)
-            res.json({ success: true, message: '权限已更新' })
+            sendSuccess(res, null, '权限已更新')
         } catch (error) {
             next(error)
         }

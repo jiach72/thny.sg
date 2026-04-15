@@ -1,6 +1,7 @@
 import { prisma } from '../config/index.js'
 import bcrypt from 'bcryptjs'
-import { NotFoundError, UnauthorizedError } from '../middlewares/index.js'
+import { NotFoundError, UnauthorizedError, BusinessLogicError } from '../middlewares/index.js'
+import { familyMemberRepository } from '../repositories/FamilyMemberRepository.js'
 
 interface UpdateProfileInput {
     name?: string
@@ -42,17 +43,20 @@ export const portalService = {
                 companyName: true,
                 phone: true,
                 contactName: true,
-                familyMembers: true,
                 riskGrade: true,
             },
         })
+
+        const familyMembers = customer
+            ? await familyMemberRepository.findByCustomerId(customer.id)
+            : []
 
         return {
             ...user,
             phone: customer?.phone || null,
             company: customer?.companyName || null,
             customerId: customer?.id || null,
-            familyMembers: customer?.familyMembers || [],
+            familyMembers,
             riskGrade: customer?.riskGrade || 'LOW',
         }
     },
@@ -61,34 +65,39 @@ export const portalService = {
      * 更新客户个人资料
      */
     async updateProfile(userId: string, data: UpdateProfileInput) {
-        // 更新用户基本信息
-        const user = await prisma.user.update({
-            where: { id: userId },
-            data: {
-                name: data.name,
-            },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                avatarUrl: true,
-            },
-        })
-
-        // 更新客户扩展信息
-        const customer = await prisma.customer.findFirst({
-            where: { userId },
-        })
-
-        if (customer) {
-            await prisma.customer.update({
-                where: { id: customer.id },
+        // 使用事务保证用户信息与客户信息的原子性更新
+        const user = await prisma.$transaction(async (tx) => {
+            // 更新用户基本信息
+            const updatedUser = await tx.user.update({
+                where: { id: userId },
                 data: {
-                    phone: data.phone,
-                    companyName: data.company,
+                    name: data.name,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    avatarUrl: true,
                 },
             })
-        }
+
+            // 更新客户扩展信息
+            const customer = await tx.customer.findFirst({
+                where: { userId },
+            })
+
+            if (customer) {
+                await tx.customer.update({
+                    where: { id: customer.id },
+                    data: {
+                        phone: data.phone,
+                        companyName: data.company,
+                    },
+                })
+            }
+
+            return updatedUser
+        })
 
         return {
             success: true,
@@ -99,6 +108,7 @@ export const portalService = {
 
     /**
      * 修改密码
+     * 修改成功后返回标记，由路由层负责清除 Cookie 使现有会话失效
      */
     async changePassword(userId: string, data: ChangePasswordInput) {
         const user = await prisma.user.findUnique({
@@ -115,6 +125,11 @@ export const portalService = {
             throw new UnauthorizedError('当前密码错误')
         }
 
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/
+        if (!passwordRegex.test(data.newPassword)) {
+            throw new BusinessLogicError('新密码必须包含大小写字母和数字')
+        }
+
         // 更新密码
         const newPasswordHash = await bcrypt.hash(data.newPassword, 12)
         await prisma.user.update({
@@ -124,7 +139,8 @@ export const portalService = {
 
         return {
             success: true,
-            message: '密码修改成功',
+            message: '密码修改成功，请重新登录',
+            requireRelogin: true, // 标记前端需要重新登录
         }
     },
 
@@ -396,7 +412,7 @@ export const portalService = {
         const now = new Date()
 
         if (start < now || end <= start) {
-            throw new Error('预约时间无效（不能预约过去的时间或时段错误）')
+            throw new BusinessLogicError('预约时间无效（不能预约过去的时间或时段错误）')
         }
 
         // 复用后端的日程防冲突逻辑
@@ -476,28 +492,17 @@ export const portalService = {
             throw new NotFoundError('客户信息不存在')
         }
 
-        // 获取现有家庭成员（JSON 字段）
-        const existingMembers = (customer.familyMembers as any[]) || []
-
-        const newMember = {
-            id: `fm_${Date.now()}`,
+        const member = await familyMemberRepository.create({
+            customer: { connect: { id: customer.id } },
             name: data.name,
             relationship: data.relationship,
             isBeneficiary: data.isBeneficiary || false,
-            createdAt: new Date().toISOString(),
-        }
-
-        await prisma.customer.update({
-            where: { id: customer.id },
-            data: {
-                familyMembers: [...existingMembers, newMember],
-            },
         })
 
         return {
             success: true,
             message: '成员已添加',
-            member: newMember,
+            member,
         }
     },
 
@@ -517,28 +522,21 @@ export const portalService = {
             throw new NotFoundError('客户信息不存在')
         }
 
-        const members = (customer.familyMembers as any[]) || []
-        const memberIndex = members.findIndex(m => m.id === memberId)
+        const existingMember = await familyMemberRepository.findByCustomerAndMemberId(
+            customer.id,
+            memberId
+        )
 
-        if (memberIndex === -1) {
+        if (!existingMember) {
             throw new NotFoundError('成员不存在')
         }
 
-        members[memberIndex] = {
-            ...members[memberIndex],
-            ...data,
-            updatedAt: new Date().toISOString(),
-        }
-
-        await prisma.customer.update({
-            where: { id: customer.id },
-            data: { familyMembers: members },
-        })
+        const member = await familyMemberRepository.update(memberId, data)
 
         return {
             success: true,
             message: '成员已更新',
-            member: members[memberIndex],
+            member,
         }
     },
 
@@ -554,21 +552,40 @@ export const portalService = {
             throw new NotFoundError('客户信息不存在')
         }
 
-        const members = (customer.familyMembers as any[]) || []
-        const filteredMembers = members.filter(m => m.id !== memberId)
+        const existingMember = await familyMemberRepository.findByCustomerAndMemberId(
+            customer.id,
+            memberId
+        )
 
-        if (filteredMembers.length === members.length) {
+        if (!existingMember) {
             throw new NotFoundError('成员不存在')
         }
 
-        await prisma.customer.update({
-            where: { id: customer.id },
-            data: { familyMembers: filteredMembers },
-        })
+        await familyMemberRepository.softDelete(memberId)
 
         return {
             success: true,
             message: '成员已删除',
+        }
+    },
+
+    /**
+     * 获取家庭成员列表
+     */
+    async getFamilyMembers(userId: string) {
+        const customer = await prisma.customer.findFirst({
+            where: { userId },
+        })
+
+        if (!customer) {
+            throw new NotFoundError('客户信息不存在')
+        }
+
+        const members = await familyMemberRepository.findByCustomerId(customer.id)
+
+        return {
+            success: true,
+            members,
         }
     },
 
@@ -743,7 +760,6 @@ export const portalService = {
             where: { id: pendingReq.id },
             data: {
                 status: 'SIGNED',
-                // @ts-ignore — signedAt 在 schema 扩展但 prisma 类型未刷新
                 signedAt: new Date(),
                 signatureUrl: signatureData,
             },
@@ -791,6 +807,87 @@ export const portalService = {
         } catch {
             return { success: false }
         }
+    },
+
+    // ==================== 账户注销与数据擦除 ====================
+
+    /**
+     * 删除账户并匿名化个人数据（GDPR 数据擦除合规）
+     * 在事务中依次软删除关联数据，并对用户/客户的个人标识信息进行匿名化处理
+     */
+    async deleteAccount(userId: string) {
+        return await prisma.$transaction(async (tx) => {
+            const user = await tx.user.findUnique({ where: { id: userId } })
+            if (!user) throw new NotFoundError('用户不存在')
+
+            if (user.status === 'INACTIVE') {
+                throw new BusinessLogicError('账户已注销')
+            }
+
+            const customer = await tx.customer.findUnique({ where: { userId } })
+
+            if (customer) {
+                // 1. 软删除家庭成员
+                await tx.familyMember.updateMany({
+                    where: { customerId: customer.id, deletedAt: null },
+                    data: { deletedAt: new Date() }
+                })
+
+                // 2. 软删除客户项目下的文档
+                const customerProjects = await tx.project.findMany({
+                    where: { customerId: customer.id },
+                    select: { id: true }
+                })
+                const projectIds = customerProjects.map(p => p.id)
+
+                if (projectIds.length > 0) {
+                    await tx.document.updateMany({
+                        where: { projectId: { in: projectIds } },
+                        data: { deletedAt: new Date() }
+                    })
+                }
+
+                // 3. 软删除项目
+                await tx.project.updateMany({
+                    where: { customerId: customer.id },
+                    data: { deletedAt: new Date() }
+                })
+
+                // 4. 匿名化客户个人标识信息并软删除
+                await tx.customer.update({
+                    where: { id: customer.id },
+                    data: {
+                        contactName: '已删除用户',
+                        companyName: null,
+                        email: `deleted_${customer.id}@redacted.com`,
+                        phone: null,
+                        profileNotes: null,
+                        deletedAt: new Date(),
+                    }
+                })
+            }
+
+            // 5. 匿名化用户个人标识信息
+            await tx.user.update({
+                where: { id: userId },
+                data: {
+                    name: '已删除用户',
+                    email: `deleted_${userId}@redacted.com`,
+                    avatarUrl: null,
+                    twoFactorSecret: null,
+                    twoFactorEnabled: false,
+                    status: 'INACTIVE',
+                }
+            })
+
+            // 6. 解除该用户作为顾问的 Lead 分配关系
+            await tx.lead.updateMany({
+                where: { assignedToId: userId },
+                data: { assignedToId: null }
+            })
+
+            return { success: true, message: '账户已删除，个人数据已匿名化' }
+        })
     },
 }
 

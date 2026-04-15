@@ -11,4 +11,6 @@ export { default as emailTemplateApi } from './emailTemplateApi'
 export { default as invoiceApi } from './invoiceApi'
 export { default as workflowApi } from './workflowApi'
 export { default as schedulerApi } from './schedulerApi'
+export { analyticsApi } from './analyticsApi'
+export { systemApi } from './system'
 

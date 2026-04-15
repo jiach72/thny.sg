@@ -1,3 +1,4 @@
+import { BadRequestError } from '../middlewares/errorHandler.js'
 import { Server as HttpServer } from 'http'
 import { Server, Socket } from 'socket.io'
 import jwt from 'jsonwebtoken'
@@ -14,6 +15,8 @@ interface UserSocket {
 }
 
 const connectedUsers = new Map<string, UserSocket[]>()
+const MAX_CONNECTIONS_PER_USER = 10
+const MAX_TOTAL_USERS = 10000
 
 /**
  * 初始化 WebSocket 服务
@@ -87,7 +90,19 @@ export function initWebSocket(httpServer: HttpServer) {
 }
 
 function addConnection(userId: string, socketId: string) {
+    if (connectedUsers.size >= MAX_TOTAL_USERS && !connectedUsers.has(userId)) {
+        logger.warn('WebSocket 连接数达到上限，拒绝新用户', { userId, context: 'websocket' })
+        return
+    }
     const connections = connectedUsers.get(userId) || []
+    if (connections.length >= MAX_CONNECTIONS_PER_USER) {
+        logger.warn('用户 WebSocket 连接数达到上限', { userId, count: connections.length, context: 'websocket' })
+        const oldest = connections.shift()
+        if (oldest) {
+            const socket = io?.sockets.sockets.get(oldest.socketId)
+            socket?.disconnect(true)
+        }
+    }
     connections.push({ userId, socketId })
     connectedUsers.set(userId, connections)
 }
@@ -107,7 +122,7 @@ function removeConnection(userId: string, socketId: string) {
  */
 export function getIO(): Server {
     if (!io) {
-        throw new Error('WebSocket 服务未初始化')
+        throw new BadRequestError('WebSocket 服务未初始化')
     }
     return io
 }

@@ -5,6 +5,44 @@ import { validate, authMiddleware } from '../middlewares/index.js'
 
 const router = Router()
 
+/**
+ * @openapi
+ * /vendors:
+ *   get:
+ *     tags: [Vendors]
+ *     summary: 获取供应商列表
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: 供应商类型筛选
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: 供应商状态筛选
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: 关键词搜索
+ *     responses:
+ *       200:
+ *         description: 成功获取供应商列表
+ *       401:
+ *         description: 未授权
+ */
 // 获取供应商列表
 router.get(
     '/',
@@ -65,6 +103,33 @@ router.get(
     }
 )
 
+/**
+ * @openapi
+ * /vendors:
+ *   post:
+ *     tags: [Vendors]
+ *     summary: 创建供应商
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *               contactEmail:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       201:
+ *         description: 供应商创建成功
+ *       401:
+ *         description: 未授权
+ */
 // 创建供应商
 router.post(
     '/',
@@ -85,11 +150,59 @@ router.post(
     }
 )
 
+/**
+ * @openapi
+ * /vendors/{id}:
+ *   put:
+ *     tags: [Vendors]
+ *     summary: 更新供应商
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               contactPerson:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phone:
+ *                 type: string
+ *               category:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [ACTIVE, INACTIVE]
+ *     responses:
+ *       200:
+ *         description: 更新成功
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 供应商不存在
+ */
 // 更新供应商
 router.put(
     '/:id',
     authMiddleware,
-    [param('id').isString()],
+    [
+        param('id').isString(),
+        body('name').optional().isString(),
+        body('contactPerson').optional().isString(),
+        body('email').optional().isEmail(),
+        body('phone').optional().isString(),
+        body('category').optional().isString(),
+        body('status').optional().isIn(['ACTIVE','INACTIVE']),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
@@ -101,6 +214,26 @@ router.put(
     }
 )
 
+/**
+ * @openapi
+ * /vendors/{id}:
+ *   delete:
+ *     tags: [Vendors]
+ *     summary: 软删除供应商
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 供应商不存在
+ */
 // 软删除供应商
 router.delete(
     '/:id',
@@ -142,7 +275,11 @@ router.post(
 router.put(
     '/assignments/:id',
     authMiddleware,
-    [param('id').isString()],
+    [
+        param('id').isString(),
+        body('status').optional().isIn(['PENDING','ACTIVE','COMPLETED','CANCELLED']),
+        body('notes').optional().isString(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {

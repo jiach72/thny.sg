@@ -1,9 +1,14 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body, param, query } from 'express-validator'
 import { invoiceService } from '../services/invoiceService.js'
-import { validate, authMiddleware } from '../middlewares/index.js'
+import { validate, authMiddleware, adminAuth } from '../middlewares/index.js'
+import { sendSuccess, sendError, success } from '../utils/responseHelper.js'
 
 const router = Router()
+
+// 发票管理路由仅限管理端用户（排除 CUSTOMER 角色，客户通过 portal 访问自己的发票）
+router.use(authMiddleware)
+router.use(adminAuth)
 
 // ==================== 发票管理 ====================
 
@@ -30,7 +35,7 @@ router.get(
                 limit: Number(req.query.limit) || 20
             }
             const result = await invoiceService.getInvoices(filters, pagination)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -47,7 +52,7 @@ router.get(
         try {
             const customerId = req.query.customerId as string | undefined
             const stats = await invoiceService.getInvoiceStats(customerId)
-            res.json(stats)
+            sendSuccess(res, stats)
         } catch (error) {
             next(error)
         }
@@ -66,9 +71,9 @@ router.get(
         try {
             const invoice = await invoiceService.getInvoiceById(req.params.id)
             if (!invoice) {
-                return res.status(404).json({ message: '发票不存在' })
+                return sendError(res, '发票不存在', 404)
             }
-            res.json(invoice)
+            sendSuccess(res, invoice)
         } catch (error) {
             next(error)
         }
@@ -93,7 +98,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const invoice = await invoiceService.createInvoice(req.body, req.user!.id)
-            res.status(201).json(invoice)
+            res.status(201).json(success(invoice))
         } catch (error) {
             next(error)
         }
@@ -106,12 +111,18 @@ router.post(
 router.put(
     '/:id',
     authMiddleware,
-    [param('id').notEmpty()],
+    [
+        param('id').notEmpty(),
+        body('status').optional().isIn(['DRAFT','SENT','PAID','OVERDUE','CANCELLED']),
+        body('dueDate').optional().isISO8601(),
+        body('items').optional().isArray(),
+        body('notes').optional().isString(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const invoice = await invoiceService.updateInvoice(req.params.id, req.body)
-            res.json(invoice)
+            sendSuccess(res, invoice)
         } catch (error) {
             next(error)
         }
@@ -129,7 +140,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await invoiceService.deleteInvoice(req.params.id)
-            res.json({ success: true, message: '发票已删除' })
+            sendSuccess(res, null, '发票已删除')
         } catch (error) {
             next(error)
         }
@@ -147,7 +158,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const invoice = await invoiceService.sendInvoice(req.params.id)
-            res.json(invoice)
+            sendSuccess(res, invoice)
         } catch (error) {
             next(error)
         }
@@ -165,7 +176,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const invoice = await invoiceService.cancelInvoice(req.params.id)
-            res.json(invoice)
+            sendSuccess(res, invoice)
         } catch (error) {
             next(error)
         }
@@ -189,7 +200,7 @@ router.get(
                 limit: Number(req.query.limit) || 20
             }
             const result = await invoiceService.getPayments({ invoiceId: req.params.id }, pagination)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -215,7 +226,7 @@ router.post(
                 invoiceId: req.params.id,
                 ...req.body
             }, req.user!.id)
-            res.status(201).json(payment)
+            res.status(201).json(success(payment))
         } catch (error) {
             next(error)
         }
@@ -233,7 +244,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await invoiceService.deletePayment(req.params.id)
-            res.json({ success: true, message: '收款记录已删除' })
+            sendSuccess(res, null, '收款记录已删除')
         } catch (error) {
             next(error)
         }
@@ -246,10 +257,11 @@ router.delete(
 router.post(
     '/check-overdue',
     authMiddleware,
+    adminAuth,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await invoiceService.checkOverdueInvoices()
-            res.json({ success: true, ...result, message: `已更新 ${result.updated} 条逾期发票` })
+            sendSuccess(res, result, `已更新 ${result.updated} 条逾期发票`)
         } catch (error) {
             next(error)
         }

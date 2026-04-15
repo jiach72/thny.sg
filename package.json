@@ -39,5 +39,11 @@
     "eslint-plugin-vue": "^9.21.1",
     "prettier": "^3.2.5",
     "typescript": "^5.3.3"
-  }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ]
 }

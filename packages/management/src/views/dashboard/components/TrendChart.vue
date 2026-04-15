@@ -17,10 +17,13 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { TrendCharts } from '@element-plus/icons-vue'
 import * as echarts from '@/utils/echarts'
+import { analyticsApi } from '@/api'
+import { logger } from '@/utils/logger'
 
 const chartRef = ref<HTMLElement | null>(null)
 let chart: echarts.ECharts | null = null
 const trendPeriod = ref('week')
+const loading = ref(false)
 
 const initChart = () => {
   if (chartRef.value) {
@@ -29,49 +32,80 @@ const initChart = () => {
   }
 }
 
-const updateChart = () => {
+const updateChart = async () => {
   if (!chart) return
 
-  // 模拟趋势数据
-  const data = trendPeriod.value === 'week' 
-    ? [120, 132, 101, 134, 90, 230, 210]
-    : [820, 932, 901, 934, 1290, 1330, 1320] // Mock monthly data
-  
-  const dates = trendPeriod.value === 'week'
-    ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-    : ['1日', '5日', '10日', '15日', '20日', '25日', '30日']
+  loading.value = true
+  try {
+    const period = trendPeriod.value === 'week' ? 'week' : 'month'
+    const res = await analyticsApi.getTrend({ period, months: period === 'week' ? 1 : 6 })
+    const trendData = (res as any)?.data || res
 
-  chart.setOption({
-    tooltip: { trigger: 'axis' },
-    grid: { top: '10%', left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: dates,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: '#94A3B8' }
-    },
-    yAxis: {
-      type: 'value',
-      splitLine: { lineStyle: { type: 'dashed', color: '#E2E8F0' } },
-      axisLabel: { color: '#94A3B8' }
-    },
-    series: [{
-      name: '新增线索',
-      type: 'line',
-      smooth: true,
-      lineStyle: { width: 3, color: '#0ea5e9' },
-      areaStyle: {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(14, 165, 233, 0.2)' },
-          { offset: 1, color: 'rgba(14, 165, 233, 0)' }
-        ])
+    // 从后端数据提取 counts 和 labels
+    const items: Array<{ date: string; count: number }> = trendData?.trend || trendData?.data || []
+    const data = items.map((item: any) => item.count ?? item.value ?? 0)
+    const dates = items.map((item: any) => {
+      const d = item.date || item.label || ''
+      return trendPeriod.value === 'week'
+        ? d.slice(5) // "2026-04-14" → "04-14"
+        : d.slice(5)  // "2026-04" → "04"
+    })
+
+    // 无数据时显示空状态
+    if (data.length === 0) {
+      chart.setOption({
+        title: { text: '暂无趋势数据', left: 'center', top: 'center', textStyle: { color: '#94A3B8', fontSize: 14, fontWeight: 'normal' } },
+        xAxis: { show: false },
+        yAxis: { show: false },
+        series: []
+      })
+      return
+    }
+
+    chart.setOption({
+      title: { show: false },
+      tooltip: { trigger: 'axis' },
+      grid: { top: '10%', left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: dates,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#94A3B8' }
       },
-      showSymbol: false,
-      data
-    }]
-  })
+      yAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { type: 'dashed', color: '#E2E8F0' } },
+        axisLabel: { color: '#94A3B8' }
+      },
+      series: [{
+        name: '新增线索',
+        type: 'line',
+        smooth: true,
+        lineStyle: { width: 3, color: '#0ea5e9' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(14, 165, 233, 0.2)' },
+            { offset: 1, color: 'rgba(14, 165, 233, 0)' }
+          ])
+        },
+        showSymbol: false,
+        data
+      }]
+    })
+  } catch (error) {
+    logger.warn('TrendChart', '趋势数据加载失败', error)
+    // 降级：显示空图表
+    chart.setOption({
+      title: { text: '数据加载失败', left: 'center', top: 'center', textStyle: { color: '#94A3B8', fontSize: 14, fontWeight: 'normal' } },
+      xAxis: { show: false },
+      yAxis: { show: false },
+      series: []
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 watch(trendPeriod, () => {

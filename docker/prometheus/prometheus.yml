@@ -1,0 +1,33 @@
+# Prometheus 配置
+# 部署方式: 将此文件映射到 Prometheus 容器中
+# docker-compose.yml 示例:
+#   prometheus:
+#     image: prom/prometheus:latest
+#     volumes:
+#       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+#       - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - 'alert_rules.yml'
+
+scrape_configs:
+  - job_name: 'tonghai-backend'
+    metrics_path: '/metrics'
+    scheme: http
+    bearer_token: 'CHANGE_ME_METRICS_BEARER_TOKEN'  # 生产环境替换为实际 token
+    static_configs:
+      - targets: ['backend:5000']
+        labels:
+          environment: 'production'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']

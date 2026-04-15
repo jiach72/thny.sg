@@ -21,17 +21,18 @@ export const useInquiryStore = defineStore('inquiry', () => {
     async function fetchInquiries(params: Record<string, unknown> = {}) {
         loading.value = true
         try {
-            const res = await inquiryApi.getInquiries(params) as { data: Inquiry[] }
-            inquiries.value = res.data
-            return res.data
+            const res = await inquiryApi.getInquiries(params)
+            const data = Array.isArray(res) ? res : (res as any)?.data || []
+            inquiries.value = data
+            return data
         } finally {
             loading.value = false
         }
     }
 
     async function updateInquiry(id: string, data: Partial<Inquiry>) {
-        const res = await inquiryApi.update(id, data) as { data: Inquiry }
-        return res.data
+        const res = await inquiryApi.update(id, data)
+        return (res as any)?.data || res
     }
 
     async function deleteInquiry(id: string) {

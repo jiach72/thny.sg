@@ -2,12 +2,42 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body, param } from 'express-validator'
 import { schedulerService } from '../services/schedulerService.js'
 import { emailSenderService } from '../services/emailSenderService.js'
-import { validate, authMiddleware } from '../middlewares/index.js'
+import { validate, authMiddleware, adminAuth } from '../middlewares/index.js'
+import { sendSuccess, sendError } from '../utils/responseHelper.js'
 
 const router = Router()
 
+// 所有路由需要管理员权限
+router.use(adminAuth)
+
 // ==================== 定时任务管理 ====================
 
+/**
+ * @openapi
+ * /scheduler/tasks:
+ *   get:
+ *     tags: [Scheduler]
+ *     summary: 获取所有定时任务状态
+ *     description: 仅管理员可用，返回所有定时任务的运行状态和配置
+ *     responses:
+ *       200:
+ *         description: 成功获取任务状态列表
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 非管理员无权访问
+ */
 /**
  * GET /scheduler/tasks - 获取所有定时任务状态
  */
@@ -17,13 +47,37 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const tasks = schedulerService.getTasksStatus()
-            res.json(tasks)
+            sendSuccess(res, tasks)
         } catch (error) {
             next(error)
         }
     }
 )
 
+/**
+ * @openapi
+ * /scheduler/tasks/{name}/trigger:
+ *   post:
+ *     tags: [Scheduler]
+ *     summary: 手动触发定时任务
+ *     description: 仅管理员可用，手动执行指定的定时任务
+ *     parameters:
+ *       - in: path
+ *         name: name
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 任务名称
+ *     responses:
+ *       200:
+ *         description: 任务触发成功
+ *       401:
+ *         description: 未授权
+ *       403:
+ *         description: 非管理员无权操作
+ *       404:
+ *         description: 任务不存在
+ */
 /**
  * POST /scheduler/tasks/:name/trigger - 手动触发任务
  */
@@ -35,7 +89,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await schedulerService.triggerTask(req.params.name)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -48,19 +102,23 @@ router.post(
 router.put(
     '/tasks/:name',
     authMiddleware,
-    [param('name').notEmpty()],
+    [
+        param('name').notEmpty(),
+        body('enabled').optional().isBoolean(),
+        body('cronExpression').optional().isString(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const success = await schedulerService.updateTask(req.params.name, {
+            const updated = await schedulerService.updateTask(req.params.name, {
                 enabled: req.body.enabled,
                 cronExpression: req.body.cronExpression
             })
 
-            if (success) {
-                res.json({ success: true, message: '任务配置已更新' })
+            if (updated) {
+                sendSuccess(res, null, '任务配置已更新')
             } else {
-                res.status(404).json({ success: false, message: '任务不存在' })
+                sendError(res, '任务不存在', 404)
             }
         } catch (error) {
             next(error)
@@ -77,10 +135,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const results = await schedulerService.checkAndRunDueTasks()
-            res.json({
-                executed: results.length,
-                results
-            })
+            sendSuccess(res, { executed: results.length, results })
         } catch (error) {
             next(error)
         }
@@ -98,7 +153,7 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const status = emailSenderService.getStatus()
-            res.json(status)
+            sendSuccess(res, status)
         } catch (error) {
             next(error)
         }
@@ -114,7 +169,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await emailSenderService.testConnection()
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -141,12 +196,7 @@ router.post(
                 `
             })
 
-            res.json({
-                success: result.success,
-                message: result.success ? '测试邮件已发送' : '发送失败',
-                messageId: result.messageId,
-                error: result.error
-            })
+            sendSuccess(res, { success: result.success, messageId: result.messageId, error: result.error }, result.success ? '测试邮件已发送' : '发送失败')
         } catch (error) {
             next(error)
         }
@@ -163,11 +213,7 @@ router.post(
         try {
             await emailSenderService.initialize()
             const status = emailSenderService.getStatus()
-            res.json({
-                success: true,
-                message: '邮件服务已重新初始化',
-                status
-            })
+            sendSuccess(res, status, '邮件服务已重新初始化')
         } catch (error) {
             next(error)
         }

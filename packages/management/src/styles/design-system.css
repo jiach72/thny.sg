@@ -1,9 +1,9 @@
 :root {
-  /* Core Colors - Professional Rich Theme (Cyan/Teal) */
-  --color-primary: #0891B2;
-  /* Cyan 600 - Professional & Trustworthy */
-  --color-secondary: #0E7490;
-  /* Cyan 700 */
+  /* Core Colors - Professional Rich Theme (Wealth Gold) */
+  --color-primary: #D6B56E;
+  /* Wealth Gold - Professional & Trustworthy */
+  --color-secondary: #C5A45D;
+  /* Gold 700 */
   --color-cta: #059669;
   /* Emerald 600 - Positive Action */
   --color-accent: #8B5CF6;
@@ -24,7 +24,7 @@
   /* Slate 200 */
 
   /* Primary with alpha for backgrounds */
-  --color-primary-light: rgba(8, 145, 178, 0.1);
+  --color-primary-light: rgba(214, 181, 110, 0.1);
 
   /* Spacing */
   --space-xs: 0.25rem;
@@ -50,10 +50,10 @@
 /* ==================== 深色模式 ==================== */
 :root.dark,
 [data-theme="dark"] {
-  --color-primary: #22d3ee;
-  /* Cyan 400 - Brighter for dark mode */
-  --color-secondary: #06b6d4;
-  /* Cyan 500 */
+  --color-primary: #D6B56E;
+  /* Wealth Gold - Brighter for dark mode */
+  --color-secondary: #E5C87D;
+  /* Gold 500 */
   --color-cta: #34d399;
   /* Emerald 400 */
   --color-accent: #a78bfa;
@@ -73,7 +73,7 @@
   --color-border: #334155;
   /* Slate 700 */
 
-  --color-primary-light: rgba(34, 211, 238, 0.15);
+  --color-primary-light: rgba(214, 181, 110, 0.15);
 
   /* Shadows for dark mode */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);

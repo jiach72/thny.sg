@@ -198,6 +198,7 @@ import schedulerApi, {
   type ScheduledTask, 
   type EmailStatus 
 } from '@/api/schedulerApi'
+import { logger } from '@/utils/logger'
 
 // 状态
 const loading = ref(false)
@@ -254,7 +255,7 @@ async function loadEmailStatus() {
   try {
     emailStatus.value = await schedulerApi.getEmailStatus()
   } catch (err) {
-    console.error('加载邮件状态失败:', err)
+    logger.error('SchedulerManagement', '加载邮件状态失败:', err)
   }
 }
 

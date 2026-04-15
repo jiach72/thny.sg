@@ -1,11 +1,57 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-// @ts-ignore: otplib 在某些 ESM/TS 配置下的类型定义与实际运行时导出存在差异，在此显式忽略 tsc 检查以确保项目正常编译
-import otplibDefault from '@otplib/preset-default'
-const { authenticator } = otplibDefault
+import * as otplibPreset from '@otplib/preset-default'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const authenticator = (otplibPreset as any).authenticator || otplibPreset.authenticator
 import QRCode from 'qrcode'
+import crypto from 'crypto'
 import { prisma, config } from '../config/index.js'
 import { UnauthorizedError, NotFoundError, BadRequestError } from '../middlewares/index.js'
+
+const ENCRYPTION_KEY = process.env.TWO_FA_ENCRYPTION_KEY
+const ALGORITHM = 'aes-256-gcm'
+
+if (!ENCRYPTION_KEY) {
+    if (process.env.NODE_ENV === 'production') {
+        process.stderr.write('❌ 安全错误: TWO_FA_ENCRYPTION_KEY 环境变量必须在生产环境中设置\n')
+        process.exit(1)
+    }
+    process.stderr.write('⚠️ 警告: TWO_FA_ENCRYPTION_KEY 未设置，2FA 功能将使用开发模式密钥。请勿在生产环境使用！\n')
+}
+
+// 每次加密使用随机盐值，避免硬编码盐值导致密钥推导可预测
+function deriveKey(salt: Buffer): Buffer {
+    const keyMaterial = ENCRYPTION_KEY || 'dev-2fa-key-do-not-use-in-prod'
+    return crypto.scryptSync(keyMaterial, salt, 32)
+}
+
+function encrypt(text: string): string {
+    const iv = crypto.randomBytes(16)
+    const salt = crypto.randomBytes(16)
+    const key = deriveKey(salt)
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
+    let encrypted = cipher.update(text, 'utf8', 'hex')
+    encrypted += cipher.final('hex')
+    const authTag = cipher.getAuthTag().toString('hex')
+    return salt.toString('hex') + ':' + iv.toString('hex') + ':' + authTag + ':' + encrypted
+}
+
+function decrypt(encryptedText: string): string {
+    const parts = encryptedText.split(':')
+    if (parts.length !== 4) {
+        throw new Error('加密数据格式无效')
+    }
+    const salt = Buffer.from(parts[0], 'hex')
+    const iv = Buffer.from(parts[1], 'hex')
+    const authTag = Buffer.from(parts[2], 'hex')
+    const encrypted = parts[3]
+    const key = deriveKey(salt)
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
+    decipher.setAuthTag(authTag)
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8')
+    decrypted += decipher.final('utf8')
+    return decrypted
+}
 
 interface LoginInput {
     email: string
@@ -16,6 +62,16 @@ interface RegisterInput {
     email: string
     password: string
     name: string
+}
+
+interface TwoFaTempPayload {
+    sub: string
+    type: string
+}
+
+interface RefreshTokenPayload {
+    sub: string
+    type: string
 }
 
 export const authService = {
@@ -79,7 +135,7 @@ export const authService = {
      */
     async verify2FALogin(tempToken: string, code: string) {
         try {
-            const decoded = jwt.verify(tempToken, config.jwt.secret) as any
+            const decoded = jwt.verify(tempToken, config.jwt.secret) as TwoFaTempPayload
             if (decoded.type !== '2fa_temp') {
                 throw new UnauthorizedError('无效的会话')
             }
@@ -93,7 +149,7 @@ export const authService = {
                 throw new UnauthorizedError('2FA 验证环境失效')
             }
 
-            const isValid = authenticator.verify({ token: code, secret: user.twoFactorSecret })
+            const isValid = authenticator.verify({ token: code, secret: decrypt(user.twoFactorSecret) })
             if (!isValid) {
                 throw new UnauthorizedError('验证码错误')
             }
@@ -115,15 +171,12 @@ export const authService = {
                     avatarUrl: user.avatarUrl,
                 },
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             if (e instanceof UnauthorizedError) throw e
             throw new UnauthorizedError('会话已失效，请重新登录')
         }
     },
 
-    /**
-     * 生成 2FA 密钥并返回绑定二维码 (设置开启用)
-     */
     async generate2FA(userId: string) {
         const user = await prisma.user.findUnique({ where: { id: userId } })
         if (!user) throw new NotFoundError('用户不存在')
@@ -131,10 +184,9 @@ export const authService = {
         const secret = authenticator.generateSecret()
         const otpauthUrl = authenticator.keyuri(user.email, 'TongHai CRM', secret)
 
-        // 临时保存在数据库，此时尚未启用，如果中途终止也不会产生影响
         await prisma.user.update({
             where: { id: userId },
-            data: { twoFactorSecret: secret, twoFactorEnabled: false }
+            data: { twoFactorSecret: encrypt(secret), twoFactorEnabled: false }
         })
 
         const qrCodeUrl = await QRCode.toDataURL(otpauthUrl)
@@ -152,7 +204,7 @@ export const authService = {
         const user = await prisma.user.findUnique({ where: { id: userId } })
         if (!user || !user.twoFactorSecret) throw new BadRequestError('请先获取验证二维码')
 
-        const isValid = authenticator.verify({ token: code, secret: user.twoFactorSecret })
+        const isValid = authenticator.verify({ token: code, secret: decrypt(user.twoFactorSecret) })
         if (!isValid) {
             throw new UnauthorizedError('验证码错误')
         }
@@ -165,16 +217,13 @@ export const authService = {
         return { success: true }
     },
 
-    /**
-     * 关闭 2FA，需要校验当前的有效码
-     */
     async disable2FA(userId: string, code: string) {
         const user = await prisma.user.findUnique({ where: { id: userId } })
         if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
             throw new BadRequestError('当前未启用 2FA')
         }
 
-        const isValid = authenticator.verify({ token: code, secret: user.twoFactorSecret })
+        const isValid = authenticator.verify({ token: code, secret: decrypt(user.twoFactorSecret) })
         if (!isValid) {
             throw new UnauthorizedError('验证码错误')
         }
@@ -200,10 +249,19 @@ export const authService = {
             throw new UnauthorizedError('注册失败，请检查输入信息')
         }
 
+        // 密码强度校验：至少8位，包含大小写字母和数字
+        if (password.length < 8) {
+            throw new BadRequestError('密码长度至少为8位')
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/
+        if (!passwordRegex.test(password)) {
+            throw new BadRequestError('密码必须包含大小写字母和数字')
+        }
+
         // 获取 CUSTOMER 角色
         const customerRole = await prisma.role.findUnique({ where: { code: 'CUSTOMER' } })
         if (!customerRole) {
-            throw new Error('系统配置错误: CUSTOMER 角色不存在')
+            throw new BadRequestError('系统配置错误: CUSTOMER 角色不存在')
         }
 
         const passwordHash = await bcrypt.hash(password, 12)
@@ -238,7 +296,7 @@ export const authService = {
             }
 
             // 使用独立的 refreshSecret 验证刷新令牌
-            const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as any
+            const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as RefreshTokenPayload
 
             if (decoded.type !== 'refresh') {
                 throw new UnauthorizedError('无效的刷新令牌')
@@ -253,6 +311,19 @@ export const authService = {
                 throw new UnauthorizedError('用户不存在或已被禁用')
             }
 
+            // 安全：将旧 refreshToken 加入黑名单，防止 Token 重放攻击
+            try {
+                const oldDecoded = jwt.decode(refreshToken) as { exp?: number } | null
+                if (oldDecoded?.exp) {
+                    const ttl = oldDecoded.exp - Math.floor(Date.now() / 1000)
+                    if (ttl > 0) {
+                        await tokenBlacklist.add(refreshToken, ttl)
+                    }
+                }
+            } catch {
+                // 旧 Token 黑名单化失败不阻断流程，仅记录
+            }
+
             const accessToken = this.generateAccessToken(user)
             const newRefreshToken = this.generateRefreshToken(user)
 
@@ -262,6 +333,7 @@ export const authService = {
                 expiresIn: 900,
             }
         } catch (error) {
+            if (error instanceof UnauthorizedError) throw error
             throw new UnauthorizedError('刷新令牌无效或已过期')
         }
     },
@@ -366,6 +438,15 @@ export const authService = {
             throw new UnauthorizedError('链接无效或已过期')
         }
 
+        // 密码强度校验
+        if (password.length < 8) {
+            throw new BadRequestError('密码长度至少为8位')
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/
+        if (!passwordRegex.test(password)) {
+            throw new BadRequestError('密码必须包含大小写字母和数字')
+        }
+
         const passwordHash = await bcrypt.hash(password, 12)
 
         const updatedUser = await prisma.user.update({
@@ -393,7 +474,7 @@ export const authService = {
                 id: updatedUser.id,
                 name: updatedUser.name,
                 email: updatedUser.email,
-                role: updatedUser.role,
+                role: updatedUser.role.code,
                 avatarUrl: updatedUser.avatarUrl,
             },
         }
@@ -463,6 +544,15 @@ export const authService = {
             throw new BadRequestError('重置链接无效或已过期，请重新申请')
         }
 
+        // 密码强度校验
+        if (newPassword.length < 8) {
+            throw new BadRequestError('密码长度至少为8位')
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/
+        if (!passwordRegex.test(newPassword)) {
+            throw new BadRequestError('密码必须包含大小写字母和数字')
+        }
+
         const passwordHash = await bcrypt.hash(newPassword, 12)
 
         await prisma.user.update({
@@ -503,7 +593,7 @@ export const authService = {
 
         const adminRole = await prisma.role.findUnique({ where: { code: 'ADMIN' } })
         if (!adminRole) {
-            throw new Error('系统异常：未找到 ADMIN 角色定义，请确保已经运行了角色的种子脚本。')
+            throw new BadRequestError('系统异常：未找到 ADMIN 角色定义，请确保已经运行了角色的种子脚本')
         }
 
         const passwordHash = await bcrypt.hash(password, 12)
@@ -520,6 +610,59 @@ export const authService = {
         return {
             success: true,
             user: { id: user.id, name: user.name, email: user.email }
+        }
+    },
+
+    /**
+     * 生成供跨端 WebView 消费的短命免登票据 (SSO Ticket)
+     */
+    async generateSSOTicket(userId: string) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+        })
+        if (!user || user.status !== 'ACTIVE') throw new UnauthorizedError('用户无效或已被禁用')
+
+        const { randomBytes } = await import('crypto')
+        const ticket = randomBytes(16).toString('hex')
+        const { ssoTicketStore } = await import('../config/redis.js')
+        
+        await ssoTicketStore.create(ticket, user.id, 30) // 存活 30秒
+        return { ticket, expiresIn: 30 }
+    },
+
+    /**
+     * 核销免登票据换取全新 JWT
+     */
+    async exchangeSSOTicket(ticket: string) {
+        const { ssoTicketStore } = await import('../config/redis.js')
+        const userId = await ssoTicketStore.exchange(ticket)
+        
+        if (!userId) {
+            throw new UnauthorizedError('免登票据无效或已过期')
+        }
+        
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { role: true },
+        })
+        if (!user || user.status !== 'ACTIVE') throw new UnauthorizedError('用户无效或已被禁用')
+
+        const accessToken = this.generateAccessToken(user)
+        const refreshToken = this.generateRefreshToken(user)
+
+        return {
+            accessToken,
+            refreshToken,
+            tokenType: 'Bearer',
+            expiresIn: 900,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role.code,
+                roleId: user.roleId,
+                avatarUrl: user.avatarUrl,
+            },
         }
     },
 }

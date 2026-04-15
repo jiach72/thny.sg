@@ -100,6 +100,7 @@ import { ref, reactive, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useLeadStore } from '@/stores'
 import type { Lead } from '@tonghai/shared/types'
+import { logger } from '@/utils/logger'
 
 const props = defineProps<{
   visible: boolean
@@ -195,7 +196,7 @@ async function handleCheckDuplicates() {
       duplicateWarning.value = false
     }
   } catch (error) {
-    console.warn('查重失败', error)
+    logger.warn('LeadFormDialog', '查重失败', error)
   }
 }
 

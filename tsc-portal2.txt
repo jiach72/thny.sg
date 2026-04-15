@@ -1,0 +1,1 @@
+src/stores/__tests__/projectStore.spec.ts(40,32): error TS2339: Property 'name' does not exist on type '{ consultant?: { id: string; name: string; avatar?: string | undefined; contactNumber?: string | undefined; title?: string | undefined; } | undefined; tasks?: any[] | undefined; documents?: { ...; }[] | undefined; ... 13 more ...; updatedAt: string; }'.

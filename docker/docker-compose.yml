@@ -6,8 +6,10 @@ services:
     image: postgres:15-alpine
     container_name: tonghai-postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"
+    # 注意：生产环境不应暴露数据库端口到宿主机
+    # 开发环境如需本地调试工具连接，请按需取消注释
+    # ports:
+    #   - "5432:5432"
     environment:
       POSTGRES_USER: crm_user
       POSTGRES_PASSWORD: crm_password
@@ -25,12 +27,13 @@ services:
     image: redis:7-alpine
     container_name: tonghai-redis
     restart: unless-stopped
+    command: redis-server --requirepass dev_redis_password
     ports:
       - "6479:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "dev_redis_password", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

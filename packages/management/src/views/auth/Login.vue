@@ -63,6 +63,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
+import { logger } from '@/utils/logger'
 
 const router = useRouter()
 const route = useRoute()
@@ -83,7 +84,7 @@ onMounted(async () => {
       router.replace('/setup')
     }
   } catch (error) {
-    console.error('System status check fail', error)
+    logger.error('Login', 'System status check fail', error)
   } finally {
     initCheckLoading.value = false
   }

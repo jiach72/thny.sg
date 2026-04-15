@@ -1,9 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import multer from 'multer'
 import { body, param, query } from 'express-validator'
+import rateLimit from 'express-rate-limit'
 import { leadService } from '../services/index.js'
 import { validate, authMiddleware, optionalAuth } from '../middlewares/index.js'
 import { LeadStatus } from '@prisma/client'
+import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -74,7 +76,7 @@ router.get(
             }
 
             const result = await leadService.getLeads(filters, pagination)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -87,7 +89,7 @@ router.get(
 router.get('/stats', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const stats = await leadService.getLeadStats()
-        res.json(stats)
+        sendSuccess(res, stats)
     } catch (error) {
         next(error)
     }
@@ -100,7 +102,7 @@ router.get('/activities', authMiddleware, async (req: Request, res: Response, ne
     try {
         const limit = req.query.limit ? Number(req.query.limit) : 20
         const activities = await leadService.getRecentActivities(limit)
-        res.json(activities)
+        sendSuccess(res, activities)
     } catch (error) {
         next(error)
     }
@@ -117,7 +119,7 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const lead = await leadService.getLeadById(req.params.id)
-            res.json(lead)
+            sendSuccess(res, lead)
         } catch (error) {
             next(error)
         }
@@ -140,7 +142,7 @@ router.post(
         try {
             const { email, phone, excludeLeadId } = req.body
             const duplicates = await leadService.checkDuplicates(email, phone, excludeLeadId)
-            res.json(duplicates)
+            sendSuccess(res, duplicates)
         } catch (error) {
             next(error)
         }
@@ -163,7 +165,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const lead = await leadService.createLead(req.body, req.user!.id)
-            res.status(201).json(lead)
+            res.status(201).json(success(lead))
         } catch (error) {
             next(error)
         }
@@ -171,10 +173,19 @@ router.post(
 )
 
 /**
- * POST /leads/webhook - 官网表单 Webhook (无需认证)
+ * POST /leads/webhook - 官网表单 Webhook (无需认证，但有速率限制)
  */
+const webhookLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 分钟
+    max: 10, // 每分钟最多 10 次提交
+    message: { code: 'RATE_LIMITED', message: '提交过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+})
+
 router.post(
     '/webhook',
+    webhookLimiter,
     optionalAuth,
     [
         body('name').notEmpty().withMessage('姓名不能为空'),
@@ -202,11 +213,7 @@ router.post(
 
             const lead = await leadService.createLead(leadData)
 
-            res.status(201).json({
-                success: true,
-                leadId: lead.id,
-                message: '感谢您的咨询，我们的顾问将尽快与您联系',
-            })
+            res.status(201).json(success({ leadId: lead.id }, '感谢您的咨询，我们的顾问将尽快与您联系'))
         } catch (error) {
             next(error)
         }
@@ -219,7 +226,17 @@ router.post(
 router.put(
     '/:id',
     authMiddleware,
-    [param('id').notEmpty()],
+    [
+        param('id').notEmpty(),
+        body('name').optional().isString(),
+        body('email').optional().isEmail(),
+        body('phone').optional().isString(),
+        body('company').optional().isString(),
+        body('source').optional().isString(),
+        body('status').optional().isIn(['NEW','CONTACTED','QUALIFIED','PROPOSAL','NEGOTIATION','WON','LOST']),
+        body('estimatedValue').optional().isNumeric(),
+        body('notes').optional().isString(),
+    ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
@@ -228,7 +245,7 @@ router.put(
                 req.body,
                 req.user!.id
             )
-            res.json(lead)
+            sendSuccess(res, lead)
         } catch (error) {
             next(error)
         }
@@ -253,7 +270,7 @@ router.post(
                 req.body.content,
                 req.user!.id
             )
-            res.json(activity)
+            sendSuccess(res, activity)
         } catch (error) {
             next(error)
         }
@@ -279,7 +296,7 @@ router.post(
                 req.user!.id,
                 req.body.reason
             )
-            res.json(lead)
+            sendSuccess(res, lead)
         } catch (error) {
             next(error)
         }
@@ -301,7 +318,7 @@ router.post(
                 throw new Error('请上传 CSV 文件')
             }
             const result = await leadService.importLeads(req.file.buffer, req.user!.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -319,7 +336,30 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await leadService.deleteLead(req.params.id)
-            res.json(result)
+            sendSuccess(res, result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * POST /leads/check-duplicates - 撞库检测
+ */
+router.post(
+    '/check-duplicates',
+    authMiddleware,
+    [
+        body('email').optional().isEmail(),
+        body('phone').optional().isString(),
+        body('excludeLeadId').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { email, phone, excludeLeadId } = req.body
+            const result = await leadService.checkDuplicates(email, phone, excludeLeadId)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -346,7 +386,7 @@ router.post(
                 req.user!.id,
                 { email, phone }
             )
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -365,7 +405,7 @@ router.get(
         try {
             const { aiService } = await import('../services/aiService.js')
             const insight = await aiService.getLeadInsight(req.params.id)
-            res.json(insight)
+            sendSuccess(res, insight)
         } catch (error) {
             next(error)
         }

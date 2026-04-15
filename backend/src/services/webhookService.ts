@@ -6,6 +6,7 @@
 import { prisma } from '../config/index.js'
 import { Prisma } from '@prisma/client'
 import crypto from 'crypto'
+import { validateSafeUrl } from '../config/ssrfProtection.js'
 
 /** 支持的 Webhook 事件类型 */
 export type WebhookEvent =
@@ -43,6 +44,11 @@ interface DeliveryResult {
     error?: string
 }
 
+function maskSecret(secret: string): string {
+    if (secret.length <= 8) return '****'
+    return secret.slice(0, 4) + '****' + secret.slice(-4)
+}
+
 export const webhookService = {
     /**
      * 注册 Webhook 端点
@@ -53,7 +59,8 @@ export const webhookService = {
         name?: string
         createdById: string
     }) {
-        // 生成签名密钥
+        await validateSafeUrl(data.url)
+
         const secret = crypto.randomBytes(32).toString('hex')
 
         return prisma.webhookEndpoint.create({
@@ -72,12 +79,13 @@ export const webhookService = {
      * 获取所有注册的 Webhook 端点
      */
     async listEndpoints() {
-        return prisma.webhookEndpoint.findMany({
+        const endpoints = await prisma.webhookEndpoint.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
                 createdBy: { select: { id: true, name: true } },
             },
         })
+        return endpoints.map(ep => ({ ...ep, secret: maskSecret(ep.secret) }))
     },
 
     /**
@@ -143,13 +151,14 @@ export const webhookService = {
         payload: WebhookPayload
     ): Promise<DeliveryResult> {
         const body = JSON.stringify(payload)
-        // HMAC-SHA256 签名，接收方可以用相同 secret 验签
         const signature = crypto
             .createHmac('sha256', secret)
             .update(body)
             .digest('hex')
 
         try {
+            await validateSafeUrl(url)
+
             const controller = new AbortController()
             const timeout = setTimeout(() => controller.abort(), 10000) // 10s 超时
 

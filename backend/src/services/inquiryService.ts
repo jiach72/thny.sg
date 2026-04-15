@@ -23,6 +23,20 @@ interface PaginationOptions {
 
 export const inquiryService = {
     /**
+     * 获取咨询详情
+     */
+    async getInquiryById(id: string) {
+        const inquiry = await prisma.inquiry.findUnique({
+            where: { id },
+            include: {
+                processedLead: { select: { id: true, contactName: true, email: true, phone: true } }
+            }
+        })
+        if (!inquiry) throw new NotFoundError('咨询不存在')
+        return inquiry
+    },
+
+    /**
      * 获取咨询列表
      */
     async getInquiries(status: InquiryStatus | undefined, pagination: PaginationOptions) {

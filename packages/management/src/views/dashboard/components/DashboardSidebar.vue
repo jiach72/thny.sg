@@ -58,6 +58,7 @@ import { Location, Timer, Sunny, Cloudy, Pouring } from '@element-plus/icons-vue
 import { useTaskStore, useAppointmentStore } from '@/stores'
 import { storeToRefs } from 'pinia'
 import dayjs from 'dayjs'
+import { logger } from '@/utils/logger'
 
 const taskStore = useTaskStore()
 const appointmentStore = useAppointmentStore()
@@ -82,7 +83,7 @@ const fetchWeather = async () => {
       }
     }
   } catch (e) {
-    console.error('Failed to fetch weather', e)
+    logger.error('DashboardSidebar', 'Failed to fetch weather', e)
     weather.value = { temp: 31, code: 1, wind: 10 }
   }
 }

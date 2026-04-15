@@ -1,6 +1,7 @@
 import { prisma } from '../config/index.js'
 import { Prisma } from '@prisma/client'
 import { webhookService } from './webhookService.js'
+import logger from '../config/logger.js'
 
 export const projectService = {
     // 获取项目列表（支持分页、筛选）
@@ -15,7 +16,7 @@ export const projectService = {
         const skip = (page - 1) * limit
 
         const where: Prisma.ProjectWhereInput = {}
-        if (params.status) where.status = params.status as any
+        if (params.status) where.status = params.status as Prisma.EnumProjectStatusFilter
         if (params.customerId) where.customerId = params.customerId
 
         const [total, projects] = await Promise.all([
@@ -155,7 +156,7 @@ export const projectService = {
                 status: 'PLANNING'
             }
         })
-        webhookService.emit('project.created', project).catch(console.error)
+        webhookService.emit('project.created', project).catch(err => logger.error('Webhook推送失败', err))
         return project
     },
 
@@ -171,9 +172,9 @@ export const projectService = {
     async updateStatus(id: string, status: string) {
         const project = await prisma.project.update({
             where: { id },
-            data: { status: status as any }
+            data: { status: status as Prisma.EnumProjectStatusFieldUpdateOperationsInput }
         })
-        webhookService.emit('project.statusChanged', project).catch(console.error)
+        webhookService.emit('project.statusChanged', project).catch(err => logger.error('Webhook推送失败', err))
         return project
     },
 

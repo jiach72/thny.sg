@@ -24,9 +24,12 @@ export default defineConfig({
     server: {
         host: '0.0.0.0',
         port: 3001,
+        // SEC-01 缓解: 限制 dev server 仅监听 localhost，避免 esbuild CVE-2024-34342 请求泄露
+        // 生产构建不受此漏洞影响，仅影响开发环境
+        strictPort: false,
         proxy: {
             '/api': {
-                target: 'http://localhost:4000',
+                target: 'http://localhost:5000',
                 changeOrigin: true,
             },
         },

@@ -3,8 +3,11 @@
  */
 import { prisma } from '../config/index.js'
 import { newsService } from './newsService.js'
+import { validateSafeUrl } from '../config/ssrfProtection.js'
+import logger from '../config/logger.js'
 
 // RSS 解析器（使用动态导入避免 ESM 问题）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let Parser: any = null
 
 async function getParser() {
@@ -64,6 +67,7 @@ export const rssFetchService = {
      * 创建 RSS 源
      */
     async createFeed(data: RssFeedInput) {
+        await validateSafeUrl(data.url)
         return prisma.rssFeed.create({
             data: {
                 name: data.name,
@@ -112,6 +116,7 @@ export const rssFetchService = {
         }
 
         try {
+            await validateSafeUrl(feed.url)
             const response = await fetch(feed.url, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -161,7 +166,7 @@ export const rssFetchService = {
                     })
                     newCount++
                 } catch (err) {
-                    console.error(`Failed to create article from RSS item:`, err)
+                    logger.error(`Failed to create article from RSS item:`, err)
                 }
             }
 
@@ -175,18 +180,19 @@ export const rssFetchService = {
             })
 
             return { success: true, newCount }
-        } catch (error: any) {
-            console.error(`Error fetching RSS feed ${feed.name}:`, error)
+        } catch (error: unknown) {
+            logger.error(`Error fetching RSS feed ${feed.name}:`, error)
 
             // 记录错误
+            const errorMsg = error instanceof Error ? error.message : '抓取失败'
             await prisma.rssFeed.update({
                 where: { id: feedId },
                 data: {
-                    lastError: error.message || '抓取失败',
+                    lastError: errorMsg,
                 },
             })
 
-            return { success: false, newCount: 0, error: error.message }
+            return { success: false, newCount: 0, error: errorMsg }
         }
     },
 
@@ -239,6 +245,7 @@ export const rssFetchService = {
         error?: string
     }> {
         try {
+            await validateSafeUrl(url)
             const response = await fetch(url, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -261,10 +268,10 @@ export const rssFetchService = {
                 title: result.title,
                 itemCount: result.items?.length || 0,
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 valid: false,
-                error: error.message || '无法解析 RSS 源',
+                error: error instanceof Error ? error.message : '无法解析 RSS 源',
             }
         }
     },

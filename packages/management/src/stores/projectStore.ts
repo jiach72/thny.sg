@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { projectApi, type Project } from '@/api/projectApi'
+import { logger } from '@/utils/logger'
 
 export const useProjectStore = defineStore('project', () => {
     const projects = ref<Project[]>([])
@@ -43,7 +44,7 @@ export const useProjectStore = defineStore('project', () => {
             pagination.value = response.pagination
         } catch (err: any) {
             error.value = err.message || '获取项目列表失败'
-            console.error(err)
+            logger.error('ProjectStore', 'Error:', err)
         } finally {
             isLoading.value = false
         }

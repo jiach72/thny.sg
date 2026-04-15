@@ -1,5 +1,6 @@
 ---
 name: typescript-expert
+version: "2.1"
 description: >-
   TypeScript and JavaScript expert with deep knowledge of type-level
   programming, performance optimization, monorepo management, migration
@@ -238,6 +239,51 @@ command -v typesync >/dev/null 2>&1 && npx typesync  # Install missing @types pa
     "declarationMap": true
   }
 }
+```
+
+## Monorepo Type Sharing Patterns
+
+### Shared Type Package Strategy
+```json
+// packages/shared-types/package.json
+{
+  "name": "@workspace/shared-types",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json"
+  }
+}
+```
+
+### Project References with Type Sharing
+```json
+// Root tsconfig.json with composite references
+{
+  "references": [
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/core" },
+    { "path": "./apps/web" }
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true
+  }
+}
+```
+
+### Build Performance Optimization
+```bash
+# Parallel type checking across packages
+npx turborepo run typecheck
+
+# Incremental builds with .tsbuildinfo caching
+# Each package maintains its own build cache
+npx tsc --build --verbose
+
+# Detect type-check bottlenecks
+npx tsc --extendedDiagnostics --incremental false
 ```
 
 ## Modern Tooling Expertise

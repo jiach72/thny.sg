@@ -1,5 +1,6 @@
 import { prisma } from '../config/index.js'
 import { webhookService } from './webhookService.js'
+import logger from '../config/logger.js'
 
 interface CustomerListParams {
     page?: number
@@ -194,7 +195,7 @@ export const customerService = {
         const allowedFields = [
             'contactName', 'companyName', 'email', 'phone',
             'birthday', 'occupation', 'interests', 'profileNotes',
-            'familyMembers', 'companyInfo',
+            'companyInfo',
         ]
 
         const updateData: Record<string, unknown> = {}
@@ -231,7 +232,7 @@ export const customerService = {
         })
 
         if (kycStatus === 'APPROVED' || kycStatus === 'REJECTED') {
-            webhookService.emit('customer.updated', result).catch(console.error)
+            webhookService.emit('customer.updated', result).catch(err => logger.error('Webhook推送失败', err))
         }
 
         return result
@@ -253,7 +254,7 @@ export const customerService = {
             // Retrieve updated customers to send in webhook (simplified for batch)
             const updatedCustomers = await prisma.customer.findMany({ where: { id: { in: ids } } })
             updatedCustomers.forEach(customer => {
-                webhookService.emit('customer.updated', customer).catch(console.error)
+                webhookService.emit('customer.updated', customer).catch(err => logger.error('Webhook推送失败', err))
             })
         }
 

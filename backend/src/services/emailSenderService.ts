@@ -1,5 +1,6 @@
 import { prisma } from '../config/index.js'
 import nodemailer from 'nodemailer'
+import logger from '../config/logger.js'
 
 interface EmailOptions {
     to: string | string[]
@@ -87,9 +88,9 @@ export const emailSenderService = {
                 }
             }
 
-            console.log(`📧 邮件服务已初始化，提供商: ${emailConfig.provider}`)
+            logger.info(`📧 邮件服务已初始化，提供商: ${emailConfig.provider}`)
         } catch (error) {
-            console.warn('⚠️ 邮件配置加载失败，使用控制台模式')
+            logger.warn('⚠️ 邮件配置加载失败，使用控制台模式')
         }
     },
 
@@ -146,7 +147,7 @@ export const emailSenderService = {
                 messageId: result.messageId
             }
         } catch (error: any) {
-            console.error('SMTP 发送失败:', error)
+            logger.error('SMTP 发送失败:', error)
             return {
                 success: false,
                 error: error.message
@@ -164,8 +165,8 @@ export const emailSenderService = {
 
         try {
             // 动态导入 SendGrid（可选依赖）
-            // @ts-ignore - 可选依赖，运行时才加载
-            const sgMail = await import('@sendgrid/mail')
+            // @ts-expect-error — 可选依赖，运行时才加载
+            const sgMail: any = await import('@sendgrid/mail')
             sgMail.default.setApiKey(emailConfig.sendgrid.apiKey)
 
             const msg = {
@@ -183,7 +184,7 @@ export const emailSenderService = {
                 messageId: (response as any).headers?.['x-message-id'] || `sg-${Date.now()}`
             }
         } catch (error: any) {
-            console.error('SendGrid 发送失败:', error)
+            logger.error('SendGrid 发送失败:', error)
             return {
                 success: false,
                 error: error.message
@@ -201,8 +202,8 @@ export const emailSenderService = {
 
         try {
             // 动态导入 AWS SDK（可选依赖）
-            // @ts-ignore - 可选依赖，运行时才加载
-            const { SESClient, SendEmailCommand } = await import('@aws-sdk/client-ses')
+            // @ts-expect-error — 可选依赖，运行时才加载
+            const { SESClient, SendEmailCommand }: any = await import('@aws-sdk/client-ses')
 
             const client = new SESClient({
                 region: emailConfig.awsSes.region,
@@ -235,7 +236,7 @@ export const emailSenderService = {
                 messageId: response.MessageId
             }
         } catch (error: any) {
-            console.error('AWS SES 发送失败:', error)
+            logger.error('AWS SES 发送失败:', error)
             return {
                 success: false,
                 error: error.message
@@ -247,16 +248,16 @@ export const emailSenderService = {
      * 控制台输出（开发模式）
      */
     async sendViaConsole(options: EmailOptions & { from: string }): Promise<EmailResult> {
-        console.log('\n' + '='.repeat(60))
-        console.log('📧 [开发模式] 邮件发送模拟')
-        console.log('='.repeat(60))
-        console.log(`From:    ${options.from}`)
-        console.log(`To:      ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`)
-        console.log(`Subject: ${options.subject}`)
-        console.log('-'.repeat(60))
-        console.log('Body (HTML):')
-        console.log(options.html.substring(0, 500) + (options.html.length > 500 ? '...' : ''))
-        console.log('='.repeat(60) + '\n')
+        logger.info('\n' + '='.repeat(60))
+        logger.info('📧 [开发模式] 邮件发送模拟')
+        logger.info('='.repeat(60))
+        logger.info(`From:    ${options.from}`)
+        logger.info(`To:      ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`)
+        logger.info(`Subject: ${options.subject}`)
+        logger.info('-'.repeat(60))
+        logger.info('Body (HTML):')
+        logger.info(options.html.substring(0, 500) + (options.html.length > 500 ? '...' : ''))
+        logger.info('='.repeat(60) + '\n')
 
         return {
             success: true,
@@ -286,8 +287,8 @@ export const emailSenderService = {
             }
 
             return { success: true, message: `${emailConfig.provider} 配置已加载` }
-        } catch (error: any) {
-            return { success: false, message: error.message }
+        } catch (error: unknown) {
+            return { success: false, message: error instanceof Error ? error.message : '连接测试失败' }
         }
     },
 

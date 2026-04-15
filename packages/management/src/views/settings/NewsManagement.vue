@@ -283,6 +283,7 @@ import {
   Plus, Search, Document, CircleCheck, Edit, View, Connection, Download
 } from '@element-plus/icons-vue'
 import apiClient from '@/api/apiClient'
+import { logger } from '@/utils/logger'
 
 // 新闻文章接口
 interface NewsArticle {
@@ -381,7 +382,7 @@ async function fetchArticles() {
     articles.value = response.articles
     pagination.value = { ...pagination.value, ...response.pagination }
   } catch (error) {
-    console.error('Error fetching articles:', error)
+    logger.error('NewsManagement', 'Error fetching articles:', error)
   } finally {
     loading.value = false
   }
@@ -394,7 +395,7 @@ async function fetchStats() {
     // apiClient 智能解包后 response 即为业务数据
     stats.value = response
   } catch (error) {
-    console.error('Error fetching stats:', error)
+    logger.error('NewsManagement', 'Error fetching stats:', error)
   }
 }
 

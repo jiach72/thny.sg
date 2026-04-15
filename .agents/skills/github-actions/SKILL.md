@@ -1,10 +1,10 @@
 ---
 name: github-actions
-description: "GitHub Actions 工作流创建、安全及版本管理技能。适用于以下情况：(1) 编写新工作流文件(.yml)时，(2) 修改现有工作流时，(3) 审查或更新 Action 版本时，(4) CI/CD 安全审计时，(5) 处理包含 'actions/', 'uses:', 'workflow', '.github/workflows' 关键字的任务时"
+version: "1.3"
+description: GitHub Actions 工作流创建、安全及版本管理技能。适用于以下情况：(1) 编写新工作流文件(.yml)时，(2) 修改现有工作流时，(3) 审查或更新 Action 版本时，(4) CI/CD 安全审计时，(5) 处理包含 'actions/', 'uses:', 'workflow', '.github/workflows' 关键字的任务时
 license: MIT
 metadata:
   author: DaleStudy
-  version: "1.0"
 allowed-tools: Bash(gh api:*)
 ---
 

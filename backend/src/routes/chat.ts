@@ -1,8 +1,21 @@
-import { Router, Request, Response } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
+import { body } from 'express-validator'
+import { validate } from '../middlewares/index.js'
 import { faqService } from '../services/faqService.js'
 import { chatService } from '../services/chatService.js'
+import { sendSuccess, sendError } from '../utils/responseHelper.js'
+import rateLimit from 'express-rate-limit'
 
 const router = Router()
+
+// 聊天 API 速率限制：每分钟最多 20 条消息，防止 AI API 成本滥用
+const chatRateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    message: { code: 'RATE_LIMITED', message: '消息发送过于频繁，请稍后再试' },
+    standardHeaders: true,
+    legacyHeaders: false,
+})
 
 // ==================== FAQ 公开 API ====================
 
@@ -10,13 +23,12 @@ const router = Router()
  * 获取所有启用的 FAQ 分类
  * GET /api/v1/chat/faq/categories
  */
-router.get('/faq/categories', async (req: Request, res: Response) => {
+router.get('/faq/categories', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const categories = await faqService.getCategories(false)
-        res.json({ success: true, data: categories })
+        sendSuccess(res, categories)
     } catch (error) {
-        console.error('Error fetching FAQ categories:', error)
-        res.status(500).json({ success: false, message: '获取 FAQ 分类失败' })
+        next(error)
     }
 })
 
@@ -24,16 +36,15 @@ router.get('/faq/categories', async (req: Request, res: Response) => {
  * 获取分类下的 FAQ 列表
  * GET /api/v1/chat/faq/categories/:id/items
  */
-router.get('/faq/categories/:id/items', async (req: Request, res: Response) => {
+router.get('/faq/categories/:id/items', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const category = await faqService.getCategoryById(req.params.id)
         if (!category) {
-            return res.status(404).json({ success: false, message: '分类不存在' })
+            return sendError(res, '分类不存在', 404)
         }
-        res.json({ success: true, data: category.items })
+        sendSuccess(res, category.items)
     } catch (error) {
-        console.error('Error fetching FAQ items:', error)
-        res.status(500).json({ success: false, message: '获取 FAQ 条目失败' })
+        next(error)
     }
 })
 
@@ -41,20 +52,19 @@ router.get('/faq/categories/:id/items', async (req: Request, res: Response) => {
  * 搜索 FAQ
  * GET /api/v1/chat/faq/search?q=xxx&locale=zh
  */
-router.get('/faq/search', async (req: Request, res: Response) => {
+router.get('/faq/search', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const query = req.query.q as string
         const locale = (req.query.locale as 'zh' | 'en') || 'zh'
 
         if (!query || query.trim().length < 2) {
-            return res.json({ success: true, data: [] })
+            return sendSuccess(res, [])
         }
 
         const results = await faqService.searchFaqs(query, locale)
-        res.json({ success: true, data: results })
+        sendSuccess(res, results)
     } catch (error) {
-        console.error('Error searching FAQs:', error)
-        res.status(500).json({ success: false, message: '搜索失败' })
+        next(error)
     }
 })
 
@@ -62,20 +72,19 @@ router.get('/faq/search', async (req: Request, res: Response) => {
  * 获取 FAQ 详情并增加查看次数
  * GET /api/v1/chat/faq/items/:id
  */
-router.get('/faq/items/:id', async (req: Request, res: Response) => {
+router.get('/faq/items/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const item = await faqService.getItemById(req.params.id)
         if (!item) {
-            return res.status(404).json({ success: false, message: 'FAQ 不存在' })
+            return sendError(res, 'FAQ 不存在', 404)
         }
 
         // 增加查看次数
         await faqService.incrementViewCount(req.params.id)
 
-        res.json({ success: true, data: item })
+        sendSuccess(res, item)
     } catch (error) {
-        console.error('Error fetching FAQ item:', error)
-        res.status(500).json({ success: false, message: '获取 FAQ 失败' })
+        next(error)
     }
 })
 
@@ -83,13 +92,12 @@ router.get('/faq/items/:id', async (req: Request, res: Response) => {
  * 标记 FAQ 为有帮助
  * POST /api/v1/chat/faq/items/:id/helpful
  */
-router.post('/faq/items/:id/helpful', async (req: Request, res: Response) => {
+router.post('/faq/items/:id/helpful', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await faqService.incrementHelpfulCount(req.params.id)
-        res.json({ success: true, message: '感谢您的反馈' })
+        sendSuccess(res, null, '感谢您的反馈')
     } catch (error) {
-        console.error('Error marking FAQ as helpful:', error)
-        res.status(500).json({ success: false, message: '操作失败' })
+        next(error)
     }
 })
 
@@ -99,16 +107,23 @@ router.post('/faq/items/:id/helpful', async (req: Request, res: Response) => {
  * 发送聊天消息
  * POST /api/v1/chat/message
  */
-router.post('/message', async (req: Request, res: Response) => {
+router.post('/message',
+    chatRateLimiter,
+    [
+        body('content').notEmpty().withMessage('消息内容不能为空'),
+        body('sessionId').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { sessionId, message, visitorId, visitorName, visitorEmail, locale } = req.body
 
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
-            return res.status(400).json({ success: false, message: '消息不能为空' })
+            return sendError(res, '消息不能为空', 400)
         }
 
         if (message.length > 1000) {
-            return res.status(400).json({ success: false, message: '消息过长，请控制在1000字以内' })
+            return sendError(res, '消息过长，请控制在1000字以内', 400)
         }
 
         const response = await chatService.sendMessage({
@@ -120,10 +135,9 @@ router.post('/message', async (req: Request, res: Response) => {
             locale: locale || 'zh'
         })
 
-        res.json({ success: true, data: response })
+        sendSuccess(res, response)
     } catch (error) {
-        console.error('Error sending chat message:', error)
-        res.status(500).json({ success: false, message: '发送消息失败' })
+        next(error)
     }
 })
 
@@ -131,13 +145,12 @@ router.post('/message', async (req: Request, res: Response) => {
  * 获取会话历史
  * GET /api/v1/chat/sessions/:id/history
  */
-router.get('/sessions/:id/history', async (req: Request, res: Response) => {
+router.get('/sessions/:id/history', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const messages = await chatService.getSessionHistory(req.params.id)
-        res.json({ success: true, data: messages })
+        sendSuccess(res, messages)
     } catch (error) {
-        console.error('Error fetching session history:', error)
-        res.status(500).json({ success: false, message: '获取对话历史失败' })
+        next(error)
     }
 })
 
@@ -145,13 +158,12 @@ router.get('/sessions/:id/history', async (req: Request, res: Response) => {
  * 关闭会话
  * POST /api/v1/chat/sessions/:id/close
  */
-router.post('/sessions/:id/close', async (req: Request, res: Response) => {
+router.post('/sessions/:id/close', async (req: Request, res: Response, next: NextFunction) => {
     try {
         await chatService.closeSession(req.params.id)
-        res.json({ success: true, message: '会话已关闭' })
+        sendSuccess(res, null, '会话已关闭')
     } catch (error) {
-        console.error('Error closing session:', error)
-        res.status(500).json({ success: false, message: '关闭会话失败' })
+        next(error)
     }
 })
 
@@ -159,19 +171,24 @@ router.post('/sessions/:id/close', async (req: Request, res: Response) => {
  * 标记消息反馈
  * POST /api/v1/chat/messages/:id/feedback
  */
-router.post('/messages/:id/feedback', async (req: Request, res: Response) => {
+router.post('/messages/:id/feedback',
+    [
+        body('isHelpful').isBoolean().withMessage('isHelpful必须为布尔值'),
+        body('comment').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { isHelpful } = req.body
 
         if (typeof isHelpful !== 'boolean') {
-            return res.status(400).json({ success: false, message: '无效的反馈值' })
+            return sendError(res, '无效的反馈值', 400)
         }
 
         await chatService.markMessageHelpful(req.params.id, isHelpful)
-        res.json({ success: true, message: '感谢您的反馈' })
+        sendSuccess(res, null, '感谢您的反馈')
     } catch (error) {
-        console.error('Error marking message feedback:', error)
-        res.status(500).json({ success: false, message: '提交反馈失败' })
+        next(error)
     }
 })
 

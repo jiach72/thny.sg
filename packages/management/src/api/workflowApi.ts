@@ -31,14 +31,35 @@ export interface FollowUpItem {
     }
 }
 
+export interface OverdueTask {
+    id: string
+    title: string
+    dueDate: string
+    assignee?: string
+}
+
+export interface OverdueLead {
+    id: string
+    contactName: string
+    dueDate: string
+    assignee?: string
+}
+
+export interface OverdueAppointment {
+    id: string
+    title: string
+    startTime: string
+    assignee?: string
+}
+
 export interface OverdueStats {
     overdueTasks: number
     overdueLeads: number
     overdueAppointments: number
     details: {
-        tasks: any[]
-        leads: any[]
-        appointments: any[]
+        tasks: OverdueTask[]
+        leads: OverdueLead[]
+        appointments: OverdueAppointment[]
     }
 }
 
@@ -51,13 +72,13 @@ export interface SopStep {
 
 export interface AssignResult {
     success: boolean
-    lead: any
+    lead: { id: string; contactName: string; status: string }
     assignedTo: {
         id: string
         name: string
     }
     reason: string
-    task?: any
+    task?: { id: string; title: string; status: string }
 }
 
 // 获取团队工作负载
@@ -89,15 +110,15 @@ export const getSopSteps = (serviceType: string): Promise<SopStep[]> =>
     apiClient.get(`/workflow/sop/${serviceType}`)
 
 // 为线索创建 SOP 任务序列
-export const createSopTasks = (leadId: string, serviceType: string): Promise<{ success: boolean; tasks: any[] }> =>
+export const createSopTasks = (leadId: string, serviceType: string): Promise<{ success: boolean; tasks: SopStep[] }> =>
     apiClient.post(`/workflow/leads/${leadId}/create-sop`, { serviceType })
 
 // 保存工作流配置
-export const saveWorkflowDefinition = (data: any): Promise<any> =>
+export const saveWorkflowDefinition = (data: Record<string, unknown>): Promise<{ success: boolean; id?: string }> =>
     apiClient.post('/workflow/definitions', data)
 
 // 测试工作流配置
-export const testWorkflowDefinition = (data: any): Promise<any> =>
+export const testWorkflowDefinition = (data: Record<string, unknown>): Promise<{ valid: boolean; errors?: string[] }> =>
     apiClient.post('/workflow/definitions/test', data)
 
 export default {

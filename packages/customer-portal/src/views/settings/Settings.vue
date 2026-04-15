@@ -3,8 +3,8 @@
     <!-- 头部 -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="font-serif text-3xl text-text mb-2">设置</h1>
-        <p class="text-sm text-text-muted">管理您的账户设置和偏好</p>
+        <h1 class="font-serif text-3xl text-text mb-2">{{ t('settings.title') }}</h1>
+        <p class="text-sm text-text-muted">{{ t('settings.subtitle') }}</p>
       </div>
     </div>
 
@@ -18,32 +18,32 @@
             <component :is="Palette" class="w-6 h-6" />
           </div>
           <div>
-            <h2 class="font-serif text-xl text-text">外观设置</h2>
-            <p class="text-xs text-text-muted">自定义界面显示偏好</p>
+            <h2 class="font-serif text-xl text-text">{{ t('settings.appearance') }}</h2>
+            <p class="text-xs text-text-muted">{{ t('settings.appearanceDesc') }}</p>
           </div>
         </div>
 
         <div class="space-y-4">
           <div class="flex items-center justify-between py-3 border-b border-white/5">
             <div>
-              <div class="text-sm font-medium text-text">深色模式</div>
-              <div class="text-xs text-text-muted">默认启用深色主题</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.darkMode') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.darkModeDesc') }}</div>
             </div>
             <el-switch v-model="settings.darkMode" active-color="#D6B56E" disabled />
           </div>
           
           <div class="flex items-center justify-between py-3 border-b border-white/5">
             <div>
-              <div class="text-sm font-medium text-text">紧凑模式</div>
-              <div class="text-xs text-text-muted">减少元素间距，显示更多内容</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.compactMode') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.compactModeDesc') }}</div>
             </div>
             <el-switch v-model="settings.compactMode" active-color="#D6B56E" @change="handleSettingsChange" />
           </div>
           
           <div class="flex items-center justify-between py-3">
             <div>
-              <div class="text-sm font-medium text-text">动画效果</div>
-              <div class="text-xs text-text-muted">页面过渡和交互动画</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.animations') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.animationsDesc') }}</div>
             </div>
             <el-switch v-model="settings.animations" active-color="#D6B56E" @change="handleSettingsChange" />
           </div>
@@ -57,16 +57,16 @@
             <component :is="Globe2" class="w-6 h-6" />
           </div>
           <div>
-            <h2 class="font-serif text-xl text-text">语言与区域</h2>
-            <p class="text-xs text-text-muted">设置显示语言和时区</p>
+            <h2 class="font-serif text-xl text-text">{{ t('settings.languageRegion') }}</h2>
+            <p class="text-xs text-text-muted">{{ t('settings.languageRegionDesc') }}</p>
           </div>
         </div>
 
         <div class="space-y-4">
           <div class="flex items-center justify-between py-3 border-b border-white/5">
             <div>
-              <div class="text-sm font-medium text-text">界面语言</div>
-              <div class="text-xs text-text-muted">选择您偏好的语言</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.interfaceLanguage') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.interfaceLanguageDesc') }}</div>
             </div>
             <el-select v-model="settings.language" class="!w-40" @change="handleSettingsChange">
               <el-option label="简体中文" value="zh-CN" />
@@ -76,8 +76,8 @@
           
           <div class="flex items-center justify-between py-3">
             <div>
-              <div class="text-sm font-medium text-text">时区</div>
-              <div class="text-xs text-text-muted">用于日期和时间显示</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.timezone') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.timezoneDesc') }}</div>
             </div>
             <el-select v-model="settings.timezone" class="!w-48" @change="handleSettingsChange">
               <el-option label="(UTC+8) 新加坡" value="Asia/Singapore" />
@@ -96,38 +96,38 @@
             <component :is="ShieldCheck" class="w-6 h-6" />
           </div>
           <div>
-            <h2 class="font-serif text-xl text-text">隐私与安全</h2>
-            <p class="text-xs text-text-muted">管理数据隐私选项</p>
+            <h2 class="font-serif text-xl text-text">{{ t('settings.privacySecurity') }}</h2>
+            <p class="text-xs text-text-muted">{{ t('settings.privacySecurityDesc') }}</p>
           </div>
         </div>
 
         <div class="space-y-4">
           <div class="flex items-center justify-between py-3 border-b border-white/5">
             <div>
-              <div class="text-sm font-medium text-text">活动日志</div>
-              <div class="text-xs text-text-muted">记录您的登录和操作历史</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.activityLog') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.activityLogDesc') }}</div>
             </div>
             <el-switch v-model="settings.activityLog" active-color="#D6B56E" @change="handleSettingsChange" />
           </div>
           
           <div class="flex items-center justify-between py-3 border-b border-white/5">
             <div>
-              <div class="text-sm font-medium text-text">登录通知</div>
-              <div class="text-xs text-text-muted">新设备登录时发送邮件通知</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.loginNotification') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.loginNotificationDesc') }}</div>
             </div>
             <el-switch v-model="settings.loginNotification" active-color="#D6B56E" @change="handleSettingsChange" />
           </div>
           
           <div class="flex items-center justify-between py-3">
             <div>
-              <div class="text-sm font-medium text-text">双因素认证</div>
-              <div class="text-xs text-text-muted">为账户添加额外安全层</div>
+              <div class="text-sm font-medium text-text">{{ t('settings.twoFactorAuth') }}</div>
+              <div class="text-xs text-text-muted">{{ t('settings.twoFactorAuthDesc') }}</div>
             </div>
             <button 
               @click="handleSetup2FA"
               class="px-4 py-2 text-sm font-medium text-wealth border border-wealth/30 rounded hover:bg-wealth/10 transition-colors"
             >
-              {{ settings.twoFactorEnabled ? '已启用' : '设置' }}
+              {{ settings.twoFactorEnabled ? t('settings.enabled') : t('settings.setup') }}
             </button>
           </div>
         </div>
@@ -140,8 +140,8 @@
             <component :is="Smartphone" class="w-6 h-6" />
           </div>
           <div>
-            <h2 class="font-serif text-xl text-text">会话管理</h2>
-            <p class="text-xs text-text-muted">管理已登录的设备</p>
+            <h2 class="font-serif text-xl text-text">{{ t('settings.sessionManagement') }}</h2>
+            <p class="text-xs text-text-muted">{{ t('settings.sessionManagementDesc') }}</p>
           </div>
         </div>
 
@@ -155,7 +155,7 @@
               <div>
                 <div class="text-sm font-medium text-text flex items-center gap-2">
                   Windows · Chrome
-                  <span class="px-2 py-0.5 rounded bg-wealth/20 text-wealth text-[10px] font-bold">当前设备</span>
+                  <span class="px-2 py-0.5 rounded bg-wealth/20 text-wealth text-[10px] font-bold">{{ t('settings.currentDevice') }}</span>
                 </div>
                 <div class="text-xs text-text-muted">新加坡 · 最近活动于刚刚</div>
               </div>
@@ -182,7 +182,7 @@
             @click="handleLogoutAllDevices"
             class="text-sm text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-4 py-2 rounded transition-colors"
           >
-            登出所有其他设备
+            {{ t('settings.logoutAllDevices') }}
           </button>
         </div>
       </div>
@@ -194,8 +194,8 @@
             <component :is="Download" class="w-6 h-6" />
           </div>
           <div>
-            <h2 class="font-serif text-xl text-text">数据与导出</h2>
-            <p class="text-xs text-text-muted">下载或删除您的数据</p>
+            <h2 class="font-serif text-xl text-text">{{ t('settings.dataExport') }}</h2>
+            <p class="text-xs text-text-muted">{{ t('settings.dataExportDesc') }}</p>
           </div>
         </div>
 
@@ -205,10 +205,13 @@
             class="px-5 py-2.5 text-sm font-medium text-text bg-white/5 hover:bg-white/10 border border-white/10 rounded transition-colors flex items-center gap-2"
           >
             <component :is="Download" class="w-4 h-4" />
-            导出我的数据
+            {{ t('settings.exportMyData') }}
           </button>
-          <button class="px-5 py-2.5 text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors">
-            删除账户
+          <button 
+            @click="handleDeleteAccount"
+            class="px-5 py-2.5 text-sm font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors"
+          >
+            {{ t('settings.deleteAccount') }}
           </button>
         </div>
       </div>
@@ -217,7 +220,7 @@
 
     <!-- 保存提示 -->
     <div v-if="saving" class="fixed bottom-8 right-8 px-4 py-2 rounded-lg bg-wealth text-obsidian text-sm font-medium shadow-lg animate-fade-in-up">
-      设置已保存
+      {{ t('settings.settingsSaved') }}
     </div>
 
     <!-- 启用 2FA 弹窗 -->
@@ -280,13 +283,17 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElSwitch, ElSelect, ElOption, ElDialog, ElInput } from 'element-plus'
+import { ElMessage, ElSwitch, ElSelect, ElOption, ElDialog, ElInput, ElMessageBox } from 'element-plus'
 import { 
   Palette, Globe2, ShieldCheck, Smartphone, Monitor, Download 
 } from 'lucide-vue-next'
 import { portalApi, authApi } from '@/api'
 import { useAuthStore } from '@/stores'
 import { useRouter } from 'vue-router'
+import { logger } from '@/utils/logger'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -312,41 +319,63 @@ const settings = reactive({
 })
 
 onMounted(async () => {
-  // 从本地存储加载设置
-  const saved = localStorage.getItem('portal_settings')
-  if (saved) {
-    try {
-      Object.assign(settings, JSON.parse(saved))
-    } catch {
-      // 忽略解析错误
-    }
-  }
-  
-  // 拉取远端账户信息获取真实的 2FA 状况
   try {
     const data = await authApi.getCurrentUser()
     if (data) {
-        settings.twoFactorEnabled = !!(data as { twoFactorEnabled?: boolean }).twoFactorEnabled
+      settings.twoFactorEnabled = !!(data as { twoFactorEnabled?: boolean }).twoFactorEnabled
+      const prefs = (data as any).preferences
+      if (prefs) {
+        if (prefs.darkMode !== undefined) settings.darkMode = prefs.darkMode
+        if (prefs.compactMode !== undefined) settings.compactMode = prefs.compactMode
+        if (prefs.animations !== undefined) settings.animations = prefs.animations
+        if (prefs.language !== undefined) settings.language = prefs.language
+        if (prefs.timezone !== undefined) settings.timezone = prefs.timezone
+        if (prefs.activityLog !== undefined) settings.activityLog = prefs.activityLog
+        if (prefs.loginNotification !== undefined) settings.loginNotification = prefs.loginNotification
+      }
     }
   } catch(e) {
-    console.warn('Failed to fetch 2FA status:', e)
+    logger.warn('Settings', 'Failed to fetch settings from backend:', e)
+    const saved = localStorage.getItem('portal_settings')
+    if (saved) {
+      try {
+        Object.assign(settings, JSON.parse(saved))
+      } catch {
+        // 忽略解析错误
+      }
+    }
   }
 })
 
-// 保存提示定时器（防止内存泄漏）
 let savingTimer: ReturnType<typeof setTimeout> | null = null
+let syncTimer: ReturnType<typeof setTimeout> | null = null
 
 function handleSettingsChange(): void {
-  // 保存到本地存储
   localStorage.setItem('portal_settings', JSON.stringify(settings))
   
-  // 显示保存提示
   saving.value = true
   if (savingTimer) clearTimeout(savingTimer)
   savingTimer = setTimeout(() => {
     saving.value = false
     savingTimer = null
   }, 2000)
+
+  if (syncTimer) clearTimeout(syncTimer)
+  syncTimer = setTimeout(async () => {
+    try {
+      await portalApi.updatePreferences({
+        darkMode: settings.darkMode,
+        compactMode: settings.compactMode,
+        animations: settings.animations,
+        language: settings.language,
+        timezone: settings.timezone,
+        activityLog: settings.activityLog,
+        loginNotification: settings.loginNotification,
+      } as any)
+    } catch (e) {
+      logger.warn('Settings', 'Failed to sync settings to backend:', e)
+    }
+  }, 1000)
 }
 
 async function handleSetup2FA(): Promise<void> {
@@ -423,7 +452,6 @@ async function handleExportData(): Promise<void> {
   try {
     ElMessage.info('正在生成数据导出，请稍候...')
     const response = await portalApi.exportMyData()
-    // 注意 responseType 为 blob，所以返回的本身就是文件流内容
     const url = window.URL.createObjectURL(response)
     const link = document.createElement('a')
     link.href = url
@@ -434,6 +462,44 @@ async function handleExportData(): Promise<void> {
     ElMessage.success('导出成功')
   } catch (error: unknown) {
     ElMessage.error('导出失败，请先稍等再重试')
+  }
+}
+
+async function handleDeleteAccount(): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      '此操作将永久删除您的账户及所有关联数据，且不可恢复。确定要继续吗？',
+      '删除账户',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'error',
+        confirmButtonClass: 'el-button--danger',
+        customClass: 'bg-obsidian border border-white/10',
+      }
+    )
+    const { value } = await ElMessageBox.prompt(
+      '请输入 "DELETE" 以确认删除操作',
+      '最终确认',
+      {
+        confirmButtonText: '永久删除',
+        cancelButtonText: '取消',
+        inputPattern: /^DELETE$/,
+        inputErrorMessage: '请输入正确的确认文本',
+        customClass: 'bg-obsidian border border-white/10',
+      }
+    )
+    if (value === 'DELETE') {
+      await portalApi.deleteAccount()
+      ElMessage.success('账户删除请求已提交')
+      authStore.logout()
+      router.push('/login')
+    }
+  } catch (error: unknown) {
+    if (error !== 'cancel') {
+      const msg = error instanceof Error ? error.message : '删除账户失败'
+      ElMessage.error(msg)
+    }
   }
 }
 </script>

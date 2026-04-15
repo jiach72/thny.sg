@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { documentApi } from '@/api'
+import { portalApi } from '@/api'
 import type { PortalDocument } from '@tonghai/shared'
+import { logger } from '@/utils/logger'
 
 export const useDocumentStore = defineStore('document', () => {
     const documents = ref<PortalDocument[]>([])
@@ -10,11 +11,10 @@ export const useDocumentStore = defineStore('document', () => {
     async function fetchMyDocuments(projectId?: string): Promise<void> {
         isLoading.value = true
         try {
-            const res = await documentApi.getMyDocuments(projectId)
-            // 根据拦截器行为，可以直接拿到数组
-            documents.value = res || []
+            const res = await portalApi.getMyDocuments(projectId ? { page: 1, limit: 100 } : undefined)
+            documents.value = res?.documents || []
         } catch (error) {
-            console.error('Failed to fetch documents:', error)
+            logger.error('DocumentStore', 'Failed to fetch documents:', error)
         } finally {
             isLoading.value = false
         }

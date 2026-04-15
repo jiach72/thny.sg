@@ -1,6 +1,8 @@
+import { BadRequestError } from '../middlewares/errorHandler.js'
 import { prisma } from '../config/index.js'
 import OpenAI from 'openai'
 import { faqService } from './faqService.js'
+import logger from '../config/logger.js'
 
 // OpenAI 客户端（延迟初始化）
 let openaiClient: OpenAI | null = null
@@ -9,7 +11,7 @@ function _getOpenAIClient(): OpenAI {
     if (!openaiClient) {
         const apiKey = process.env.OPENAI_API_KEY
         if (!apiKey) {
-            throw new Error('OPENAI_API_KEY 环境变量未配置')
+            throw new BadRequestError('OPENAI_API_KEY 环境变量未配置')
         }
         openaiClient = new OpenAI({ apiKey })
     }
@@ -181,8 +183,8 @@ export const chatService = {
             const baseUrl = config['AI_BASE_URL']
 
             if (!apiKey) {
-                console.warn('AI API Key not configured')
-                throw new Error('AI service not configured')
+                logger.warn('AI API Key not configured')
+                throw new BadRequestError('AI 服务未配置')
             }
 
             const openai = new OpenAI({
@@ -262,7 +264,7 @@ export const chatService = {
                 isAiGenerated: true
             }
         } catch (error) {
-            console.error('OpenAI API error:', error)
+            logger.error('OpenAI API error:', error)
 
             // 降级：返回 FAQ 建议或默认消息
             const fallbackMessage = locale === 'en'
@@ -361,5 +363,81 @@ export const chatService = {
             where: { status },
             orderBy: { frequency: 'desc' }
         })
-    }
+    },
+
+    // ==================== 客户门户聊天方法 ====================
+
+    async getCustomerRooms(userId: string) {
+        const customer = await prisma.customer.findFirst({
+            where: { userId },
+        })
+
+        if (!customer) return []
+
+        return prisma.chatSession.findMany({
+            where: {
+                visitorId: userId,
+                source: 'portal',
+                status: { in: ['active', 'closed'] },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+        })
+    },
+
+    async getRoomMessages(roomId: string, page: number = 1, limit: number = 30, userId?: string) {
+        // 安全：验证用户是否有权访问该聊天房间
+        if (userId) {
+            const session = await prisma.chatSession.findUnique({
+                where: { id: roomId },
+            })
+            if (!session || (session.visitorId !== userId && session.source === 'portal')) {
+                throw new BadRequestError('无权访问此聊天房间')
+            }
+        }
+
+        const skip = (page - 1) * limit
+        const [messages, total] = await Promise.all([
+            prisma.chatMessage.findMany({
+                where: { sessionId: roomId },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+            }),
+            prisma.chatMessage.count({
+                where: { sessionId: roomId },
+            }),
+        ])
+
+        return {
+            messages: messages.reverse(),
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        }
+    },
+
+    async sendPortalMessage(roomId: string, senderId: string, content: string) {
+        const session = await prisma.chatSession.findUnique({
+            where: { id: roomId },
+        })
+
+        if (!session) {
+            throw new BadRequestError('聊天房间不存在')
+        }
+
+        // 安全：验证发送者是否为该聊天房间的所有者
+        if (session.source === 'portal' && session.visitorId !== senderId) {
+            throw new BadRequestError('无权在此聊天房间发送消息')
+        }
+
+        return prisma.chatMessage.create({
+            data: {
+                sessionId: roomId,
+                content,
+                role: 'user',
+            },
+        })
+    },
 }

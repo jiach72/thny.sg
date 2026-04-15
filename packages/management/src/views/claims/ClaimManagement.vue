@@ -102,7 +102,7 @@
           <template #default="{ row }">{{ row.items?.length || 0 }}</template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="170">
-          <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString('zh-CN') }}</template>
+          <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
         </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
@@ -153,9 +153,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Document, Clock, CircleCheck, Money, Plus } from '@element-plus/icons-vue'
 import { apiClient } from '@/api'
+
+const router = useRouter()
 
 const claims = ref<any[]>([])
 const loading = ref(false)
@@ -233,8 +236,7 @@ const handleCreate = async () => {
     showCreateDialog.value = false
     Object.assign(createForm, { title: '', currency: 'SGD', description: '' })
     // 跳转到详情页添加明细
-    const { useRouter } = await import('vue-router')
-    useRouter().push(`/claims/${res.id}`)
+    router.push(`/claims/${res.id}`)
   } catch (e: any) {
     ElMessage.error(e?.message || '创建失败')
   } finally {

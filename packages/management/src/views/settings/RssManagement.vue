@@ -159,6 +159,7 @@ import {
   Plus, ArrowLeft, Refresh, Connection, CircleCheck, Document
 } from '@element-plus/icons-vue'
 import apiClient from '@/api/apiClient'
+import { logger } from '@/utils/logger'
 
 // RSS 订阅源接口
 interface RssFeed {
@@ -221,7 +222,7 @@ async function fetchFeeds() {
     stats.value.totalFeeds = feeds.value.length
     stats.value.activeFeeds = feeds.value.filter((f) => f.isActive).length
   } catch (error) {
-    console.error('Error fetching feeds:', error)
+    logger.error('RssManagement', 'Error fetching feeds:', error)
   } finally {
     loading.value = false
   }

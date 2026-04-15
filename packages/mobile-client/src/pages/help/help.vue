@@ -74,7 +74,7 @@ const helpfulMarked = ref<string[]>([])
 onMounted(async () => {
   try {
     const res = await portalApi.getFaqs()
-    categories.value = res || []
+    categories.value = Array.isArray(res) ? res : ((res as any)?.data || [])
   } catch {
     uni.showToast({ title: '加载知识库失败', icon: 'none' })
   } finally {

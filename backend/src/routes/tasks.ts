@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body, param, query } from 'express-validator'
 import { taskService } from '../services/index.js'
 import { validate, authMiddleware } from '../middlewares/index.js'
+import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -38,7 +39,7 @@ router.get(
             }
 
             const result = await taskService.getTasks(filters as any, pagination)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -52,7 +53,7 @@ router.get('/board', authMiddleware, async (req: Request, res: Response, next: N
     try {
         const assignedToId = req.query.assignedToId as string | undefined
         const result = await taskService.getTasksByStatus(assignedToId)
-        res.json(result)
+        sendSuccess(res, result)
     } catch (error) {
         next(error)
     }
@@ -65,7 +66,7 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response, next: N
     try {
         const assignedToId = req.query.assignedToId as string | undefined
         const stats = await taskService.getTaskStats(assignedToId)
-        res.json(stats)
+        sendSuccess(res, stats)
     } catch (error) {
         next(error)
     }
@@ -82,7 +83,7 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const task = await taskService.getTaskById(req.params.id)
-            res.json(task)
+            sendSuccess(res, task)
         } catch (error) {
             next(error)
         }
@@ -104,7 +105,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const task = await taskService.createTask(req.body)
-            res.status(201).json(task)
+            res.status(201).json(success(task))
         } catch (error) {
             next(error)
         }
@@ -126,7 +127,7 @@ router.put(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const task = await taskService.updateTask(req.params.id, req.body)
-            res.json(task)
+            sendSuccess(res, task)
         } catch (error) {
             next(error)
         }
@@ -144,7 +145,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await taskService.deleteTask(req.params.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }

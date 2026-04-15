@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body } from 'express-validator'
 import { authMiddleware, adminAuth, validate } from '../middlewares/index.js'
 import messageService from '../services/messageService.js'
+import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -14,7 +15,7 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await messageService.getUnreadCount(req.user!.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -32,7 +33,7 @@ router.get(
             const page = parseInt(req.query.page as string) || 1
             const limit = parseInt(req.query.limit as string) || 20
             const result = await messageService.getMessages(req.user!.id, {}, page, limit)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -48,7 +49,7 @@ router.put(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await messageService.markAsRead(req.params.id, req.user!.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -64,7 +65,7 @@ router.put(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await messageService.markAllAsRead(req.user!.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -80,7 +81,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await messageService.delete(req.params.id, req.user!.id)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -108,7 +109,7 @@ router.post(
                 senderId: req.user!.id,
                 ...req.body,
             })
-            res.status(201).json(message)
+            res.status(201).json(success(message))
         } catch (error) {
             next(error)
         }
@@ -137,7 +138,7 @@ router.post(
                 req.body.content,
                 req.body.type || 'ANNOUNCEMENT'
             )
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -156,7 +157,7 @@ router.get(
             const page = parseInt(req.query.page as string) || 1
             const limit = parseInt(req.query.limit as string) || 20
             const result = await messageService.getSentMessages(req.user!.id, page, limit)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -173,7 +174,7 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const customers = await messageService.getCustomerUsers()
-            res.json(customers)
+            sendSuccess(res, customers)
         } catch (error) {
             next(error)
         }
@@ -204,7 +205,7 @@ router.post(
                 type: 'PROJECT',
                 projectId
             })
-            res.status(201).json(message)
+            res.status(201).json(success(message))
         } catch (error) {
             next(error)
         }

@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { customerApi, type ProjectCustomerOption } from '@/api/customerApi'
 import { useProjectStore } from '@/stores/projectStore'
 import { ElMessage } from 'element-plus'
+import { logger } from '@/utils/logger'
 
 const props = defineProps<{
   visible: boolean
@@ -64,7 +65,7 @@ const searchCustomers = async (query: string) => {
     const data = await customerApi.getOptions(query)
     customerOptions.value = data
   } catch (error) {
-    console.error(error)
+    logger.error('ProjectForm', 'Error:', error)
   } finally {
     loadingCustomers.value = false
   }

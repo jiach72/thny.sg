@@ -44,6 +44,7 @@ export const exportService = {
                 assignedTo: { select: { name: true } },
             },
             orderBy: { createdAt: 'desc' },
+            take: 50000,
         })
 
         const columns: ColumnDef[] = [
@@ -105,6 +106,7 @@ export const exportService = {
                 },
             },
             orderBy: { createdAt: 'desc' },
+            take: 50000,
         })
 
         const columns: ColumnDef[] = [
@@ -187,9 +189,23 @@ export const exportService = {
      * 导出客户个人安全资料与账单记录 (Excel)
      */
     async exportCustomerData(userId: string): Promise<Buffer> {
+        // 先通过 userId 查找客户记录
+        const customer = await prisma.customer.findFirst({
+            where: { userId },
+        })
+
+        if (!customer) {
+            // 没有关联客户记录时返回空工作簿
+            const workbook = new ExcelJS.Workbook()
+            workbook.creator = 'TongHai CRM'
+            workbook.created = new Date()
+            const buffer = await workbook.xlsx.writeBuffer()
+            return Buffer.from(buffer)
+        }
+
         // 获取客户的发票记录
         const invoices = await prisma.invoice.findMany({
-            where: { project: { customerId: userId }, deletedAt: null },
+            where: { customerId: customer.id, deletedAt: null },
             orderBy: { createdAt: 'desc' },
             include: { project: { select: { title: true } } }
         })

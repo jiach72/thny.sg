@@ -1,4 +1,5 @@
 import { prisma } from '../config/index.js'
+import { NotFoundError } from '../middlewares/index.js'
 
 /**
  * RBAC 服务
@@ -149,7 +150,7 @@ class RBACService {
      */
     async setRolePermissions(roleCode: string, permissionCodes: string[]): Promise<void> {
         const role = await prisma.role.findUnique({ where: { code: roleCode } })
-        if (!role) throw new Error(`角色 ${roleCode} 不存在`)
+        if (!role) throw new NotFoundError(`角色 ${roleCode} 不存在`)
 
         // 查找对应的 Permission IDs
         const permissions = await prisma.permission.findMany({

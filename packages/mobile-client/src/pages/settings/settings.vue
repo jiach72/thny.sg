@@ -90,6 +90,45 @@
         </view>
       </view>
 
+      <!-- 通知偏好 -->
+      <view class="settings-card">
+        <view class="card-header">
+          <text class="card-icon">🔔</text>
+          <view>
+            <text class="card-title">通知偏好</text>
+            <text class="card-sub">控制接收哪些类型的通知</text>
+          </view>
+        </view>
+        <view class="setting-row">
+          <view class="setting-info">
+            <text class="setting-label">邮件通知</text>
+            <text class="setting-desc">通过邮件接收重要更新</text>
+          </view>
+          <nut-switch v-model="notifPrefs.email" @change="saveNotifPrefs" />
+        </view>
+        <view class="setting-row">
+          <view class="setting-info">
+            <text class="setting-label">短信服务</text>
+            <text class="setting-desc">紧急通知通过短信推送</text>
+          </view>
+          <nut-switch v-model="notifPrefs.sms" @change="saveNotifPrefs" />
+        </view>
+        <view class="setting-row">
+          <view class="setting-info">
+            <text class="setting-label">项目更新</text>
+            <text class="setting-desc">项目状态变更时通知</text>
+          </view>
+          <nut-switch v-model="notifPrefs.projectUpdate" @change="saveNotifPrefs" />
+        </view>
+        <view class="setting-row">
+          <view class="setting-info">
+            <text class="setting-label">文档提醒</text>
+            <text class="setting-desc">待签署或新文档通知</text>
+          </view>
+          <nut-switch v-model="notifPrefs.documentReminder" @change="saveNotifPrefs" />
+        </view>
+      </view>
+
       <!-- 数据导出 -->
       <view class="settings-card">
         <view class="card-header">
@@ -111,7 +150,8 @@
           <view v-if="!settings.twoFactorEnabled && qrCodeUrl" class="qr-area">
             <text class="qr-desc">使用身份验证应用扫描二维码：</text>
             <image :src="qrCodeUrl" class="qr-image" mode="aspectFit" />
-            <text class="secret-text">密钥: {{ secretCode }}</text>
+            <text class="secret-text">密钥: {{ showSecret ? secretCode : '••••••••••••' }}</text>
+            <text class="secret-toggle" @click="showSecret = !showSecret">{{ showSecret ? '隐藏' : '显示' }}</text>
           </view>
           <view class="code-input-area">
             <text class="code-label">输入6位验证码：</text>
@@ -156,6 +196,7 @@ const loading2fa = ref(false)
 const qrCodeUrl = ref('')
 const secretCode = ref('')
 const verificationCode = ref('')
+const showSecret = ref(false)
 
 const timezones = [
   { label: '(UTC+8) 新加坡', value: 'Asia/Singapore' },
@@ -174,6 +215,13 @@ const settings = reactive({
   twoFactorEnabled: false,
 })
 
+const notifPrefs = reactive({
+  email: true,
+  sms: false,
+  projectUpdate: true,
+  documentReminder: true,
+})
+
 onMounted(async () => {
   const saved = uni.getStorageSync('app_settings')
   if (saved) {
@@ -181,7 +229,11 @@ onMounted(async () => {
   }
   try {
     const user = await authApi.getCurrentUser()
-    if (user) settings.twoFactorEnabled = !!(user as any).twoFactorEnabled
+    if (user) settings.twoFactorEnabled = !!(user as any)?.twoFactorEnabled
+  } catch {}
+  try {
+    const prefs = await portalApi.getPreferences()
+    if (prefs) Object.assign(notifPrefs, prefs)
   } catch {}
 })
 
@@ -193,6 +245,19 @@ function saveSettings() {
 function setLang(lang: string) { settings.language = lang; showLangPicker.value = false; saveSettings() }
 function setTimezone(tz: string) { settings.timezone = tz; showTzPicker.value = false; saveSettings() }
 
+let notifTimer: ReturnType<typeof setTimeout> | null = null
+function saveNotifPrefs() {
+  if (notifTimer) clearTimeout(notifTimer)
+  notifTimer = setTimeout(async () => {
+    try {
+      await portalApi.updatePreferences({ ...notifPrefs })
+      uni.showToast({ title: '通知偏好已保存', icon: 'success', duration: 1000 })
+    } catch {
+      uni.showToast({ title: '保存失败', icon: 'none' })
+    }
+  }, 800)
+}
+
 async function handle2FA() {
   verificationCode.value = ''
   if (settings.twoFactorEnabled) {
@@ -202,8 +267,8 @@ async function handle2FA() {
   try {
     show2faDialog.value = true
     const data = await authApi.generate2fa()
-    qrCodeUrl.value = data.qrCode
-    secretCode.value = data.secret
+    qrCodeUrl.value = data?.qrCode || ''
+    secretCode.value = data?.secret || ''
   } catch {
     uni.showToast({ title: '无法生成认证信息', icon: 'none' })
     show2faDialog.value = false
@@ -272,6 +337,7 @@ async function handleExport() {
     .qr-desc { font-size: 24rpx; color: #64748b; display: block; margin-bottom: 16rpx; }
     .qr-image { width: 300rpx; height: 300rpx; margin: 0 auto; }
     .secret-text { font-size: 22rpx; color: #3b82f6; display: block; margin-top: 12rpx; word-break: break-all; }
+    .secret-toggle { font-size: 22rpx; color: #94a3b8; display: block; margin-top: 8rpx; text-decoration: underline; }
   }
   .code-input-area {
     .code-label { font-size: 24rpx; color: #64748b; display: block; margin-bottom: 12rpx; }

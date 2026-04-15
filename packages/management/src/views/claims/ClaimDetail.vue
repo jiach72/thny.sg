@@ -81,7 +81,7 @@
           </el-table-column>
           <el-table-column label="操作" width="80" v-if="claim.status === 'DRAFT'">
             <template #default="{ row }">
-              <el-button link type="danger" size="small" @click="removeItem(row.id)">删除</el-button>
+              <el-button link type="danger" size="small" v-permission="['claims:update']" @click="removeItem(row.id)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -177,6 +177,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
 import { apiClient } from '@/api'
+import { useAuthStore } from '@/stores/authStore'
 
 const route = useRoute()
 const router = useRouter()
@@ -191,8 +192,10 @@ const rejectReason = ref('')
 const paymentRef = ref('')
 const itemFormRef = ref()
 
+const authStore = useAuthStore()
+
 const uploadHeaders = computed(() => ({
-  Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+  Authorization: `Bearer ${authStore.accessToken || ''}`,
 }))
 
 const categories = [

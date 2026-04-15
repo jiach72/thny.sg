@@ -10,24 +10,25 @@ export const analyticsService = {
     /**
      * 获取销售漏斗数据
      * 统计各阶段线索数量和转化率
+     * 优化：使用单次 groupBy 替代 6 次独立 count 查询，消除 N+1 问题
      */
     async getSalesFunnel(params: DateRange) {
         const where = buildDateFilter(params)
 
-        // 各阶段线索数量
+        // 单次 groupBy 查询替代 6 次 count，减少数据库往返
+        const grouped = await prisma.lead.groupBy({
+            by: ['status'],
+            where: { ...where, deletedAt: null },
+            _count: { status: true },
+        })
+
         const stages = ['NEW', 'CONTACTED', 'QUALIFIED', 'IN_PROGRESS', 'CONVERTED', 'LOST']
-        const counts = await Promise.all(
-            stages.map(async (stage) => {
-                const count = await prisma.lead.count({
-                    where: {
-                        ...where,
-                        status: stage as 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'IN_PROGRESS' | 'CONVERTED' | 'LOST',
-                        deletedAt: null,
-                    },
-                })
-                return { stage, count }
-            })
-        )
+        const countMap: Map<string, number> = new Map(grouped.map(g => [g.status, g._count.status]))
+
+        const counts = stages.map(stage => ({
+            stage,
+            count: countMap.get(stage) || 0,
+        }))
 
         const total = counts.reduce((sum, c) => sum + c.count, 0)
 

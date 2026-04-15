@@ -91,20 +91,20 @@ const conversionRate = computed(() => {
   font-size: 28px;
   font-weight: 600;
   color: #fff;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Lexend', sans-serif;
 }
 
 /* Gradients for cards */
 .primary-gradient {
-  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
 }
 
 .success-gradient {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  background: linear-gradient(135deg, var(--color-cta) 0%, #34d399 100%);
 }
 
 .warning-gradient {
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  background: linear-gradient(135deg, var(--color-accent) 0%, #c4b5fd 100%);
 }
 
 @media (max-width: 768px) {

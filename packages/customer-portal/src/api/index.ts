@@ -14,6 +14,45 @@ import type {
     IdResponse
 } from '@tonghai/shared'
 
+// ==================== 门户专用响应类型 ====================
+// 后端各分页端点返回格式不统一，此处定义与后端实际返回一致的类型
+
+/** 后端 messageService.getMessages 返回格式 */
+interface PortalMessageListResponse {
+    messages: PortalMessage[]
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+}
+
+/** 后端 portalService.getDocuments 返回格式 */
+interface PortalDocumentListResponse {
+    documents: PortalDocument[]
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+}
+
+/** 后端 portalService.addFamilyMember 返回格式 */
+interface AddFamilyMemberResponse {
+    success: boolean
+    message: string
+    member: { id: string; name: string; relationship: string; isBeneficiary: boolean }
+}
+
+interface PaymentHistoryItem {
+    id: string
+    invoiceId: string
+    amount: number
+    currency: string
+    status: string
+    method: string
+    paidAt: string
+    createdAt: string
+}
+
 export const authApi = {
     /**
      * 客户登录
@@ -164,17 +203,12 @@ export const messageApi = {
     },
 }
 
+/** @deprecated 请使用 portalApi.getInvoices / portalApi.getInvoice，路由已迁移至 /portal/invoices */
 export const invoiceApi = {
-    /**
-     * 获取我的账单列表
-     */
     getMyInvoices(params?: { page?: number; limit?: number; status?: string }) {
         return apiClient.get<PaginatedResponse<Invoice>>('/invoices', { params })
     },
 
-    /**
-     * 获取账单详情
-     */
     getInvoiceById(id: string) {
         return apiClient.get<Invoice>(`/invoices/${id}`)
     }
@@ -244,9 +278,10 @@ export const portalApi = {
 
     /**
      * 拉取被授权的档案库及签署文件
+     * 后端返回 { documents, total, page, limit, totalPages }，非标准 PaginatedResponse
      */
     getMyDocuments(params?: { page: number; limit: number }) {
-        return apiClient.get<PaginatedResponse<PortalDocument>>('/portal/documents', { params })
+        return apiClient.get<PortalDocumentListResponse>('/portal/documents', { params })
     },
 
     /**
@@ -276,9 +311,10 @@ export const portalApi = {
 
     /**
      * 获取站内消息列表
+     * 后端返回 { messages, total, page, limit, totalPages }，非标准 PaginatedResponse
      */
     getMessages(params?: { page?: number; limit?: number; isRead?: boolean; type?: string }) {
-        return apiClient.get<PaginatedResponse<PortalMessage>>('/portal/messages', { params })
+        return apiClient.get<PortalMessageListResponse>('/portal/messages', { params })
     },
 
     /**
@@ -339,13 +375,52 @@ export const portalApi = {
         return apiClient.post<IdResponse>('/portal/appointments', data)
     },
 
+    getInvoices(params?: { page?: number; limit?: number; status?: string }) {
+        return apiClient.get<PaginatedResponse<Invoice>>('/portal/invoices', { params })
+    },
+
+    getInvoice(id: string) {
+        return apiClient.get<Invoice>(`/portal/invoices/${id}`)
+    },
+
+    downloadInvoicePdf(id: string) {
+        return apiClient.get<Blob>(`/portal/invoices/${id}/pdf`, { responseType: 'blob' })
+    },
+
+    uploadDocument(formData: FormData) {
+        return apiClient.post<PortalDocument>('/portal/documents/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        })
+    },
+
+    downloadDocument(id: string) {
+        return apiClient.get<Blob>(`/portal/documents/${id}/download`, { responseType: 'blob' })
+    },
+
+    getDocumentVersions(id: string) {
+        return apiClient.get<PortalDocument[]>(`/portal/documents/${id}/versions`)
+    },
+
+    getAppointments(params?: { page?: number; limit?: number }) {
+        return apiClient.get<{ appointments: { id: string; title: string; startTime: string; endTime: string; status: string }[]; total: number }>('/portal/appointments', { params })
+    },
+
+    cancelAppointment(id: string) {
+        return apiClient.delete<void>(`/portal/appointments/${id}`)
+    },
+
+    deleteAccount() {
+        return apiClient.delete<void>('/portal/account')
+    },
+
     // ==================== 家庭成员接口 ====================
 
     /**
      * 添加家庭成员
+     * 后端返回 { success, message, member }，非标准 IdResponse
      */
     addFamilyMember(data: { name: string; relationship: string; isBeneficiary?: boolean }) {
-        return apiClient.post<IdResponse>('/portal/family-members', data)
+        return apiClient.post<AddFamilyMemberResponse>('/portal/family-members', data)
     },
 
     /**
@@ -374,6 +449,150 @@ export const portalApi = {
         documentReminder?: boolean
     }) {
         return apiClient.put<void>('/portal/preferences', preferences)
+    },
+
+    // ==================== 在线支付接口 ====================
+
+    createPaymentCheckout(invoiceId: string) {
+        return apiClient.post<{ url: string; sessionId: string }>('/portal/payments/create-checkout', { invoiceId })
+    },
+
+    getPaymentHistory() {
+        return apiClient.get<PaymentHistoryItem[]>('/portal/payments/history')
+    },
+
+    // ==================== 实时聊天接口 ====================
+
+    getChatRooms() {
+        return apiClient.get<{ id: string; name: string; lastMessage?: string; unreadCount: number }[]>('/portal/chat/rooms')
+    },
+
+    getChatMessages(roomId: string, params?: { page?: number; limit?: number }) {
+        return apiClient.get<{ id: string; content: string; sender: string; createdAt: string }[]>(`/portal/chat/rooms/${roomId}/messages`, { params })
+    },
+
+    sendChatMessage(roomId: string, content: string) {
+        return apiClient.post<{ id: string; content: string; createdAt: string }>(`/portal/chat/rooms/${roomId}/messages`, { content })
+    },
+
+    // ==================== 电子签名接口 ====================
+
+    getSignatureRequests(projectId: string) {
+        return apiClient.get<{ id: string; documentId: string; status: string; createdAt: string }[]>('/portal/signatures', { params: { projectId } })
+    },
+
+    createSignatureRequest(data: { documentId: string; projectId: string; signerEmail: string }) {
+        return apiClient.post<{ id: string; status: string }>('/portal/signatures', data)
+    },
+
+    completeSignature(requestId: string, signatureData: string) {
+        return apiClient.post<{ id: string; status: string; completedAt: string }>(`/portal/signatures/${requestId}/complete`, { signatureData })
+    },
+
+    // ==================== AI文档助手接口 ====================
+
+    getDocumentChecklist(params: { projectType?: string; projectId?: string }) {
+        return apiClient.get<{ required: string[]; missing: string[]; uploaded: string[]; total: number }>('/portal/documents/checklist', { params })
+    },
+
+    // ==================== 工单系统接口 ====================
+
+    createTicket(data: { title: string; type: string; priority: string; description: string }) {
+        return apiClient.post<{ id: string; status: string }>('/portal/tickets', data)
+    },
+
+    getTickets(params?: { page?: number; limit?: number; status?: string }) {
+        return apiClient.get<{ data: { id: string; title: string; status: string; priority: string; createdAt: string }[]; total: number }>('/portal/tickets', { params })
+    },
+
+    getTicket(id: string) {
+        return apiClient.get<{ id: string; title: string; description: string; status: string; priority: string; replies: { id: string; content: string; createdAt: string }[] }>(`/portal/tickets/${id}`)
+    },
+
+    replyTicket(id: string, content: string) {
+        return apiClient.post<{ id: string; content: string; createdAt: string }>(`/portal/tickets/${id}/reply`, { content })
+    },
+
+    closeTicket(id: string) {
+        return apiClient.post<{ id: string; status: string }>(`/portal/tickets/${id}/close`)
+    },
+
+    rateTicket(id: string, rating: number, comment: string) {
+        return apiClient.post<{ id: string; rating: number }>(`/portal/tickets/${id}/rate`, { rating, comment })
+    },
+
+    // ==================== 知识库/资源中心接口 ====================
+
+    getResources(params?: { category?: string; type?: string; keyword?: string }) {
+        return apiClient.get<{ data: { id: string; title: string; category: string; type: string }[]; total: number }>('/portal/resources', { params })
+    },
+
+    getResource(id: string) {
+        return apiClient.get<{ id: string; title: string; content: string; category: string }>(`/portal/resources/${id}`)
+    },
+
+    // ==================== 项目协作空间接口 ====================
+
+    getProjectDiscussions(projectId: string) {
+        return apiClient.get<{ id: string; content: string; author: string; createdAt: string }[]>(`/portal/projects/${projectId}/discussions`)
+    },
+
+    sendDiscussionMessage(projectId: string, data: { content: string }) {
+        return apiClient.post<{ id: string; content: string; createdAt: string }>(`/portal/projects/${projectId}/discussions`, data)
+    },
+
+    getProjectFiles(projectId: string) {
+        return apiClient.get<{ id: string; name: string; size: number; type: string; createdAt: string }[]>(`/portal/projects/${projectId}/files`)
+    },
+
+    uploadProjectFile(projectId: string, formData: FormData) {
+        return apiClient.post<{ id: string; name: string; url: string }>(`/portal/projects/${projectId}/files`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        })
+    },
+
+    getProjectApprovals(projectId: string) {
+        return apiClient.get<{ id: string; title: string; status: string; createdAt: string }[]>(`/portal/projects/${projectId}/approvals`)
+    },
+
+    submitApproval(approvalId: string, action: string, comment: string) {
+        return apiClient.post<{ id: string; status: string }>(`/portal/approvals/${approvalId}/submit`, { action, comment })
+    },
+
+    // ==================== 客户评分/反馈接口 ====================
+
+    getFeedbackList() {
+        return apiClient.get<{ id: string; project: string; score: number; comment: string; createdAt: string }[]>('/portal/feedback')
+    },
+
+    submitFeedback(projectId: string, data: { overallScore: number; professionalism: number; responsiveness: number; communication: number; valueForMoney: number; nps: number; comment: string }) {
+        return apiClient.post<{ id: string; success: boolean }>(`/portal/projects/${projectId}/feedback`, data)
+    },
+
+    getFeedbackStats() {
+        return apiClient.get<{ averageScore: number; totalReviews: number; nps: number }>('/portal/feedback/stats')
+    },
+
+    // ==================== 数据看板接口 ====================
+
+    getAnalyticsOverview(params: { period: string }) {
+        return apiClient.get<{ totalProjects: number; activeProjects: number; totalExpenses: number; pendingInvoices: number }>('/portal/analytics/overview', { params })
+    },
+
+    getExpenseTrend(params: { period: string }) {
+        return apiClient.get<{ date: string; amount: number }[]>('/portal/analytics/expense-trend', { params })
+    },
+
+    getProjectProgress() {
+        return apiClient.get<{ id: string; name: string; progress: number }[]>('/portal/analytics/project-progress')
+    },
+
+    getDocumentStats() {
+        return apiClient.get<{ total: number; uploaded: number; pending: number }>('/portal/analytics/document-stats')
+    },
+
+    getInvoiceStats() {
+        return apiClient.get<{ total: number; paid: number; pending: number; overdue: number }>('/portal/analytics/invoice-stats')
     },
 }
 

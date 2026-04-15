@@ -1,7 +1,9 @@
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
+import { body } from 'express-validator'
 import { prisma } from '../config/index.js'
-import { authMiddleware, requireRole } from '../middlewares/index.js'
+import { authMiddleware, requireRole, validate } from '../middlewares/index.js'
 import { emailSenderService } from '../services/emailSenderService.js'
+import { sendSuccess } from '../utils/responseHelper.js'
 
 const authenticateToken = authMiddleware
 const requireAdmin = requireRole('ADMIN')
@@ -9,7 +11,7 @@ const requireAdmin = requireRole('ADMIN')
 const router = express.Router()
 
 // 获取 AI 设置
-router.get('/ai', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/ai', authenticateToken, requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const settings = await prisma.systemSetting.findMany({
             where: { category: 'AI' }
@@ -21,18 +23,23 @@ router.get('/ai', authenticateToken, requireAdmin, async (req, res) => {
             return acc
         }, {} as Record<string, string>)
 
-        res.json({
-            code: 200,
-            data: config
-        })
+        sendSuccess(res, config)
     } catch (error) {
-        console.error('Error fetching AI settings:', error)
-        res.status(500).json({ code: 500, message: 'Failed to fetch settings' })
+        next(error)
     }
 })
 
 // 保存 AI 设置
-router.post('/ai', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/ai', authenticateToken, requireAdmin,
+    [
+        body('provider').optional().isIn(['openai','zhipu','ollama']),
+        body('apiKey').optional().isString(),
+        body('model').optional().isString(),
+        body('temperature').optional().isFloat({min:0,max:2}),
+        body('maxTokens').optional().isInt({min:1}),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     const { provider, apiKey, modelName, baseUrl } = req.body
 
     try {
@@ -60,15 +67,14 @@ router.post('/ai', authenticateToken, requireAdmin, async (req, res) => {
 
         await Promise.all(operations)
 
-        res.json({ code: 200, message: 'Settings saved' })
+        sendSuccess(res, null, 'Settings saved')
     } catch (error) {
-        console.error('Error saving AI settings:', error)
-        res.status(500).json({ code: 500, message: 'Failed to save settings' })
+        next(error)
     }
 })
 
 // 获取邮件设置
-router.get('/email', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/email', authenticateToken, requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const settings = await prisma.systemSetting.findMany({
             where: { category: 'EMAIL' }
@@ -79,18 +85,23 @@ router.get('/email', authenticateToken, requireAdmin, async (req, res) => {
             return acc
         }, {} as Record<string, string>)
 
-        res.json({
-            code: 200,
-            data: config
-        })
+        sendSuccess(res, config)
     } catch (error) {
-        console.error('Error fetching email settings:', error)
-        res.status(500).json({ code: 500, message: 'Failed to fetch settings' })
+        next(error)
     }
 })
 
 // 保存邮件设置
-router.post('/email', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/email', authenticateToken, requireAdmin,
+    [
+        body('host').notEmpty().withMessage('SMTP主机不能为空'),
+        body('port').optional().isInt({min:1,max:65535}),
+        body('secure').optional().isBoolean(),
+        body('user').optional().isString(),
+        body('pass').optional().isString(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     const { provider, smtpHost, smtpPort, smtpUser, smtpPass, defaultFrom } = req.body
 
     try {
@@ -123,10 +134,9 @@ router.post('/email', authenticateToken, requireAdmin, async (req, res) => {
         // 重载内存里的邮件配置
         await emailSenderService.initialize()
 
-        res.json({ code: 200, message: 'Settings saved and email service reloaded' })
+        sendSuccess(res, null, 'Settings saved and email service reloaded')
     } catch (error) {
-        console.error('Error saving email settings:', error)
-        res.status(500).json({ code: 500, message: 'Failed to save settings' })
+        next(error)
     }
 })
 

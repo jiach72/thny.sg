@@ -15,6 +15,29 @@ export interface SendBulkMessagePayload {
     type?: 'ANNOUNCEMENT' | 'SYSTEM'
 }
 
+export interface MessageItem {
+    id: string
+    title: string
+    content: string
+    type: string
+    isRead: boolean
+    createdAt: string
+    sender?: {
+        name: string
+        avatarUrl?: string
+    }
+    project?: {
+        id: string
+        title: string
+    }
+}
+
+export interface MessageListResponse {
+    data: MessageItem[]
+    messages?: MessageItem[]
+    total: number
+}
+
 export const messageApi = {
     /**
      * 发送站内消息
@@ -34,7 +57,7 @@ export const messageApi = {
      * 获取已发送的消息列表
      */
     getSentMessages(page = 1, limit = 20) {
-        return apiClient.get('/messages/sent', { params: { page, limit } })
+        return apiClient.get<MessageListResponse>('/messages/sent', { params: { page, limit } })
     },
 
     /**
@@ -48,7 +71,7 @@ export const messageApi = {
      * 获取当前用户的收件箱消息（分页）
      */
     getMyMessages(page = 1, limit = 20, isRead?: boolean) {
-        return apiClient.get('/messages/mine', { params: { page, limit, isRead } })
+        return apiClient.get<MessageListResponse>('/messages/mine', { params: { page, limit, isRead } })
     },
 
     /**

@@ -7,10 +7,12 @@ import { Edit, Delete, Download, Upload } from '@element-plus/icons-vue'
 import ProjectForm from '@/components/projects/ProjectForm.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import apiClient from '@/api/apiClient'
+import { useAuthStore } from '@/stores/authStore'
 
 const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
+const authStore = useAuthStore()
 const { currentProject, isLoading } = storeToRefs(projectStore)
 
 const projectId = route.params.id as string
@@ -110,7 +112,7 @@ const handleDownload = async (doc: any) => {
   try {
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/documents/${doc.id}/download`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
+        'Authorization': `Bearer ${authStore.accessToken || ''}`,
       },
     })
     if (!response.ok) {

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authMiddleware } from '../middlewares/auth.js'
 import { auditService } from '../services/auditService.js'
+import { sendSuccess, sendError } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -12,10 +13,7 @@ router.get('/', async (req, res, next) => {
     try {
         // 仅管理员可查看
         if (req.user!.role !== 'ADMIN') {
-            return res.status(403).json({
-                success: false,
-                error: { code: 'FORBIDDEN', message: '仅管理员可查看审计日志' },
-            })
+            return sendError(res, '仅管理员可查看审计日志', 403, 'FORBIDDEN')
         }
 
         const data = await auditService.getAuditLogs({
@@ -28,7 +26,7 @@ router.get('/', async (req, res, next) => {
             endDate: req.query.endDate as string,
         })
 
-        res.json({ success: true, ...data })
+        sendSuccess(res, data)
     } catch (error) {
         next(error)
     }

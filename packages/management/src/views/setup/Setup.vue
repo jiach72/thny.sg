@@ -47,9 +47,9 @@ const rules = reactive<FormRules>({
 
 onMounted(async () => {
   try {
-    const res = await apiClient.get('/system/status')
+    const res = await apiClient.get<{ isInitialized?: boolean; data?: { isInitialized?: boolean } }>('/system/status')
     // 注意，apiClient 通常会自动解包 axios res.data，具体取决于封装，为了安全我们按数据结构找 isInitialized
-    const isInit = res.data?.data?.isInitialized || res.data?.isInitialized || res.isInitialized
+    const isInit = res.data?.isInitialized || res.isInitialized
     if (isInit) {
       ElMessage.info('系统已初始化，即将跳转至登录页')
       router.replace('/login')

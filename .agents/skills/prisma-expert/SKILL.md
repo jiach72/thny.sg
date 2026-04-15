@@ -1,6 +1,7 @@
 ---
 name: prisma-expert
-description: Prisma ORM expert for schema design, migrations, query optimization, relations modeling, and database operations. Use PROACTIVELY for Prisma schema issues, migration problems, query performance, relation design, or database connection issues.
+version: "1.4"
+description: Prisma ORM expert for schema design, migrations, query optimization, relations modeling, and database operations. Includes SaaS multi-tenant patterns and query performance analysis. Use PROACTIVELY for Prisma schema issues, migration problems, query performance, relation design, or database connection issues.
 ---
 
 # Prisma Expert
@@ -353,3 +354,108 @@ const updateWithVersion = await prisma.post.update({
 3. **Ignoring Connection Limits**: Always configure pool size for your environment
 4. **Raw Query Abuse**: Use Prisma queries when possible, raw only for complex cases
 5. **Migration in Production Dev Mode**: Never use `migrate dev` in production
+
+## Multi-Tenant Isolation Patterns
+
+### Schema-per-Tenant
+```typescript
+// Dynamic schema selection per request
+const getTenantPrisma = (tenantId: string) => {
+  return new PrismaClient({
+    datasourceUrl: `postgresql://user:pass@host:5432/db?schema=tenant_${tenantId}`,
+  })
+}
+```
+
+### Row-Level Security (RLS)
+```prisma
+// Shared schema with tenant discriminator
+model Order {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  amount   Decimal @db.Decimal(10, 2)
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map("orders")
+}
+```
+
+```typescript
+// Tenant-scoped queries via middleware or extension
+const tenantPrisma = prisma.$extends({
+  query: {
+    $allModels: {
+      async $allOperations({ args, query, model }) {
+        if (model === 'Order') {
+          args.where = { ...args.where, tenantId: currentTenantId }
+        }
+        return query(args)
+      },
+    },
+  },
+})
+```
+
+### Database-per-Tenant
+```typescript
+// Connection routing per tenant
+const tenantDatabases = new Map<string, PrismaClient>()
+
+function getTenantClient(tenantId: string): PrismaClient {
+  if (!tenantDatabases.has(tenantId)) {
+    const url = `postgresql://user:pass@host:5432/tenant_${tenantId}`
+    tenantDatabases.set(tenantId, new PrismaClient({ datasourceUrl: url }))
+  }
+  return tenantDatabases.get(tenantId)!
+}
+```
+
+## Query Performance Analysis
+
+### Identifying Slow Queries
+```typescript
+// Prisma query logging with duration
+const prisma = new PrismaClient({
+  log: [
+    {
+      emit: 'event',
+      level: 'query',
+    },
+  ],
+})
+
+prisma.$on('query', (e) => {
+  if (e.duration > 100) {
+    console.warn(`Slow query (${e.duration}ms): ${e.query}`)
+    console.warn(`Params: ${e.params}`)
+  }
+})
+```
+
+### EXPLAIN ANALYZE Integration
+```typescript
+// Get query plan for Prisma-generated SQL
+const result = await prisma.$queryRaw`
+  EXPLAIN ANALYZE ${prisma.user.findMany({
+    where: { email: { contains: 'example' } }
+  })}
+`
+```
+
+### Batch Query Optimization
+```typescript
+// Use findMany with include instead of N+1
+// BAD
+for (const user of users) {
+  user.posts = await prisma.post.findMany({ where: { authorId: user.id } })
+}
+
+// GOOD
+const usersWithPosts = await prisma.user.findMany({
+  include: { posts: { select: { id: true, title: true } } }
+})
+
+// BEST for large datasets: use $queryRaw with JOIN
+```

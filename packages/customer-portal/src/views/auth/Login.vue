@@ -12,7 +12,7 @@
           <span class="text-wealth italic">Prosperity</span>
         </h1>
         <p class="text-text-muted text-lg font-light leading-relaxed">
-          Experience the art of wealth management. Secure, transparent, and tailored for your family's future.
+          {{ t('auth.signInPrompt') }}
         </p>
       </div>
     </div>
@@ -28,8 +28,8 @@
 
       <div class="w-full max-w-md space-y-8 animate-fade-in-up">
         <div class="text-center lg:text-left">
-          <h2 class="font-serif text-3xl text-text mb-2">Welcome Back</h2>
-          <p class="text-text-muted text-sm">Sign in to your private vault.</p>
+          <h2 class="font-serif text-3xl text-text mb-2">{{ t('auth.welcomeBack') }}</h2>
+          <p class="text-text-muted text-sm">{{ t('auth.signInPrompt') }}</p>
         </div>
 
         <el-form
@@ -41,7 +41,7 @@
         >
           <div class="space-y-4">
             <div class="group relative">
-              <label class="block text-xs uppercase tracking-wider text-text-muted mb-1 ml-1 group-focus-within:text-wealth transition-colors">Email</label>
+              <label class="block text-xs uppercase tracking-wider text-text-muted mb-1 ml-1 group-focus-within:text-wealth transition-colors">{{ t('auth.email') }}</label>
               <el-input
                 v-model="form.email"
                 placeholder="name@family.office"
@@ -55,7 +55,7 @@
             </div>
 
             <div class="group relative">
-               <label class="block text-xs uppercase tracking-wider text-text-muted mb-1 ml-1 group-focus-within:text-wealth transition-colors">Password</label>
+               <label class="block text-xs uppercase tracking-wider text-text-muted mb-1 ml-1 group-focus-within:text-wealth transition-colors">{{ t('auth.password') }}</label>
               <el-input
                 v-model="form.password"
                 type="password"
@@ -78,14 +78,14 @@
             :disabled="loading"
             @click="handleLogin"
           >
-            <span v-if="loading">Decrypting...</span>
-            <span v-else>Access Vault</span>
+            <span v-if="loading">{{ t('auth.verifying') }}</span>
+            <span v-else>{{ t('auth.login') }}</span>
             <ArrowRight v-if="!loading" class="w-4 h-4" />
           </button>
         </el-form>
 
         <p class="text-center text-xs text-text-muted/50 mt-8">
-          Protected by Tonghai Nanyang Security. <br/>
+          通海南洋 · 安全加密连接 <br/>
           By accessing, you agree to our strict confidentiality terms.
         </p>
       </div>
@@ -99,10 +99,12 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Mail, Lock, ArrowRight } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -114,12 +116,12 @@ const form = reactive({
 
 const rules: FormRules = {
   email: [
-    { required: true, message: 'Required', trigger: 'blur' },
-    { type: 'email', message: 'Invalid format', trigger: 'blur' },
+    { required: true, message: t('validation.required'), trigger: 'blur' },
+    { type: 'email', message: t('validation.invalidFormat'), trigger: 'blur' },
   ],
   password: [
-    { required: true, message: 'Required', trigger: 'blur' },
-    { min: 6, message: 'Min 6 chars', trigger: 'blur' },
+    { required: true, message: t('validation.required'), trigger: 'blur' },
+    { min: 6, message: t('validation.minChars', { min: 6 }), trigger: 'blur' },
   ],
 }
 
@@ -136,11 +138,11 @@ async function handleLogin(): Promise<void> {
         password: form.password,
       })
       
-      ElMessage.success('Welcome back.') // Minimalist success message
+      ElMessage.success(t('auth.loginSuccess'))
       const redirect = route.query.redirect as string
       router.push(redirect || '/dashboard')
     } catch (error: unknown) {
-      ElMessage.error((error as Error).message || 'Authentication failed')
+      ElMessage.error((error as Error).message || t('auth.authFailed'))
     } finally {
       loading.value = false
     }

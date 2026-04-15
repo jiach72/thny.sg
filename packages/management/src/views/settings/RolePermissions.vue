@@ -115,6 +115,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { apiClient } from '@/api'
+import { logger } from '@/utils/logger'
 
 interface Role {
   id: string
@@ -174,18 +175,18 @@ onMounted(() => {
 async function loadRoles() {
   try {
     const res = await apiClient.get('/rbac/roles') as any
-    roles.value = res.data || []
+    roles.value = Array.isArray(res) ? res : (res?.data || [])
   } catch (error) {
-    console.error('加载角色失败:', error)
+    logger.error('RolePermissions', '加载角色失败:', error)
   }
 }
 
 async function loadAllPermissions() {
   try {
     const res = await apiClient.get('/rbac/permissions') as any
-    allPermissions.value = res.data || []
+    allPermissions.value = Array.isArray(res) ? res : (res?.data || [])
   } catch (error) {
-    console.error('加载权限失败:', error)
+    logger.error('RolePermissions', '加载权限失败:', error)
   }
 }
 
@@ -195,9 +196,9 @@ async function selectRole(role: Role) {
   
   try {
     const res = await apiClient.get(`/rbac/roles/${role.code}/permissions`) as any
-    selectedPermissions.value = new Set(res.data || [])
+    selectedPermissions.value = Array.isArray(res) ? new Set(res) : new Set(res?.data || [])
   } catch (error) {
-    console.error('加载角色权限失败:', error)
+    logger.error('RolePermissions', '加载角色权限失败:', error)
     selectedPermissions.value = new Set()
   } finally {
     loadingPermissions.value = false

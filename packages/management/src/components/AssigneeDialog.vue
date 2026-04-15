@@ -64,6 +64,7 @@ import { computed, ref } from 'vue'
 import { Check } from '@element-plus/icons-vue'
 import { userApi } from '@/api'
 import type { User } from '@/api/userApi'
+import { logger } from '@/utils/logger'
 
 const props = defineProps<{
   visible: boolean
@@ -92,7 +93,7 @@ async function loadUsers() {
     // The result from userApi.getList might be either an array directly or an object with data property
     users.value = Array.isArray(result) ? result : (result as any).data || []
   } catch (error) {
-    console.error('Failed to load users', error)
+    logger.error('AssigneeDialog', 'Failed to load users', error)
   } finally {
     loading.value = false
   }

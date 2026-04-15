@@ -3,6 +3,7 @@
     <ErrorBoundary>
       <router-view />
     </ErrorBoundary>
+    <CookieConsent />
   </el-config-provider>
 </template>
 
@@ -15,6 +16,7 @@ import en from 'element-plus/es/locale/lang/en'
 
 // 客户门户根组件
 import ErrorBoundary from './components/ErrorBoundary.vue'
+import CookieConsent from './components/CookieConsent.vue'
 
 const { locale } = useI18n()
 

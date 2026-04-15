@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { portalApi } from '@/api'
 import type { PortalProject } from '@tonghai/shared'
+import { logger } from '@/utils/logger'
 
 export const useProjectStore = defineStore('project', () => {
     const projects = ref<PortalProject[]>([])
@@ -14,7 +15,7 @@ export const useProjectStore = defineStore('project', () => {
             const data = await portalApi.getMyProjects()
             projects.value = data || []
         } catch (error) {
-            console.error('Failed to fetch projects:', error)
+            logger.error('ProjectStore', 'Failed to fetch projects:', error)
         } finally {
             isLoading.value = false
         }
@@ -26,7 +27,7 @@ export const useProjectStore = defineStore('project', () => {
             const data = await portalApi.getProjectById(id)
             currentProject.value = data || null
         } catch (error) {
-            console.error('Failed to fetch project details:', error)
+            logger.error('ProjectStore', 'Failed to fetch project details:', error)
         } finally {
             isLoading.value = false
         }

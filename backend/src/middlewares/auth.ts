@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { config } from '../config/index.js'
 import { rbacService } from '../services/rbacService.js'
+import logger from '../config/logger.js'
 
 // 扩展 Express Request 类型
 declare global {
@@ -62,7 +63,7 @@ async function verifyAndDecodeToken(token: string): Promise<JwtPayload> {
         // TokenRevokedError 需要向上传播
         if (error instanceof TokenRevokedError) throw error
         // Redis 不可用时降级，跳过黑名单检查
-        console.warn('Token 黑名单检查跳过: Redis 不可用')
+        logger.warn('Token 黑名单检查跳过: Redis 不可用')
     }
 
     return decoded
@@ -278,7 +279,7 @@ export function requirePermission(permissionCode: string) {
 
             next()
         } catch (error) {
-            console.error('RBAC 检查失败:', error)
+            logger.error('RBAC 检查失败:', error)
             return res.status(500).json({
                 code: 'INTERNAL_ERROR',
                 message: '权限检查失败',

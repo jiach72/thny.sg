@@ -3,8 +3,8 @@
     <!-- 头部 -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="font-serif text-3xl text-text mb-2">我的资料</h1>
-        <p class="text-sm text-text-muted">管理您的个人信息和家庭成员</p>
+        <h1 class="font-serif text-3xl text-text mb-2">{{ t('profile.title') }}</h1>
+        <p class="text-sm text-text-muted">{{ t('profile.subtitle') }}</p>
       </div>
     </div>
 
@@ -19,27 +19,27 @@
               <component :is="User" class="w-6 h-6" />
             </div>
             <div>
-              <h2 class="font-serif text-xl text-text">个人信息</h2>
-              <p class="text-xs text-text-muted">您的主要联系方式</p>
+              <h2 class="font-serif text-xl text-text">{{ t('profile.personalInfo') }}</h2>
+              <p class="text-xs text-text-muted">{{ t('profile.contactInfo') }}</p>
             </div>
           </div>
 
           <form @submit.prevent="handleSaveProfile" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">姓名</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.name') }}</label>
                 <input v-model="profileForm.name" type="text" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" placeholder="您的姓名" />
               </div>
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">电子邮箱</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.email') }}</label>
                 <input :value="user?.email" disabled type="email" class="w-full bg-white/5 border border-white/5 rounded-lg px-4 py-3 text-text-muted cursor-not-allowed" />
               </div>
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">电话号码</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.phone') }}</label>
                 <input v-model="profileForm.phone" type="tel" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" placeholder="+65 ..." />
               </div>
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">公司/信托</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.company') }}</label>
                 <input v-model="profileForm.company" type="text" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" placeholder="家族办公室名称" />
               </div>
             </div>
@@ -47,7 +47,7 @@
             <div class="flex justify-end pt-4">
               <button type="submit" :disabled="savingProfile" class="px-6 py-2.5 bg-wealth hover:bg-[#B49248] text-obsidian font-bold rounded shadow-lg shadow-wealth/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 <span v-if="savingProfile" class="animate-spin">⟳</span>
-                保存更改
+                {{ t('profile.saveChanges') }}
               </button>
             </div>
           </form>
@@ -63,15 +63,15 @@
                 <component :is="Users" class="w-6 h-6" />
               </div>
               <div>
-                <h2 class="font-serif text-xl text-text">家庭成员</h2>
-                <p class="text-xs text-text-muted">信托受益人和家庭成员</p>
+                <h2 class="font-serif text-xl text-text">{{ t('profile.familyMembers') }}</h2>
+                <p class="text-xs text-text-muted">{{ t('profile.beneficiaries') }}</p>
               </div>
             </div>
             <button 
               @click="showAddMemberDialog = true"
               class="text-xs font-bold uppercase tracking-wider text-wealth hover:text-white transition-colors border border-wealth/30 hover:border-wealth rounded px-3 py-1.5 flex items-center gap-2"
             >
-              <span class="text-lg leading-none">+</span> 添加成员
+              <span class="text-lg leading-none">+</span> {{ t('profile.addMember') }}
             </button>
           </div>
 
@@ -80,8 +80,8 @@
             <div class="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center gap-4">
               <el-avatar :size="48" class="ring-2 ring-wealth/50">{{ profileForm.name?.[0] || 'U' }}</el-avatar>
               <div>
-                <div class="font-medium text-text">{{ profileForm.name }} <span class="text-xs text-text-muted">(主申请人)</span></div>
-                <div class="text-xs text-text-muted">设立人</div>
+                <div class="font-medium text-text">{{ profileForm.name }} <span class="text-xs text-text-muted">({{ t('profile.primaryApplicant') }})</span></div>
+                <div class="text-xs text-text-muted">{{ t('profile.settlor') }}</div>
               </div>
             </div>
 
@@ -95,7 +95,7 @@
                 <el-avatar :size="48" class="ring-2 ring-white/10 group-hover:ring-wealth/30">{{ member.name?.[0] || '?' }}</el-avatar>
                 <div>
                   <div class="font-medium text-text">{{ member.name }}</div>
-                  <div class="text-xs text-text-muted">{{ getRelationLabel(member.relationship) }} {{ member.isBeneficiary ? '/ 受益人' : '' }}</div>
+                  <div class="text-xs text-text-muted">{{ getRelationLabel(member.relationship) }} {{ member.isBeneficiary ? `/ ${t('profile.beneficiary')}` : '' }}</div>
                 </div>
               </div>
               <button 
@@ -112,7 +112,7 @@
               v-if="familyMembers.length === 0"
               class="p-4 rounded-xl border border-dashed border-white/10 flex items-center justify-center text-text-muted text-sm"
             >
-              暂无家庭成员
+              {{ t('profile.noFamilyMembers') }}
             </div>
           </div>
         </div>
@@ -124,29 +124,29 @@
               <component :is="Shield" class="w-6 h-6" />
             </div>
             <div>
-              <h2 class="font-serif text-xl text-text">安全设置</h2>
-              <p class="text-xs text-text-muted">更新密码和身份验证</p>
+              <h2 class="font-serif text-xl text-text">{{ t('profile.securitySettings') }}</h2>
+              <p class="text-xs text-text-muted">{{ t('profile.updatePassword') }}</p>
             </div>
           </div>
 
           <form @submit.prevent="handleChangePassword" class="space-y-6">
             <div class="space-y-2">
-              <label class="text-xs font-bold uppercase tracking-wider text-text-muted">当前密码</label>
+              <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.currentPassword') }}</label>
               <input v-model="passwordForm.currentPassword" type="password" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">新密码</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.newPassword') }}</label>
                 <input v-model="passwordForm.newPassword" type="password" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" />
               </div>
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">确认新密码</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.confirmPassword') }}</label>
                 <input v-model="passwordForm.confirmPassword" type="password" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-text focus:border-wealth focus:bg-white/10 focus:outline-none transition-colors" />
               </div>
             </div>
             <div class="flex justify-end pt-4">
               <button type="submit" :disabled="changingPassword" class="px-6 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-text font-bold rounded transition-all active:scale-95 disabled:opacity-50">
-                更新密码
+                {{ t('profile.updatePasswordBtn') }}
               </button>
             </div>
           </form>
@@ -161,17 +161,31 @@
           
           <div class="relative z-10 mb-4">
             <div class="w-24 h-24 rounded-full p-1 bg-gradient-to-br from-wealth to-transparent">
-              <el-avatar :size="88" class="bg-obsidian ring-4 ring-obsidian">{{ profileForm.name?.[0] || 'U' }}</el-avatar>
+              <div class="w-[88px] h-[88px] rounded-full ring-4 ring-obsidian bg-obsidian overflow-hidden flex items-center justify-center">
+                <img v-if="avatarPreview || user?.avatarUrl" :src="avatarPreview || user?.avatarUrl" class="w-full h-full object-cover" />
+                <span v-else class="text-3xl font-serif text-wealth">{{ profileForm.name?.[0] || 'U' }}</span>
+              </div>
             </div>
-            <button class="absolute bottom-0 right-0 p-2 rounded-full bg-wealth text-obsidian shadow-lg hover:bg-white transition-colors">
+            <button @click="triggerAvatarUpload" class="absolute bottom-0 right-0 p-2 rounded-full bg-wealth text-obsidian shadow-lg hover:bg-white transition-colors">
               <component :is="Camera" class="w-4 h-4" />
+            </button>
+            <input ref="avatarInputRef" type="file" accept="image/*" class="hidden" @change="handleAvatarSelect" />
+          </div>
+          
+          <div v-if="avatarPreview" class="relative z-10 mb-3 flex gap-2">
+            <button @click="uploadAvatar" :disabled="uploadingAvatar" class="px-4 py-1.5 text-xs font-bold bg-wealth hover:bg-[#B49248] text-obsidian rounded transition-all disabled:opacity-50 flex items-center gap-1">
+              <span v-if="uploadingAvatar" class="animate-spin">⟳</span>
+              上传头像
+            </button>
+            <button @click="cancelAvatarPreview" class="px-4 py-1.5 text-xs font-medium text-text-muted bg-white/5 hover:bg-white/10 border border-white/10 rounded transition-colors">
+              取消
             </button>
           </div>
           
           <div class="relative z-10">
             <h3 class="font-serif text-xl text-text mb-1">{{ profileForm.name || '用户' }}</h3>
             <span class="inline-block px-3 py-1 rounded-full bg-wealth/10 border border-wealth/20 text-wealth text-[10px] uppercase tracking-wider font-bold">
-              家族客户
+              {{ t('profile.familyClient') }}
             </span>
           </div>
         </div>
@@ -183,38 +197,38 @@
                <component :is="Bell" class="w-6 h-6" />
              </div>
              <div>
-               <h2 class="font-serif text-lg text-text">通知设置</h2>
+               <h2 class="font-serif text-lg text-text">{{ t('profile.notificationSettings') }}</h2>
              </div>
           </div>
           
           <div class="space-y-4">
             <div class="flex items-center justify-between">
-              <span class="text-sm text-text">邮件通知</span>
+              <span class="text-sm text-text">{{ t('profile.emailNotifications') }}</span>
               <el-switch v-model="notifications.email" active-color="#D6B56E" @change="handlePreferencesChange" />
             </div>
             <div class="flex items-center justify-between">
-               <span class="text-sm text-text">短信服务</span>
+               <span class="text-sm text-text">{{ t('profile.smsService') }}</span>
                <el-switch v-model="notifications.sms" active-color="#D6B56E" @change="handlePreferencesChange" />
             </div>
             <div class="flex items-center justify-between">
-               <span class="text-sm text-text">项目更新</span>
+               <span class="text-sm text-text">{{ t('profile.projectUpdates') }}</span>
                <el-switch v-model="notifications.projectUpdate" active-color="#D6B56E" @change="handlePreferencesChange" />
             </div>
             <div class="flex items-center justify-between">
-               <span class="text-sm text-text">文档提醒</span>
+               <span class="text-sm text-text">{{ t('profile.documentReminders') }}</span>
                <el-switch v-model="notifications.documentReminder" active-color="#D6B56E" @change="handlePreferencesChange" />
             </div>
           </div>
           
           <div v-if="savingPreferences" class="mt-4 text-xs text-text-muted text-center">
-            保存中...
+            {{ t('profile.saving') }}
           </div>
         </div>
       </div>
     </div>
 
     <!-- 添加成员对话框 -->
-    <el-dialog v-model="showAddMemberDialog" title="添加家庭成员" width="400px" class="!bg-obsidian !border-white/10 !text-text rounded-xl">
+    <el-dialog v-model="showAddMemberDialog" :title="t('profile.addFamilyMember')" width="400px" class="!bg-obsidian !border-white/10 !text-text rounded-xl">
       <form @submit.prevent="handleAddMember" class="space-y-4">
         <div class="space-y-2">
           <label class="text-xs font-bold uppercase tracking-wider text-text-muted">姓名 <span class="text-red-400">*</span></label>
@@ -226,7 +240,7 @@
           />
         </div>
         <div class="space-y-2">
-          <label class="text-xs font-bold uppercase tracking-wider text-text-muted">关系 <span class="text-red-400">*</span></label>
+          <label class="text-xs font-bold uppercase tracking-wider text-text-muted">{{ t('profile.relationship') }} <span class="text-red-400">*</span></label>
           <el-select v-model="newMemberForm.relationship" placeholder="选择关系" class="w-full">
             <el-option label="配偶" value="spouse" />
             <el-option label="子女" value="child" />
@@ -236,7 +250,7 @@
           </el-select>
         </div>
         <div class="flex items-center gap-2">
-          <el-checkbox v-model="newMemberForm.isBeneficiary" label="设为受益人" />
+          <el-checkbox v-model="newMemberForm.isBeneficiary" :label="t('profile.setAsBeneficiary')" />
         </div>
       </form>
       
@@ -246,14 +260,14 @@
             @click="showAddMemberDialog = false" 
             class="px-5 py-2.5 text-sm font-medium text-text bg-white/5 hover:bg-white/10 border border-white/10 rounded transition-colors"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button 
             @click="handleAddMember"
             :disabled="addingMember || !newMemberForm.name || !newMemberForm.relationship"
             class="px-6 py-2.5 bg-wealth hover:bg-[#B49248] text-obsidian rounded font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            添加
+            {{ t('profile.add') }}
           </button>
         </div>
       </template>
@@ -267,7 +281,11 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElAvatar, ElSwitch, ElSelect, ElOption, ElCheckbox } from 'element-plus'
 import { User, Shield, Bell, Users, Camera, Trash2 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores'
-import { portalApi } from '@/api'
+import { portalApi, authApi } from '@/api'
+import { logger } from '@/utils/logger'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface FamilyMember {
   id: string
@@ -287,6 +305,11 @@ const addingMember = ref(false)
 const showAddMemberDialog = ref(false)
 
 const familyMembers = ref<FamilyMember[]>([])
+
+const avatarInputRef = ref<HTMLInputElement | null>(null)
+const avatarPreview = ref('')
+const uploadingAvatar = ref(false)
+const selectedAvatarFile = ref<File | null>(null)
 
 const profileForm = reactive({
   name: '',
@@ -325,10 +348,62 @@ function getRelationLabel(relationship: string): string {
   return relationLabels[relationship] || relationship
 }
 
+function triggerAvatarUpload(): void {
+  avatarInputRef.value?.click()
+}
+
+function handleAvatarSelect(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.warning(t('profile.avatarSizeLimit'))
+    input.value = ''
+    return
+  }
+
+  selectedAvatarFile.value = file
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    avatarPreview.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file)
+  input.value = ''
+}
+
+function cancelAvatarPreview(): void {
+  avatarPreview.value = ''
+  selectedAvatarFile.value = null
+}
+
+async function uploadAvatar(): Promise<void> {
+  if (!selectedAvatarFile.value) return
+  uploadingAvatar.value = true
+  try {
+    const formData = new FormData()
+    formData.append('avatar', selectedAvatarFile.value)
+    await portalApi.updateProfile({ avatarUrl: avatarPreview.value } as any)
+    if (user.value) {
+      const refreshed = await authApi.getCurrentUser()
+      if (refreshed) {
+        user.value = refreshed
+      }
+    }
+    ElMessage.success(t('profile.avatarUpdated'))
+    avatarPreview.value = ''
+    selectedAvatarFile.value = null
+  } catch (error: unknown) {
+    ElMessage.error((error as Error).message || t('profile.avatarUploadFailed'))
+  } finally {
+    uploadingAvatar.value = false
+  }
+}
+
 async function loadProfile(): Promise<void> {
   profileLoading.value = true
   try {
-    const data = await portalApi.getProfile() as unknown as { name?: string; phone?: string; company?: string; familyMembers?: FamilyMember[] }
+    const data = await portalApi.getProfile() as any
     profileForm.name = data.name || ''
     profileForm.phone = data.phone || ''
     profileForm.company = data.company || ''
@@ -352,7 +427,7 @@ async function handleSaveProfile(): Promise<void> {
       phone: profileForm.phone,
       company: profileForm.company,
     })
-    ElMessage.success('个人资料已保存')
+    ElMessage.success(t('profile.profileSaved'))
     if (user.value) {
       user.value.name = profileForm.name
     }
@@ -379,7 +454,7 @@ async function handleChangePassword(): Promise<void> {
       currentPassword: passwordForm.currentPassword,
       newPassword: passwordForm.newPassword,
     })
-    ElMessage.success('密码已更新')
+    ElMessage.success(t('profile.passwordUpdated'))
     passwordForm.currentPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
@@ -404,7 +479,7 @@ async function handlePreferencesChange(): Promise<void> {
         documentReminder: notifications.documentReminder,
       })
     } catch (error) {
-      console.error('保存偏好失败:', error)
+      logger.error('Profile', '保存偏好失败:', error)
     } finally {
       savingPreferences.value = false
     }
@@ -420,14 +495,14 @@ async function handleAddMember(): Promise<void> {
       name: newMemberForm.name,
       relationship: newMemberForm.relationship,
       isBeneficiary: newMemberForm.isBeneficiary,
-    }) as unknown as { member: FamilyMember }
+    })
     
     // 添加到本地列表
     if (result.member) {
       familyMembers.value.push(result.member)
     }
     
-    ElMessage.success('成员已添加')
+    ElMessage.success(t('profile.memberAdded'))
     showAddMemberDialog.value = false
     
     // 重置表单
@@ -445,7 +520,7 @@ async function handleDeleteMember(memberId: string): Promise<void> {
   try {
     await portalApi.deleteFamilyMember(memberId)
     familyMembers.value = familyMembers.value.filter(m => m.id !== memberId)
-    ElMessage.success('成员已删除')
+    ElMessage.success(t('profile.memberDeleted'))
   } catch (error: unknown) {
     ElMessage.error((error as Error).message || '删除失败')
   }

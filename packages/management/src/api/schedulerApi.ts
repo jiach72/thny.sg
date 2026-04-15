@@ -13,7 +13,7 @@ export interface ScheduledTask {
 export interface TaskResult {
     taskName: string
     success: boolean
-    result?: any
+    result?: Record<string, unknown>
     error?: string
     duration: number
 }

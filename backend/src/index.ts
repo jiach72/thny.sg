@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
 import * as Sentry from '@sentry/node'
 import { nodeProfilingIntegration } from '@sentry/profiling-node'
 import { createServer } from 'http'
@@ -17,14 +18,16 @@ import { prisma } from './config/index.js'
 import { closeRedis, getRedis } from './config/redis.js'
 import { emailSenderService } from './services/emailSenderService.js'
 import { apiVersionMiddleware } from './middlewares/index.js'
+import { apiCacheHeaders, originValidation, sensitiveActionAudit } from './middlewares/index.js'
+import { register, httpRequestsTotal, httpRequestDurationSeconds } from './config/metrics.js'
 
 // *** 全局错误捕获（必须最早注册，确保线上能打印崩溃信息）***
 process.on('uncaughtException', (err) => {
-    console.error('[FATAL] Uncaught Exception:', err)
+    logger.error('[FATAL] Uncaught Exception:', err)
     process.exit(1)
 })
 process.on('unhandledRejection', (reason) => {
-    console.error('[FATAL] Unhandled Rejection:', reason)
+    logger.error('[FATAL] Unhandled Rejection:', reason)
     process.exit(1)
 })
 
@@ -36,8 +39,8 @@ Sentry.init({
     integrations: [
         nodeProfilingIntegration(),
     ],
-    tracesSampleRate: 1.0,
-    profilesSampleRate: 1.0,
+    tracesSampleRate: 0.2,
+    profilesSampleRate: 0.1,
 })
 
 const httpServer = createServer(app)
@@ -51,6 +54,36 @@ initWebSocket(httpServer)
 // 反向代理配置（让 rate limiter 获取真实客户 IP 而非 Nginx 内网 IP）
 app.set('trust proxy', 1)
 
+// 安全响应头 + CSP（必须在 CORS 之前注册）
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'", "https://api.openai.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            objectSrc: ["'none'"],
+            frameSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+            frameAncestors: ["'none'"],
+            upgradeInsecureRequests: [],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+}))
+
+// Permissions-Policy: 限制浏览器功能访问
+app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()')
+    next()
+})
+
 // CORS 配置
 app.use(cors({
     origin: config.cors.origins,
@@ -60,12 +93,23 @@ app.use(cors({
 // 解析 Cookie（httpOnly refreshToken 存储需要）
 app.use(cookieParser())
 
-// 解析 JSON
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+// Stripe Webhook 必须在 express.json() 之前接收 raw body，
+// 否则签名验证会失败（Stripe 需要原始请求体）
+app.use('/api/v1/portal/payments/webhook', express.raw({ type: 'application/json' }))
+
+// 解析 JSON（限制请求体大小为 1MB，防止超大请求 DoS）
+app.use(express.json({ limit: '1mb' }))
+app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
 // 注入自定义 API 版本与降级提示中间件
 app.use('/api', apiVersionMiddleware)
+
+// SEC-11: 请求来源验证（CSRF 防护增强）
+app.use(originValidation)
+// SEC-12: 敏感操作审计日志
+app.use(sensitiveActionAudit)
+// PERF-03: API 响应缓存头
+app.use(apiCacheHeaders)
 
 // Swagger API 文档（仅开发环境）
 if (config.nodeEnv !== 'production') {
@@ -83,6 +127,56 @@ if (config.nodeEnv !== 'production') {
 // 全局 API 限流（每分钟 100 次请求/IP）
 app.use('/api/v1', apiRateLimiter)
 
+// Prometheus Metrics 采集中间件 — 在路由之前注册以捕获所有请求
+app.use((req, res, next) => {
+    const start = Date.now()
+    res.on('finish', () => {
+        const duration = (Date.now() - start) / 1000
+        const route = req.route?.path || req.path
+        httpRequestsTotal.inc({ method: req.method, route, status_code: res.statusCode })
+        httpRequestDurationSeconds.observe({ method: req.method, route, status_code: res.statusCode }, duration)
+    })
+    next()
+})
+
+// Prometheus Metrics 端点（供 Grafana/Prometheus 抓取）
+// 生产环境强制 Bearer Token 认证，禁止内网 IP 白名单免认证访问
+app.get('/metrics', async (req, res) => {
+    if (config.nodeEnv === 'production') {
+        // CRIT-03: 生产环境强制 Bearer Token，不允许内网 IP 免认证
+        if (!config.metricsBearerToken) {
+            logger.error('[SECURITY] 生产环境未配置 METRICS_BEARER_TOKEN，Metrics 端点拒绝访问')
+            return res.status(503).json({ code: 'SERVICE_UNAVAILABLE', message: 'Metrics端点未配置认证令牌' })
+        }
+        const authHeader = req.headers.authorization
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+        if (token !== config.metricsBearerToken) {
+            return res.status(401).json({ code: 'UNAUTHORIZED', message: '无效的Metrics访问令牌' })
+        }
+    } else {
+        // 开发/测试环境：允许 Bearer Token 或内网 IP 访问
+        if (config.metricsBearerToken) {
+            const authHeader = req.headers.authorization
+            const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+            if (token !== config.metricsBearerToken) {
+                const clientIp = (req.ip || req.socket.remoteAddress || '').replace(/^::ffff:/, '')
+                const isPrivate = /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(clientIp) || clientIp === '::1'
+                if (!isPrivate) {
+                    return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Metrics端点仅允许内网访问或Bearer Token认证' })
+                }
+            }
+        } else {
+            const clientIp = (req.ip || req.socket.remoteAddress || '').replace(/^::ffff:/, '')
+            const isPrivate = /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(clientIp) || clientIp === '::1'
+            if (!isPrivate) {
+                return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Metrics端点仅允许内网访问' })
+            }
+        }
+    }
+    res.set('Content-Type', register.contentType)
+    res.end(await register.metrics())
+})
+
 // API 路由
 app.use('/api/v1', routes)
 
@@ -90,7 +184,9 @@ app.use('/api/v1', routes)
 app.use((req, res) => {
     res.status(404).json({
         code: 'NOT_FOUND',
-        message: `路由不存在: ${req.method} ${req.path}`,
+        message: process.env.NODE_ENV === 'production'
+            ? '请求的资源不存在'
+            : `路由不存在: ${req.method} ${req.path}`,
     })
 })
 
@@ -113,9 +209,10 @@ async function bootstrap() {
                 await prisma.$connect();
                 logger.info('✅ Prisma 数据库连接成功');
                 break;
-            } catch (err: any) {
+            } catch (err: unknown) {
                 retries -= 1;
-                logger.warn(`⏳ Prisma 连接数据库失败，剩余尝试次数: ${retries} (${err.message})...`);
+                const message = err instanceof Error ? err.message : String(err)
+                logger.warn(`⏳ Prisma 连接数据库失败，剩余尝试次数: ${retries} (${message})...`);
                 if (retries === 0) {
                     throw err;
                 }
@@ -128,8 +225,9 @@ async function bootstrap() {
             const redis = getRedis();
             await redis.connect(); // 主动建立连接（lazyConnect 模式下需要显式调用）
             logger.info('✅ Redis 连接成功');
-        } catch (err: any) {
-            logger.warn(`⚠️ Redis 连接失败，进入降级模式: ${err.message}`);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err)
+            logger.warn(`⚠️ Redis 连接失败，进入降级模式: ${message}`);
             // Redis 失败不阻断启动，系统会使用内存降级方案
         }
 
@@ -142,7 +240,7 @@ async function bootstrap() {
         }
 
         // ========== 3. 启动 HTTP 服务 ==========
-        httpServer.listen(PORT, '0.0.0.0', () => {
+        httpServer.listen(PORT, '127.0.0.1', () => {
             logger.info(`
   ╔═══════════════════════════════════════════════╗
   ║                                               ║

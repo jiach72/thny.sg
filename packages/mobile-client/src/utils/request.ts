@@ -3,7 +3,9 @@
  * 自动注入 JWT Token、处理 401 自动刷新、统一错误提示
  */
 
-export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1'
+import { getSecureItemSync, setSecureItem, getSecureItem, removeSecureItem } from './secureStorage'
+
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 interface RequestOptions {
   url: string
@@ -15,6 +17,7 @@ interface RequestOptions {
 
 interface ApiResponse<T = unknown> {
   code: number
+  success?: boolean
   data: T
   message?: string
 }
@@ -22,27 +25,39 @@ interface ApiResponse<T = unknown> {
 let isRefreshing = false
 let pendingRequests: Array<() => void> = []
 
+// 内存中的 accessToken 缓存（避免频繁读取安全存储）
+let _cachedAccessToken: string | null = null
+
+/**
+ * 设置内存中的 accessToken 缓存
+ * 由 auth store 在登录/刷新成功后调用
+ */
+export function setCachedAccessToken(token: string | null): void {
+  _cachedAccessToken = token
+}
+
 function getToken(): string | null {
-  return uni.getStorageSync('accessToken') || null
+  return _cachedAccessToken || getSecureItemSync('accessToken')
 }
 
-function getRefreshToken(): string | null {
-  return uni.getStorageSync('refreshToken') || null
+function getRefreshTokenSync(): string | null {
+  return getSecureItemSync('refreshToken')
 }
 
-function setTokens(accessToken: string, refreshToken: string) {
-  uni.setStorageSync('accessToken', accessToken)
-  uni.setStorageSync('refreshToken', refreshToken)
+async function setTokens(accessToken: string, refreshToken: string): Promise<void> {
+  _cachedAccessToken = accessToken
+  await setSecureItem('refreshToken', refreshToken)
 }
 
 function clearTokens() {
-  uni.removeStorageSync('accessToken')
-  uni.removeStorageSync('refreshToken')
+  _cachedAccessToken = null
+  removeSecureItem('accessToken')
+  removeSecureItem('refreshToken')
   uni.removeStorageSync('user')
 }
 
 async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken()
+  const refreshToken = getRefreshTokenSync()
   if (!refreshToken) return false
 
   try {
@@ -55,7 +70,7 @@ async function refreshAccessToken(): Promise<boolean> {
 
     const body = res.data as ApiResponse<{ accessToken: string; refreshToken: string }>
     if (body?.code === 200 && body.data?.accessToken) {
-      setTokens(body.data.accessToken, body.data.refreshToken)
+      await setTokens(body.data.accessToken, body.data.refreshToken)
       return true
     }
     return false
@@ -86,11 +101,17 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
         const body = res.data as ApiResponse<T>
 
         if (statusCode === 200 || statusCode === 201) {
-          resolve(body.data ?? (body as unknown as T))
+          // 新格式 { code, success, data }：检查 data 字段是否存在（含 null），
+          // 而非依赖 ?? 运算符（null ?? fallback 会错误回退到整个 body）
+          if (body && typeof body === 'object' && 'data' in body) {
+            resolve(body.data as T)
+          } else {
+            // 兼容旧格式：后端直接返回裸数据（无 code/data 包装）
+            resolve(body as unknown as T)
+          }
           return
         }
 
-        // 401: Token 过期，尝试无感刷新
         if (statusCode === 401) {
           if (!isRefreshing) {
             isRefreshing = true
@@ -98,10 +119,8 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
             isRefreshing = false
 
             if (refreshed) {
-              // 重放所有挂起的请求
               pendingRequests.forEach((cb) => cb())
               pendingRequests = []
-              // 重放当前请求
               try {
                 const result = await request<T>(options)
                 resolve(result)
@@ -111,7 +130,6 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
               return
             }
 
-            // 刷新失败，强制登出
             clearTokens()
             uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' })
             setTimeout(() => {
@@ -121,7 +139,6 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
             return
           }
 
-          // 正在刷新中，将当前请求排队
           return new Promise<void>((queueResolve) => {
             pendingRequests.push(async () => {
               try {
@@ -135,14 +152,13 @@ export function request<T = unknown>(options: RequestOptions): Promise<T> {
           })
         }
 
-        // 其他错误
         const errMsg = body?.message || `请求失败 (${statusCode})`
         if (options.showError !== false) {
           uni.showToast({ title: errMsg, icon: 'none' })
         }
         reject(new Error(errMsg))
       },
-      fail: (err) => {
+      fail: () => {
         const errMsg = '网络异常，请检查连接'
         if (options.showError !== false) {
           uni.showToast({ title: errMsg, icon: 'none' })

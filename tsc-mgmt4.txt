@@ -1,0 +1,4 @@
+src/main.ts(6,16): error TS7016: Could not find a declaration file for module 'element-plus/dist/locale/en.mjs'. 'C:/Users/jiach/Documents/AntigravityCode/thny.sg/node_modules/element-plus/dist/locale/en.mjs' implicitly has an 'any' type.
+  If the 'element-plus' package actually exposes this module, try adding a new declaration (.d.ts) file containing `declare module 'element-plus/dist/locale/en.mjs';`
+src/views/settings/WorkflowDesigner.vue(301,45): error TS2339: Property 'logs' does not exist on type '{ valid: boolean; errors?: string[] | undefined; }'.
+src/views/settings/WorkflowDesigner.vue(301,57): error TS2339: Property 'logs' does not exist on type '{ valid: boolean; errors?: string[] | undefined; }'.

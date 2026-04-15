@@ -2,8 +2,23 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body, query } from 'express-validator'
 import { inquiryService } from '../services/index.js'
 import { validate, authMiddleware, optionalAuth } from '../middlewares/index.js'
+import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
+
+// 获取咨询详情
+router.get(
+    '/:id',
+    authMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const result = await inquiryService.getInquiryById(req.params.id)
+            sendSuccess(res, result)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
 
 // 获取咨询列表 (仅管理员或员工)
 router.get(
@@ -22,7 +37,7 @@ router.get(
             const status = req.query.status as any
 
             const result = await inquiryService.getInquiries(status, { page, limit })
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -46,7 +61,7 @@ router.post(
                 ...req.body,
                 ipAddress: req.ip
             })
-            res.status(201).json(result)
+            res.status(201).json(success(result))
         } catch (error) {
             next(error)
         }
@@ -57,10 +72,17 @@ router.post(
 router.put(
     '/:id',
     authMiddleware,
+    [
+        body('status').optional().isIn(['NEW','IN_PROGRESS','RESOLVED','CLOSED']),
+        body('assignedTo').optional().isString(),
+        body('notes').optional().isString(),
+        body('priority').optional().isIn(['LOW','MEDIUM','HIGH','URGENT']),
+    ],
+    validate,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const result = await inquiryService.updateInquiry(req.params.id, req.body)
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -74,7 +96,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await inquiryService.deleteInquiry(req.params.id)
-            res.json({ success: true })
+            sendSuccess(res, null)
         } catch (error) {
             next(error)
         }

@@ -1,12 +1,16 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { body } from 'express-validator'
-import { authMiddleware, validate } from '../middlewares/index.js'
+import { authMiddleware, adminAuth, validate } from '../middlewares/index.js'
 import { customerService } from '../services/customerService.js'
 import { NotFoundError } from '../middlewares/errorHandler.js'
+import { familyMemberRepository } from '../repositories/FamilyMemberRepository.js'
+import { sendSuccess } from '../utils/responseHelper.js'
 
 const router = Router()
 
+// 客户管理路由仅限管理端用户（排除 CUSTOMER 角色）
 router.use(authMiddleware)
+router.use(adminAuth)
 
 /**
  * GET /customers — 客户列表（分页 + 搜索 + 筛选）
@@ -25,7 +29,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
             sortBy: req.query.sortBy as string,
             sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
         })
-        res.json(result)
+        sendSuccess(res, result)
     } catch (error) {
         next(error)
     }
@@ -37,7 +41,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/stats', async (_req: Request, res: Response, next: NextFunction) => {
     try {
         const stats = await customerService.getStats()
-        res.json(stats)
+        sendSuccess(res, stats)
     } catch (error) {
         next(error)
     }
@@ -50,7 +54,7 @@ router.get('/options', async (req: Request, res: Response, next: NextFunction) =
     try {
         const { search } = req.query as { search?: string }
         const customers = await customerService.getConnectList(search)
-        res.json(customers)
+        sendSuccess(res, customers)
     } catch (error) {
         next(error)
     }
@@ -65,7 +69,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
         if (!customer) {
             throw new NotFoundError('客户不存在')
         }
-        res.json(customer)
+        sendSuccess(res, customer)
     } catch (error) {
         next(error)
     }
@@ -74,10 +78,21 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 /**
  * PUT /customers/:id — 更新客户信息/画像
  */
-router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.put(
+    '/:id',
+    [
+        body('name').optional().isString(),
+        body('email').optional().isEmail(),
+        body('phone').optional().isString(),
+        body('company').optional().isString(),
+        body('source').optional().isString(),
+        body('tags').optional().isArray(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const customer = await customerService.updateCustomer(req.params.id, req.body)
-        res.json(customer)
+        sendSuccess(res, customer)
     } catch (error) {
         next(error)
     }
@@ -98,7 +113,7 @@ router.put(
         try {
             const { ids, kycStatus, riskGrade } = req.body
             const result = await customerService.batchUpdateKycStatus(ids, kycStatus, riskGrade)
-            res.json({ success: true, count: result.count })
+            sendSuccess(res, { count: result.count })
         } catch (error) {
             next(error)
         }
@@ -122,7 +137,7 @@ router.put(
                 req.body.kycStatus,
                 req.body.riskGrade
             )
-            res.json(customer)
+            sendSuccess(res, customer)
         } catch (error) {
             next(error)
         }
@@ -135,21 +150,92 @@ router.put(
 router.get('/:id/timeline', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const timeline = await customerService.getTimeline(req.params.id)
-        res.json(timeline)
+        sendSuccess(res, timeline)
     } catch (error) {
         next(error)
     }
 })
 
 /**
- * PUT /customers/:id/family — 更新家庭成员
+ * GET /customers/:id/family — 获取家庭成员列表
  */
-router.put('/:id/family', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/:id/family', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const customer = await customerService.updateCustomer(req.params.id, {
-            familyMembers: req.body.familyMembers,
-        })
-        res.json(customer)
+        const members = await familyMemberRepository.findByCustomerId(req.params.id)
+        sendSuccess(res, { members })
+    } catch (error) {
+        next(error)
+    }
+})
+
+/**
+ * POST /customers/:id/family — 添加家庭成员
+ */
+router.post(
+    '/:id/family',
+    [
+        body('name').isString().trim().notEmpty().withMessage('姓名不能为空'),
+        body('relationship').isString().trim().notEmpty().withMessage('关系不能为空'),
+        body('isBeneficiary').optional().isBoolean(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const member = await familyMemberRepository.create({
+                customer: { connect: { id: req.params.id } },
+                name: req.body.name,
+                relationship: req.body.relationship,
+                isBeneficiary: req.body.isBeneficiary || false,
+            })
+            sendSuccess(res, { member })
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * PUT /customers/:id/family/:memberId — 更新家庭成员
+ */
+router.put(
+    '/:id/family/:memberId',
+    [
+        body('name').optional().isString().trim().notEmpty(),
+        body('relationship').optional().isString().trim().notEmpty(),
+        body('isBeneficiary').optional().isBoolean(),
+    ],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const existing = await familyMemberRepository.findByCustomerAndMemberId(
+                req.params.id,
+                req.params.memberId
+            )
+            if (!existing) {
+                throw new NotFoundError('成员不存在')
+            }
+            const member = await familyMemberRepository.update(req.params.memberId, req.body)
+            sendSuccess(res, { member })
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+/**
+ * DELETE /customers/:id/family/:memberId — 删除家庭成员
+ */
+router.delete('/:id/family/:memberId', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const existing = await familyMemberRepository.findByCustomerAndMemberId(
+            req.params.id,
+            req.params.memberId
+        )
+        if (!existing) {
+            throw new NotFoundError('成员不存在')
+        }
+        await familyMemberRepository.softDelete(req.params.memberId)
+        sendSuccess(res, null, '成员已删除')
     } catch (error) {
         next(error)
     }
@@ -158,12 +244,16 @@ router.put('/:id/family', async (req: Request, res: Response, next: NextFunction
 /**
  * PUT /customers/:id/notes — 更新顾问备注
  */
-router.put('/:id/notes', async (req: Request, res: Response, next: NextFunction) => {
+router.put(
+    '/:id/notes',
+    [body('profileNotes').optional().isString()],
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
     try {
         const customer = await customerService.updateCustomer(req.params.id, {
             profileNotes: req.body.profileNotes,
         })
-        res.json(customer)
+        sendSuccess(res, customer)
     } catch (error) {
         next(error)
     }
@@ -175,7 +265,7 @@ router.put('/:id/notes', async (req: Request, res: Response, next: NextFunction)
 router.post('/:id/auto-tags', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const tags = await customerService.autoAssignTags(req.params.id)
-        res.json({ success: true, tags })
+        sendSuccess(res, { tags })
     } catch (error) {
         next(error)
     }
@@ -188,7 +278,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
     try {
         const result = await customerService.getCustomerList({
             page: 1,
-            limit: 10000, // 导出全部
+            limit: 50000,
             search: req.query.search as string,
             kycStatus: req.query.kycStatus as string,
             riskGrade: req.query.riskGrade as string,

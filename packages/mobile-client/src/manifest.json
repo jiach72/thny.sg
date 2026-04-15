@@ -1,7 +1,7 @@
 {
-    "name" : "",
-    "appid" : "",
-    "description" : "",
+    "name" : "通海南洋",
+    "appid" : "__UNI__THNY",
+    "description" : "通海南洋 - 新加坡一站式商务服务",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -50,7 +50,7 @@
     "quickapp" : {},
     /* 小程序特有相关 */
     "mp-weixin" : {
-        "appid" : "",
+        "appid" : "wx_placeholder_replace_before_release",
         "setting" : {
             "urlCheck" : false
         },

@@ -1,4 +1,5 @@
 import { prisma } from '../config/index.js'
+import { Prisma } from '@prisma/client'
 import { NotFoundError } from '../middlewares/index.js'
 
 interface SendMessageInput {
@@ -68,13 +69,13 @@ export const messageService = {
      * 获取用户的消息列表
      */
     async getMessages(userId: string, filters: MessageFilters = {}, page = 1, limit = 20) {
-        const where: any = { recipientId: userId }
+        const where: Prisma.MessageWhereInput = { recipientId: userId }
 
         if (filters.isRead !== undefined) {
             where.isRead = filters.isRead
         }
         if (filters.type) {
-            where.type = filters.type
+            where.type = filters.type as Prisma.EnumMessageTypeFilter
         }
 
         const [messages, total] = await Promise.all([

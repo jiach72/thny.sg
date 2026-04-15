@@ -3,11 +3,19 @@ import { ref, computed } from 'vue'
 import { authApi } from '@/api'
 import type { User, LoginResponse } from '@tonghai/shared'
 
+/**
+ * 安全说明:
+ * accessToken 仅存于内存（Pinia reactive ref），不再写入 localStorage。
+ * 页面刷新时，通过 httpOnly cookie 中的 refreshToken 自动恢复会话，
+ * 避免 accessToken 被 XSS 攻击窃取。
+ * refreshToken 由后端通过 httpOnly + secure + sameSite=lax cookie 管理，
+ * 前端无法通过 JavaScript 访问，天然防御 XSS 窃取。
+ */
 export const useAuthStore = defineStore('auth', () => {
     // 状态
-    // accessToken 存内存 + localStorage（页面刷新恢复用）
+    // accessToken 仅存内存，不写入 localStorage（防 XSS 窃取）
     // refreshToken 通过 httpOnly cookie 自动管理，前端无需持有
-    const accessToken = ref<string | null>(localStorage.getItem('accessToken'))
+    const accessToken = ref<string | null>(null)
     const user = ref<User | null>(null)
     const loading = ref(false)
     const isInitialized = ref(false)
@@ -29,12 +37,10 @@ export const useAuthStore = defineStore('auth', () => {
                 throw new Error('此门户仅限客户访问')
             }
 
-            // accessToken 存内存 + localStorage
+            // accessToken 仅存内存（不写入 localStorage，防 XSS）
             // refreshToken 已由后端通过 httpOnly cookie 设置
             accessToken.value = data.accessToken
             user.value = data.user as User
-
-            localStorage.setItem('accessToken', data.accessToken)
 
             return data
         } finally {
@@ -71,7 +77,6 @@ export const useAuthStore = defineStore('auth', () => {
                 // refreshToken 通过 httpOnly cookie 自动携带
                 const data = await authApi.refreshToken('')
                 accessToken.value = data.accessToken
-                localStorage.setItem('accessToken', data.accessToken)
 
                 // 刷新完 token 后立即获取一次用户信息以验证角色
                 // 避免管理员的 cookie 在客户门户导致获取了错误的 token
@@ -96,13 +101,11 @@ export const useAuthStore = defineStore('auth', () => {
     function logout(): void {
         accessToken.value = null
         user.value = null
-        localStorage.removeItem('accessToken')
         // refreshToken cookie 由后端 /auth/logout 清除
     }
 
     function setTokens(newAccessToken: string, _newRefreshToken?: string): void {
         accessToken.value = newAccessToken
-        localStorage.setItem('accessToken', newAccessToken)
         // refreshToken 由 httpOnly cookie 管理，忽略前端传入值
     }
 
@@ -112,14 +115,21 @@ export const useAuthStore = defineStore('auth', () => {
 
     function initAuth(): Promise<void> {
         if (_initPromise) return _initPromise
-        
+
         _initPromise = (async () => {
             if (accessToken.value && !user.value) {
                 await fetchCurrentUser()
+            } else if (!accessToken.value) {
+                // 页面刷新后 accessToken 丢失，尝试通过 httpOnly cookie 中的 refreshToken 恢复
+                try {
+                    await refreshAccessToken()
+                } catch {
+                    // refreshToken cookie 不存在或已过期，保持未登录状态
+                }
             }
             isInitialized.value = true
         })()
-        
+
         return _initPromise
     }
 

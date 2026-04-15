@@ -156,6 +156,7 @@ import {
   Switch, Close, Check, VideoPlay, ArrowDown,
 } from '@element-plus/icons-vue'
 import { saveWorkflowDefinition, testWorkflowDefinition } from '@/api/workflowApi'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 interface FlowNode {
   id: string
@@ -298,8 +299,9 @@ async function testWorkflow() {
     
     // 由于后端配置了 logs，我们使用 msgbox 予以展示
     const formattedLogs = Array.isArray(res.logs) ? res.logs.join('\n') : '模拟执行完毕'
+    const sanitizedLogs = sanitizeHtml(`<pre style="white-space: pre-wrap; font-family: monospace;">${formattedLogs}</pre>`)
     ElMessageBox.alert(
-      `<div style="white-space: pre-wrap; font-family: monospace;">${formattedLogs}</div>`,
+      sanitizedLogs,
       '测试运行控制台',
       { type: 'success', dangerouslyUseHTMLString: true }
     )

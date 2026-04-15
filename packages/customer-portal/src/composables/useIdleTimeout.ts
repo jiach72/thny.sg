@@ -2,6 +2,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { ElMessage } from 'element-plus'
+import i18n from '@/locales'
 
 export function useIdleTimeout(timeoutMinutes = 30) {
     const router = useRouter()
@@ -30,7 +31,7 @@ export function useIdleTimeout(timeoutMinutes = 30) {
         
         // 退出登录状态
         authStore.logout()
-        ElMessage.warning('由于您长时间未操作，为了您的账号安全已自动安全退出')
+        ElMessage.warning(i18n.global.t('auth.idleTimeout'))
         
         // 跳转到登录页
         const currentPath = router.currentRoute.value.fullPath

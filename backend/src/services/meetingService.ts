@@ -1,6 +1,6 @@
 import { prisma } from '../config/index.js'
+import { Prisma } from '@prisma/client'
 import { NotFoundError } from '../middlewares/index.js'
-import type { Prisma } from '@prisma/client'
 
 // ==================== 接口定义 ====================
 
@@ -139,7 +139,7 @@ export const meetingService = {
         if (data.location !== undefined) updateData.location = data.location
         if (data.capacity !== undefined) updateData.capacity = data.capacity
         if (data.facilities !== undefined) updateData.facilities = data.facilities
-        if (data.status !== undefined) updateData.status = data.status as any
+        if (data.status !== undefined) updateData.status = data.status as Prisma.EnumMeetingRoomStatusFieldUpdateOperationsInput
         if (data.isActive !== undefined) updateData.isActive = data.isActive
 
         return prisma.meetingRoom.update({

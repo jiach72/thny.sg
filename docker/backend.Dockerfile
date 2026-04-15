@@ -44,6 +44,10 @@ COPY --from=builder /app/backend/dist ./dist
 COPY --from=builder /app/backend/prisma ./prisma
 COPY --from=builder /app/backend/package.json ./
 
+# 创建上传目录并设置权限，以非 root 用户运行（安全加固）
+RUN mkdir -p /app/backend/uploads && chown -R node:node /app
+USER node
+
 EXPOSE 4000
 
 CMD ["npm", "run", "start"]

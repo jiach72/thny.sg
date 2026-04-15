@@ -211,6 +211,7 @@ import {
 import { apiClient } from '@/api'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { logger } from '@/utils/logger'
 
 // 状态
 const loading = ref(false)
@@ -243,7 +244,7 @@ const formatDateTime = (dateString: string) => format(new Date(dateString), 'yyy
 const fetchMeetings = async () => {
   loading.value = true
   try {
-    const data = await apiClient.get('/meetings/upcoming')
+    const data = await apiClient.get<any[]>('/meetings/upcoming')
     meetings.value = data || []
     
     // 如果没有选中的会议且列表不为空，默认选中第一个
@@ -251,7 +252,7 @@ const fetchMeetings = async () => {
       selectMeeting(meetings.value[0])
     }
   } catch (error) {
-    console.error('获取日程失败:', error)
+    logger.error('MeetingScheduler', '获取日程失败:', error)
   } finally {
     loading.value = false
   }
@@ -272,7 +273,7 @@ const fetchMinutes = async (appointmentId: string) => {
     const data = await apiClient.get(`/meetings/${appointmentId}/minutes`)
     currentMinutes.value = data // 可能返回空，即状态200但内容为空
   } catch (error) {
-    console.error('获取纪要失败:', error)
+    logger.error('MeetingScheduler', '获取纪要失败:', error)
   } finally {
     loadingMinutes.value = false
   }
@@ -320,7 +321,7 @@ const saveMinutes = async () => {
     currentMinutes.value = res
     isEditing.value = false
   } catch (error) {
-    console.error('保存纪要失败:', error)
+    logger.error('MeetingScheduler', '保存纪要失败:', error)
   } finally {
     saving.value = false
   }

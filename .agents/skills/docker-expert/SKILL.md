@@ -1,6 +1,7 @@
 ---
 name: docker-expert
-description: Docker containerization expert with deep knowledge of multi-stage builds, image optimization, container security, Docker Compose orchestration, and production deployment patterns. Use PROACTIVELY for Dockerfile optimization, container issues, image size problems, security hardening, networking, and orchestration challenges.
+version: "1.4"
+description: Docker containerization expert with deep knowledge of multi-stage builds, image optimization, container security, Docker Compose orchestration, and production deployment patterns. Use PROACTIVELY for Dockerfile optimization, container issues, image size problems, security hardening, networking, and orchestration challenges. Includes SaaS multi-tenant containerization patterns.
 category: devops
 color: blue
 displayName: Docker Expert
@@ -295,6 +296,56 @@ WORKDIR /app
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production
+```
+
+### Multi-Stage Build Optimization
+```dockerfile
+# Optimized 3-stage pattern for Node.js
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
+
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+COPY . .
+RUN npm run build
+
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+COPY --from=deps /app/node_modules /app/node_modules
+COPY --from=build /app/dist /app/dist
+COPY --from=build /app/package.json /app/package.json
+WORKDIR /app
+CMD ["dist/index.js"]
+```
+
+### Container Security Hardening Checklist
+```dockerfile
+# 1. Use specific digest pinning for reproducibility
+FROM node:20-alpine@sha256:abc123... AS base
+
+# 2. Create non-root user with specific UID/GID
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
+
+# 3. Set minimal capabilities
+# (in docker-compose.yml or k8s manifest)
+# cap_drop: ALL
+# cap_add: [NET_BIND_SERVICE]
+
+# 4. Read-only root filesystem
+# readonlyRootFilesystem: true (k8s)
+# read_only: true (compose)
+
+# 5. No new privileges
+# securityOpt: [no-new-privileges:true]
+
+# 6. Resource limits
+# deploy.resources.limits.memory: 512M
 ```
 
 ### Secrets Management

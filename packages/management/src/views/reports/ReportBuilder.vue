@@ -215,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, markRaw } from 'vue'
+import { ref, markRaw, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
@@ -231,11 +231,11 @@ import {
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
+import { apiClient } from '@/api'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 
-// 类型定义
 interface Report {
   id: string
   name: string
@@ -264,53 +264,21 @@ interface ReportTemplate {
   color: string
 }
 
-// 状态
 const activeTab = ref('my')
 const showReportDialog = ref(false)
 const editingReport = ref<Report | null>(null)
 const saving = ref(false)
+const loading = ref(false)
 
-// 快速统计数据
 const quickStats = ref([
-  { key: 'leads', label: '本月新线索', value: 128, trend: 12 },
-  { key: 'conversion', label: '转化率', value: '23.5%', trend: 3.2 },
-  { key: 'tasks', label: '完成任务', value: 86, trend: -5 },
-  { key: 'revenue', label: '预估营收', value: 'S$45.6K', trend: 8 },
+  { key: 'leads', label: '本月新线索', value: '-', trend: 0 },
+  { key: 'conversion', label: '转化率', value: '-', trend: 0 },
+  { key: 'tasks', label: '完成任务', value: '-', trend: 0 },
+  { key: 'revenue', label: '预估营收', value: '-', trend: 0 },
 ])
 
-// 我的报表
-const myReports = ref<Report[]>([
-  {
-    id: '1',
-    name: '月度线索分析',
-    description: '按来源渠道统计每月新增线索数量',
-    chartType: 'bar',
-    dataSource: 'leads',
-    timeRange: 'this_month',
-    groupBy: 'source',
-    metric: 'count',
-    color: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-    scheduled: true,
-    scheduleFrequency: 'monthly',
-    scheduleEmail: 'team@company.com',
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '2',
-    name: '销售漏斗',
-    description: '各阶段线索转化情况',
-    chartType: 'funnel',
-    dataSource: 'leads',
-    timeRange: 'this_quarter',
-    groupBy: 'status',
-    metric: 'count',
-    color: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-    scheduled: false,
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-])
+const myReports = ref<Report[]>([])
 
-// 报表模板
 const reportTemplates = ref<ReportTemplate[]>([
   {
     id: 't1',
@@ -358,7 +326,6 @@ const reportTemplates = ref<ReportTemplate[]>([
   },
 ])
 
-// 图表类型选项
 const chartTypes = [
   { value: 'line', label: '折线图', icon: markRaw(DataLine) },
   { value: 'bar', label: '柱状图', icon: markRaw(Histogram) },
@@ -367,7 +334,6 @@ const chartTypes = [
   { value: 'table', label: '数据表格', icon: markRaw(Grid) },
 ]
 
-// 表单默认值
 const defaultReportForm = () => ({
   name: '',
   description: '',
@@ -383,7 +349,6 @@ const defaultReportForm = () => ({
 
 const reportForm = ref(defaultReportForm())
 
-// 方法
 function getChartIcon(chartType: string) {
   const type = chartTypes.find(t => t.value === chartType)
   return type?.icon || TrendCharts
@@ -395,6 +360,33 @@ function formatTime(dateStr: string) {
 
 function setTimeRange(key: string) {
   ElMessage.info(`查看 ${key} 详细数据`)
+}
+
+async function loadReports() {
+  loading.value = true
+  try {
+    const res = await apiClient.get<Report[]>('/reports') as any
+    myReports.value = Array.isArray(res) ? res : res?.data || []
+  } catch {
+    myReports.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadQuickStats() {
+  try {
+    const res = await apiClient.get('/analytics/overview') as any
+    const data = res?.data || res || {}
+    quickStats.value = [
+      { key: 'leads', label: '本月新线索', value: String(data.newLeads ?? '-'), trend: data.leadsTrend ?? 0 },
+      { key: 'conversion', label: '转化率', value: data.conversionRate ? `${data.conversionRate}%` : '-', trend: data.conversionTrend ?? 0 },
+      { key: 'tasks', label: '完成任务', value: String(data.completedTasks ?? '-'), trend: data.tasksTrend ?? 0 },
+      { key: 'revenue', label: '预估营收', value: data.estimatedRevenue ? `S$${(data.estimatedRevenue / 1000).toFixed(1)}K` : '-', trend: data.revenueTrend ?? 0 },
+    ]
+  } catch {
+    // keep default values
+  }
 }
 
 function openCreateDialog() {
@@ -427,18 +419,30 @@ function editReport(report: Report) {
 async function deleteReport(report: Report) {
   try {
     await ElMessageBox.confirm(`确定要删除报表 "${report.name}" 吗？`, '删除确认', { type: 'warning' })
-    const index = myReports.value.findIndex(r => r.id === report.id)
-    if (index > -1) {
-      myReports.value.splice(index, 1)
-      ElMessage.success('报表已删除')
+    await apiClient.delete(`/reports/${report.id}`)
+    myReports.value = myReports.value.filter(r => r.id !== report.id)
+    ElMessage.success('报表已删除')
+  } catch (error: unknown) {
+    if (error !== 'cancel' && error instanceof Error) {
+      ElMessage.error(error.message || '删除失败')
     }
-  } catch {
-    // 用户取消
   }
 }
 
-function exportReport(report: Report) {
-  ElMessage.success(`正在导出报表：${report.name}`)
+async function exportReport(report: Report) {
+  try {
+    const res = await apiClient.get(`/reports/${report.id}/export`, { responseType: 'blob' }) as any
+    const blob = res instanceof Blob ? res : new Blob([res])
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${report.name}.xlsx`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('报表导出成功')
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : '导出失败')
+  }
 }
 
 function useTemplate(template: ReportTemplate) {
@@ -466,8 +470,6 @@ async function saveReport() {
 
   saving.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 500))
-
     const colors = [
       'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
       'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
@@ -476,6 +478,10 @@ async function saveReport() {
     ]
 
     if (editingReport.value) {
+      const res = await apiClient.put(`/reports/${editingReport.value.id}`, {
+        ...reportForm.value,
+        color: editingReport.value.color,
+      }) as any
       Object.assign(editingReport.value, {
         name: reportForm.value.name,
         description: reportForm.value.description,
@@ -488,11 +494,17 @@ async function saveReport() {
         scheduleFrequency: reportForm.value.scheduleFrequency,
         scheduleEmail: reportForm.value.scheduleEmail,
         updatedAt: new Date().toISOString(),
+        ...(res?.data || {}),
       })
       ElMessage.success('报表已更新')
     } else {
+      const res = await apiClient.post('/reports', {
+        ...reportForm.value,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      }) as any
+      const created = res?.data || res
       myReports.value.unshift({
-        id: Date.now().toString(),
+        id: created?.id || Date.now().toString(),
         name: reportForm.value.name,
         description: reportForm.value.description,
         chartType: reportForm.value.chartType,
@@ -500,20 +512,27 @@ async function saveReport() {
         timeRange: reportForm.value.timeRange,
         groupBy: reportForm.value.groupBy,
         metric: reportForm.value.metric,
-        color: colors[Math.floor(Math.random() * colors.length)],
+        color: created?.color || colors[Math.floor(Math.random() * colors.length)],
         scheduled: reportForm.value.scheduled,
         scheduleFrequency: reportForm.value.scheduleFrequency,
         scheduleEmail: reportForm.value.scheduleEmail,
-        updatedAt: new Date().toISOString(),
+        updatedAt: created?.updatedAt || new Date().toISOString(),
       })
       ElMessage.success('报表已创建')
     }
 
     showReportDialog.value = false
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : '保存失败')
   } finally {
     saving.value = false
   }
 }
+
+onMounted(() => {
+  loadReports()
+  loadQuickStats()
+})
 </script>
 
 <style scoped>
