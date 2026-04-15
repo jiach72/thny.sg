@@ -118,7 +118,7 @@ export const saveWorkflowDefinition = (data: Record<string, unknown>): Promise<{
     apiClient.post('/workflow/definitions', data)
 
 // 测试工作流配置
-export const testWorkflowDefinition = (data: Record<string, unknown>): Promise<{ valid: boolean; errors?: string[] }> =>
+export const testWorkflowDefinition = (data: Record<string, unknown>): Promise<{ success: boolean; logs?: string[] }> =>
     apiClient.post('/workflow/definitions/test', data)
 
 export default {
