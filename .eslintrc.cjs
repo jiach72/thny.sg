@@ -36,14 +36,7 @@ module.exports = {
         // 新增：禁止 console（生产代码）
         'no-console': ['warn', { allow: ['warn', 'error'] }],
 
-        // 新增：要求显式返回类型（函数）
-        '@typescript-eslint/explicit-function-return-type': [
-            'warn',
-            {
-                allowExpressions: true,
-                allowTypedFunctionExpressions: true,
-                allowHigherOrderFunctions: true,
-            },
-        ],
+        // 返回类型注解：Vue/TS 项目中函数返回类型多由类型推断覆盖，强制要求反而增加噪音
+        '@typescript-eslint/explicit-function-return-type': 'off',
     }
 }

@@ -28,7 +28,7 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint -- --max-warnings 300
+        run: npm run lint -- --max-warnings 50
 
       - name: Type check backend
         run: cd backend && npx tsc --noEmit
