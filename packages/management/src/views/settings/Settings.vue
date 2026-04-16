@@ -170,6 +170,15 @@ async function refreshStatus() {
 
 async function handlePurge() {
   try {
+    // 先刷新状态获取最新确认码
+    await refreshStatus()
+
+    const confirmCode = purgeStatus.value.confirmCode
+    if (!confirmCode) {
+      ElMessage.error('无法获取确认码，请刷新页面后重试')
+      return
+    }
+
     await ElMessageBox.confirm(
       '此操作将永久清除系统中所有业务数据，仅保留角色权限配置和当前管理员账号。此操作不可逆！',
       '警告',
@@ -181,7 +190,6 @@ async function handlePurge() {
     )
 
     // 二次确认：要求输入动态确认码
-    const confirmCode = purgeStatus.value.confirmCode
     await ElMessageBox.prompt(
       `请输入确认码以执行清除操作：${confirmCode}`,
       '二次确认',
