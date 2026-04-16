@@ -6,34 +6,38 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 依赖文件
+# 第一层：仅复制依赖声明文件
 COPY package.json package-lock.json ./
 COPY packages/shared ./packages/shared
-COPY packages/customer-portal ./packages/customer-portal
-# npm workspaces 需要所有 workspace 包的 package.json
-COPY backend/package.json ./backend/package.json
-COPY packages/mobile-client/package.json ./packages/mobile-client/package.json
+COPY packages/customer-portal/package.json ./packages/customer-portal/package.json
 COPY packages/website/package.json ./packages/website/package.json
 COPY packages/management/package.json ./packages/management/package.json
+COPY packages/mobile-client/package.json ./packages/mobile-client/package.json
+COPY backend/package.json ./backend/package.json
 
 # 安装依赖
 RUN npm ci --legacy-peer-deps
 
-# 构建 Portal（跳过 vue-tsc 类型检查，CI 已有独立 type-check 步骤）
+# 第二层：复制源代码
+COPY packages/customer-portal ./packages/customer-portal
+
+# 构建 Portal（跳过 vue-tsc，CI 已有独立 type-check）
 WORKDIR /app/packages/customer-portal
 RUN npx vite build
 
-# ==========
-# Nginx 静态服务
-# ==========
+# ========== Nginx 静态服务 ==========
 FROM nginx:alpine
 
-# 复制构建产物
 COPY --from=builder /app/packages/customer-portal/dist /usr/share/nginx/html
-
-# 复制 SPA 专用 Nginx 配置
 COPY docker/nginx.spa.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
+
+USER nginx
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]
