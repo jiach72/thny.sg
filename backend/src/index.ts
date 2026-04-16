@@ -240,7 +240,7 @@ async function bootstrap() {
         }
 
         // ========== 3. 启动 HTTP 服务 ==========
-        httpServer.listen(PORT, '127.0.0.1', () => {
+        httpServer.listen(PORT, '0.0.0.0', () => {
             logger.info(`
   ╔═══════════════════════════════════════════════╗
   ║                                               ║
