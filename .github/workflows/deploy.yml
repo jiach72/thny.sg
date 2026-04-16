@@ -227,7 +227,12 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
-            cd /root/thny.sg
+            # 查找项目目录（docker-compose.prod.yml 所在位置）
+            PROJECT_DIR=$(find /home -name docker-compose.prod.yml -path "*/docker/*" -print -quit 2>/dev/null || find /opt -name docker-compose.prod.yml -path "*/docker/*" -print -quit 2>/dev/null || find /root -name docker-compose.prod.yml -path "*/docker/*" -print -quit 2>/dev/null)
+            if [ -z "$PROJECT_DIR" ]; then echo "❌ 找不到项目目录"; exit 1; fi
+            PROJECT_DIR=$(dirname "$(dirname "$PROJECT_DIR")")
+            echo "📁 项目目录: $PROJECT_DIR"
+            cd "$PROJECT_DIR"
 
             # 1. 拉取最新镜像
             docker compose -f docker/docker-compose.prod.yml pull
