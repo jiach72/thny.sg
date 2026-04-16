@@ -10,13 +10,18 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/shared ./packages/shared
 COPY packages/management ./packages/management
+# npm workspaces 需要所有 workspace 包的 package.json
+COPY backend/package.json ./backend/package.json
+COPY packages/mobile-client/package.json ./packages/mobile-client/package.json
+COPY packages/website/package.json ./packages/website/package.json
+COPY packages/customer-portal/package.json ./packages/customer-portal/package.json
 
 # 安装依赖
 RUN npm ci --legacy-peer-deps
 
-# 构建 Management
+# 构建 Management（跳过 vue-tsc 类型检查，CI 已有独立 type-check 步骤）
 WORKDIR /app/packages/management
-RUN npm run build
+RUN npx vite build
 
 # ==========
 # Nginx 静态服务

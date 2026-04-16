@@ -10,6 +10,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 # 如果有 shared 包，也需要复制
 COPY packages/shared ./packages/shared
+# npm workspaces 需要所有 workspace 包的 package.json
+COPY packages/website/package.json ./packages/website/package.json
+COPY packages/management/package.json ./packages/management/package.json
+COPY packages/customer-portal/package.json ./packages/customer-portal/package.json
+COPY packages/mobile-client/package.json ./packages/mobile-client/package.json
 COPY backend ./backend
 
 # 安装依赖

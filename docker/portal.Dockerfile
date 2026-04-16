@@ -10,13 +10,18 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/shared ./packages/shared
 COPY packages/customer-portal ./packages/customer-portal
+# npm workspaces 需要所有 workspace 包的 package.json
+COPY backend/package.json ./backend/package.json
+COPY packages/mobile-client/package.json ./packages/mobile-client/package.json
+COPY packages/website/package.json ./packages/website/package.json
+COPY packages/management/package.json ./packages/management/package.json
 
 # 安装依赖
 RUN npm ci --legacy-peer-deps
 
-# 构建 Portal
+# 构建 Portal（跳过 vue-tsc 类型检查，CI 已有独立 type-check 步骤）
 WORKDIR /app/packages/customer-portal
-RUN npm run build
+RUN npx vite build
 
 # ==========
 # Nginx 静态服务
