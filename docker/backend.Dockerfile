@@ -1,11 +1,11 @@
-# ==========
-# 后端服务构建
+# ========== 后端服务构建
 # Context: Project Root
 # 设计原则：
 #   1. 两阶段构建（builder + runner），简单可靠
 #   2. 先复制 package.json 再 npm ci，利用 Docker 层缓存
 #   3. runner 从 builder 复制完整 node_modules（已含 prisma generate 产物）
 #   4. 使用非 root 用户运行
+#   5. 保留 tsx 供部署时运行 seed 脚本
 # ==========
 FROM node:20-alpine AS builder
 
@@ -30,8 +30,10 @@ COPY backend ./backend
 WORKDIR /app/backend
 RUN npx prisma generate && npm run build
 
-# 删除 devDependencies 减小最终镜像体积
+# 删除 devDependencies 减小最终镜像体积（但保留 tsx 供 seed 使用）
 RUN npm prune --omit=dev 2>/dev/null || true
+# 重新安装 tsx（seed 脚本需要）
+RUN npm install tsx@^4.21.0 --save-dev 2>/dev/null || true
 
 # ========== 生产运行环境 ==========
 FROM node:20-alpine AS runner

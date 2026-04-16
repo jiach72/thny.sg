@@ -67,6 +67,13 @@ services:
       PORTAL_URL: ${PORTAL_URL}
       # Sentry DSN（可选）
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # 2FA 加密密钥（可选，缺失时降级为开发模式）
+      TWO_FA_ENCRYPTION_KEY: ${TWO_FA_ENCRYPTION_KEY:-}
+      # Metrics 认证令牌（可选，缺失时 /metrics 返回 503）
+      METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-}
+      # 管理员初始化（部署时 seed 使用）
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     volumes:
       - backend_uploads:/app/backend/uploads
     depends_on:

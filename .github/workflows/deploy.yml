@@ -218,6 +218,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sync nginx config to server
+        uses: appleboy/scp-action@v0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker/nginx.conf"
+          target: "/var/www/tonghai"
+          strip_components: 1
+
+      - name: Deploy via SSH
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -235,7 +247,11 @@ jobs:
             # 2. 运行数据库迁移
             docker compose run --rm --no-deps backend npx prisma migrate deploy
 
-            # 3. 滚动重启服务
+            # 3. 初始化 RBAC 角色和管理员账号（幂等操作，已存在则跳过）
+            docker compose run --rm --no-deps backend npx tsx prisma/seed-rbac.ts
+            docker compose run --rm --no-deps -e ADMIN_EMAIL -e ADMIN_PASSWORD backend npx tsx prisma/seed-admin.ts 2>/dev/null || echo "⚠️ 管理员初始化跳过（缺少 ADMIN_EMAIL/ADMIN_PASSWORD 环境变量）"
+
+            # 4. 滚动重启服务
             docker compose up -d --no-deps --remove-orphans backend
             echo "⏳ 等待后端启动 (最多 90 秒)..."
             sleep 10
@@ -249,7 +265,7 @@ jobs:
             docker compose up -d --no-deps website management portal
             docker compose up -d --no-deps nginx
 
-            # 4. 清理旧镜像
+            # 5. 清理旧镜像
             docker image prune -f
 
             echo "✅ 部署完成"
