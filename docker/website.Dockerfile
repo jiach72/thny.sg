@@ -4,7 +4,6 @@
 # 关键优化:
 #   1. 分离依赖安装和代码构建层，代码变更不重装依赖
 #   2. 跳过 vue-tsc 类型检查（CI 已有独立 type-check 步骤）
-#   3. 使用 nginx 非 root 运行
 # ==========
 FROM node:20-alpine AS builder
 
@@ -38,14 +37,6 @@ FROM nginx:alpine
 COPY --from=builder /app/packages/website/dist /usr/share/nginx/html
 COPY docker/nginx.spa.conf /etc/nginx/conf.d/default.conf
 
-# 安全加固：非 root 运行
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
-
-USER nginx
-EXPOSE 8080
+EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

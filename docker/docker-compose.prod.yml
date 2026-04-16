@@ -65,6 +65,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       MANAGEMENT_URL: ${MANAGEMENT_URL}
       PORTAL_URL: ${PORTAL_URL}
+      # Sentry DSN（可选）
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - backend_uploads:/app/backend/uploads
     depends_on:

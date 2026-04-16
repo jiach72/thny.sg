@@ -224,8 +224,28 @@ jobs:
           host: ${{ secrets.PRODUCTION_HOST }}
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script_timeout: 300s
           script: |
+            set -e
             cd ${{ secrets.PRODUCTION_PATH }}
+
+            # 1. 拉取最新镜像
             docker compose -f docker/docker-compose.prod.yml pull
-            docker compose -f docker/docker-compose.prod.yml up -d --remove-orphans
+
+            # 2. 运行数据库迁移（在新容器启动前，确保 Schema 兼容）
+            docker compose -f docker/docker-compose.prod.yml run --rm \
+              -e DATABASE_URL="${DATABASE_URL}" \
+              backend npx prisma migrate deploy
+
+            # 3. 滚动重启服务（先启新后端，再启前端，最后重启 nginx）
+            docker compose -f docker/docker-compose.prod.yml up -d --no-deps --remove-orphans backend
+            echo "⏳ 等待后端健康检查通过..."
+            timeout 60 bash -c 'until docker compose -f docker/docker-compose.prod.yml exec -T backend curl -sf http://localhost:4000/api/v1/health > /dev/null 2>&1; do sleep 3; done' || echo "⚠️ 后端健康检查超时，继续部署"
+
+            docker compose -f docker/docker-compose.prod.yml up -d --no-deps website management portal
+            docker compose -f docker/docker-compose.prod.yml up -d --no-deps nginx
+
+            # 4. 清理旧镜像
             docker image prune -f
+
+            echo "✅ 部署完成"
