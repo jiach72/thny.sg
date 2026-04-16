@@ -173,13 +173,13 @@ jobs:
       matrix:
         include:
           - app: backend
-            dockerfile: docker/Dockerfile.backend
+            dockerfile: docker/backend.Dockerfile
           - app: website
-            dockerfile: docker/Dockerfile.website
+            dockerfile: docker/website.Dockerfile
           - app: management
-            dockerfile: docker/Dockerfile.management
+            dockerfile: docker/management.Dockerfile
           - app: portal
-            dockerfile: docker/Dockerfile.portal
+            dockerfile: docker/portal.Dockerfile
 
     steps:
       - uses: actions/checkout@v4
