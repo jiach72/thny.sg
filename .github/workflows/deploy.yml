@@ -227,26 +227,21 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
-            # 自动查找项目目录
-            PROJECT_DIR=$(find /home/ubuntu /opt /srv /root -maxdepth 3 -name "docker-compose.prod.yml" -path "*/docker/*" -print -quit 2>/dev/null)
-            if [ -z "$PROJECT_DIR" ]; then echo "❌ 找不到项目目录"; exit 1; fi
-            PROJECT_DIR=$(dirname "$(dirname "$PROJECT_DIR")")
-            echo "📁 项目目录: $PROJECT_DIR"
-            cd "$PROJECT_DIR"
+            cd /var/www/tonghai
 
             # 1. 拉取最新镜像
-            docker compose -f docker/docker-compose.prod.yml pull
+            docker compose pull
 
             # 2. 运行数据库迁移
-            docker compose -f docker/docker-compose.prod.yml run --rm backend npx prisma migrate deploy
+            docker compose run --rm backend npx prisma migrate deploy
 
             # 3. 滚动重启服务
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps --remove-orphans backend
+            docker compose up -d --no-deps --remove-orphans backend
             echo "⏳ 等待后端健康检查..."
-            timeout 60 bash -c 'until docker compose -f docker/docker-compose.prod.yml exec -T backend curl -sf http://localhost:4000/api/v1/health > /dev/null 2>&1; do sleep 3; done' || echo "⚠️ 后端健康检查超时，继续部署"
+            timeout 60 bash -c 'until docker compose exec -T backend curl -sf http://localhost:4000/api/v1/health > /dev/null 2>&1; do sleep 3; done' || echo "⚠️ 后端健康检查超时，继续部署"
 
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps website management portal
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps nginx
+            docker compose up -d --no-deps website management portal
+            docker compose up -d --no-deps nginx
 
             # 4. 清理旧镜像
             docker image prune -f
