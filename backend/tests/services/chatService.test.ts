@@ -523,7 +523,7 @@ describe('ChatService', () => {
                 id: 'msg-1', content: 'Hello', role: 'user',
             })
 
-            const result = await chatService.sendPortalMessage('room-1', 'user-1', 'Hello')
+            await chatService.sendPortalMessage('room-1', 'user-1', 'Hello')
             expect(prismaMock.chatMessage.create).toHaveBeenCalledWith({
                 data: {
                     sessionId: 'room-1',

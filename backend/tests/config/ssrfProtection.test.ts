@@ -120,7 +120,7 @@ describe('SSRF Protection', () => {
             // However, due to esbuild/vitest module compilation, the internal
             // isPrivateIPv6 function may not behave identically.
             // At minimum, verify resolve6 was called (DNS check was performed)
-            const result = await validateSafeUrl('https://evil-ipv6.com')
+            await validateSafeUrl('https://evil-ipv6.com')
             expect(mockResolve6).toHaveBeenCalledWith('evil-ipv6.com')
         })
     })

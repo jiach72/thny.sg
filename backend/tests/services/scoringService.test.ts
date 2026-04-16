@@ -37,7 +37,7 @@ describe('ScoringService', () => {
 
     describe('getRules', () => {
         it('应返回活跃的评分规则', async () => {
-            const mockRules = [{ id: '1', name: 'Rule 1', isActive: true }]
+            const _mockRules = [{ id: '1', name: 'Rule 1', isActive: true }]
             prismaMock.lead.findMany.mockResolvedValue([]) // 占位
 
             // 直接调用 scoringService.getRules
