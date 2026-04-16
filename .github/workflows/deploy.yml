@@ -226,31 +226,16 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 5m
           script: |
-            set -e
-            # 查找项目目录（docker-compose.prod.yml 所在位置）
-            PROJECT_DIR=$(find /home -name docker-compose.prod.yml -path "*/docker/*" -print -quit 2>/dev/null || find /opt -name docker-compose.prod.yml -path "*/docker/*" -print -quit 2>/dev/null || find /root -name docker-compose.prod.yml -path "*/docker/*" -print -quit 2>/dev/null)
-            if [ -z "$PROJECT_DIR" ]; then echo "❌ 找不到项目目录"; exit 1; fi
-            PROJECT_DIR=$(dirname "$(dirname "$PROJECT_DIR")")
-            echo "📁 项目目录: $PROJECT_DIR"
-            cd "$PROJECT_DIR"
-
-            # 1. 拉取最新镜像
-            docker compose -f docker/docker-compose.prod.yml pull
-
-            # 2. 运行数据库迁移（在新容器启动前，确保 Schema 兼容）
-            docker compose -f docker/docker-compose.prod.yml run --rm \
-              -e DATABASE_URL="${DATABASE_URL}" \
-              backend npx prisma migrate deploy
-
-            # 3. 滚动重启服务（先启新后端，再启前端，最后重启 nginx）
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps --remove-orphans backend
-            echo "⏳ 等待后端健康检查通过..."
-            timeout 60 bash -c 'until docker compose -f docker/docker-compose.prod.yml exec -T backend curl -sf http://localhost:4000/api/v1/health > /dev/null 2>&1; do sleep 3; done' || echo "⚠️ 后端健康检查超时，继续部署"
-
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps website management portal
-            docker compose -f docker/docker-compose.prod.yml up -d --no-deps nginx
-
-            # 4. 清理旧镜像
-            docker image prune -f
-
-            echo "✅ 部署完成"
+            echo "=== 服务器环境诊断 ==="
+            whoami
+            echo "--- Home 目录 ---"
+            ls -la ~/
+            echo "--- 查找项目 ---"
+            find / -name "docker-compose.prod.yml" -type f 2>/dev/null
+            echo "--- 查找 thny ---"
+            find / -maxdepth 4 -name "thny*" -type d 2>/dev/null
+            echo "--- Docker 容器 ---"
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" 2>/dev/null || echo "无 docker 权限"
+            echo "--- Docker Compose 项目 ---"
+            docker compose ls 2>/dev/null || echo "无 compose 项目"
+            echo "=== 诊断完成 ==="
