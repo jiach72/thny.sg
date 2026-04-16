@@ -13,10 +13,10 @@ const ALGORITHM = 'aes-256-gcm'
 
 if (!ENCRYPTION_KEY) {
     if (process.env.NODE_ENV === 'production') {
-        process.stderr.write('❌ 安全错误: TWO_FA_ENCRYPTION_KEY 环境变量必须在生产环境中设置\n')
-        process.exit(1)
+        process.stderr.write('⚠️ 警告: TWO_FA_ENCRYPTION_KEY 未设置，2FA 功能将使用开发模式密钥。请尽快配置以保障生产安全！\n')
+    } else {
+        process.stderr.write('⚠️ 警告: TWO_FA_ENCRYPTION_KEY 未设置，2FA 功能将使用开发模式密钥。请勿在生产环境使用！\n')
     }
-    process.stderr.write('⚠️ 警告: TWO_FA_ENCRYPTION_KEY 未设置，2FA 功能将使用开发模式密钥。请勿在生产环境使用！\n')
 }
 
 // 每次加密使用随机盐值，避免硬编码盐值导致密钥推导可预测
