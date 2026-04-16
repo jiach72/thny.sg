@@ -1,9 +1,10 @@
 # ==========
 # Website 前端构建
 # Context: Project Root
-# 关键优化:
-#   1. 分离依赖安装和代码构建层，代码变更不重装依赖
+# 设计原则：
+#   1. 先复制 package.json 再 npm ci，利用 Docker 层缓存
 #   2. 跳过 vue-tsc 类型检查（CI 已有独立 type-check 步骤）
+#   3. 构建完成后 npm prune 删除 devDependencies 减小缓存层体积
 # ==========
 FROM node:20-alpine AS builder
 
