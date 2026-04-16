@@ -112,8 +112,7 @@ if (env.NODE_ENV !== 'production' && !env.JWT_SECRET) {
 // ==================== Metrics 生产环境安全检查 ====================
 
 if (env.NODE_ENV === 'production' && !env.METRICS_BEARER_TOKEN) {
-    process.stderr.write('❌ 安全错误: METRICS_BEARER_TOKEN 环境变量必须在生产环境中设置，否则 Metrics 端点将拒绝访问\n')
-    process.exit(1)
+    process.stderr.write('⚠️ 警告: METRICS_BEARER_TOKEN 未设置，/metrics 端点将返回 503。建议在环境变量中配置 METRICS_BEARER_TOKEN。\n')
 }
 
 // ==================== 导出配置对象 ====================
