@@ -224,7 +224,7 @@ jobs:
           host: ${{ secrets.PRODUCTION_HOST }}
           username: ${{ secrets.PRODUCTION_USER }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
-          script_timeout: 300s
+          command_timeout: 5m
           script: |
             set -e
             cd ${{ secrets.PRODUCTION_PATH }}
