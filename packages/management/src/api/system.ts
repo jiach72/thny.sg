@@ -1,8 +1,8 @@
 import http from './apiClient'
 
 export const systemApi = {
-    /** 获取测试数据状态 */
-    getTestDataStatus: () => http.get('/system/test-data-status'),
-    /** 一键清除所有测试数据 */
-    purgeTestData: () => http.delete('/system/purge-test-data', { data: { confirm: 'PURGE_ALL_TEST_DATA' } }),
+    /** 获取数据状态 */
+    getDataStatus: () => http.get('/system/data-status'),
+    /** 一键清除所有数据 */
+    purgeAllData: (confirmCode: string) => http.delete('/system/purge-all-data', { data: { confirm: confirmCode } }),
 }

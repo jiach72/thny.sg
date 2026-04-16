@@ -9,139 +9,67 @@ import logger from '../config/logger.js'
 
 const router = Router()
 
-// ==================== 测试数据清除功能 ====================
-
-/** 种子脚本创建的测试邮箱后缀列表 */
-const TEST_EMAIL_DOMAINS = ['@thny.sg', '@example.com', '@startup.io', '@global.com']
-
-/** 种子脚本创建的测试邮箱精确匹配列表 */
-const TEST_EMAIL_EXACT = ['client@example.com', 'liming@startup.io', 'harvey@global.com']
-
-/** 种子脚本创建的测试项目标题 */
-const TEST_PROJECT_TITLES = ['Global Family Trust Setup', 'Singapore EP Application', 'Corporate Tax Planning 2024']
+// ==================== 数据清除功能 ====================
 
 /**
- * 检测系统中是否存在真实业务数据
- * 规则：
- * 1. 若有非测试邮箱的 ADMIN 用户 → 有真实数据
- * 2. 若有非种子脚本创建的 Lead/Customer/Project → 有真实数据
- * 3. 若有任何 Invoice/Payment/SignatureRequest → 有真实数据
+ * 生成确认码：基于当前日期的动态确认码
+ * 格式：PURGE-YYYYMMDD（如 PURGE-20260416）
+ * 管理员必须输入此确认码才能执行清除操作
  */
-async function detectRealBusinessData(): Promise<{ hasRealData: boolean; details: string[] }> {
-    const warnings: string[] = []
-
-    // 检查是否有非测试邮箱的管理员
-    const allAdmins = await prisma.user.findMany({
-        where: { role: { code: 'ADMIN' } },
-        select: { email: true },
-    })
-    const nonTestAdmins = allAdmins.filter(u =>
-        !TEST_EMAIL_EXACT.includes(u.email) &&
-        !TEST_EMAIL_DOMAINS.some(d => u.email.endsWith(d))
-    )
-    if (nonTestAdmins.length > 0) {
-        warnings.push(`存在 ${nonTestAdmins.length} 个非测试管理员账号`)
-    }
-
-    // 检查是否有非种子脚本创建的项目
-    const realProjects = await prisma.project.count({
-        where: {
-            title: { notIn: TEST_PROJECT_TITLES },
-            deletedAt: null,
-        }
-    })
-    if (realProjects > 0) {
-        warnings.push(`存在 ${realProjects} 个非测试项目`)
-    }
-
-    // 检查是否有发票/付款记录（这些通常是真实业务数据）
-    const invoiceCount = await prisma.invoice.count({ where: { deletedAt: null } })
-    if (invoiceCount > 0) {
-        warnings.push(`存在 ${invoiceCount} 条发票记录`)
-    }
-
-    const paymentCount = await prisma.payment.count({ where: { deletedAt: null } })
-    if (paymentCount > 0) {
-        warnings.push(`存在 ${paymentCount} 条付款记录`)
-    }
-
-    // 检查是否有签署请求
-    const signatureCount = await prisma.signatureRequest.count()
-    if (signatureCount > 0) {
-        warnings.push(`存在 ${signatureCount} 条电子签署请求`)
-    }
-
-    // 检查是否有非测试邮箱的客户
-    const _realCustomers = await prisma.customer.count({
-        where: {
-            deletedAt: null,
-            email: { notIn: TEST_EMAIL_EXACT },
-        }
-    })
-    // 还需排除 @thny.sg 后缀的客户（内部员工测试账号关联的客户不算真实）
-    const testCustomerEmails = (await prisma.customer.findMany({
-        where: { email: { not: null } },
-        select: { email: true },
-    })).filter(c => c.email && TEST_EMAIL_DOMAINS.some(d => c.email!.endsWith(d)))
-    const testCustomerEmailList = testCustomerEmails.map(c => c.email!)
-    const trulyRealCustomers = await prisma.customer.count({
-        where: {
-            deletedAt: null,
-            email: { notIn: [...TEST_EMAIL_EXACT, ...testCustomerEmailList] },
-        }
-    })
-    if (trulyRealCustomers > 0) {
-        warnings.push(`存在 ${trulyRealCustomers} 个非测试客户`)
-    }
-
-    return { hasRealData: warnings.length > 0, details: warnings }
+function generateConfirmCode(): string {
+    const now = new Date()
+    const dateStr = now.getFullYear().toString() +
+        (now.getMonth() + 1).toString().padStart(2, '0') +
+        now.getDate().toString().padStart(2, '0')
+    return `PURGE-${dateStr}`
 }
 
 /**
- * GET /system/test-data-status — 检查测试数据状态
+ * 获取各类数据的统计数量
+ */
+async function getDataCounts() {
+    const [
+        users, leads, projects, tasks, documents, inquiries, appointments,
+        customers, invoices, payments, chatSessions, vendors, claims, newsArticles,
+    ] = await Promise.all([
+        prisma.user.count(),
+        prisma.lead.count({ where: { deletedAt: null } }),
+        prisma.project.count({ where: { deletedAt: null } }),
+        prisma.task.count({ where: { deletedAt: null } }),
+        prisma.document.count({ where: { deletedAt: null } }),
+        prisma.inquiry.count(),
+        prisma.appointment.count(),
+        prisma.customer.count({ where: { deletedAt: null } }),
+        prisma.invoice.count({ where: { deletedAt: null } }),
+        prisma.payment.count({ where: { deletedAt: null } }),
+        prisma.chatSession.count(),
+        prisma.vendor.count({ where: { deletedAt: null } }),
+        prisma.claim.count({ where: { deletedAt: null } }),
+        prisma.newsArticle.count(),
+    ])
+
+    return {
+        users, leads, projects, tasks, documents, inquiries, appointments,
+        customers, invoices, payments, chatSessions, vendors, claims, newsArticles,
+    }
+}
+
+/**
+ * GET /system/data-status — 获取数据状态统计
  * 仅 ADMIN 角色可访问
  */
 router.get(
-    '/test-data-status',
+    '/data-status',
     authMiddleware,
     requireRole('ADMIN'),
     async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { hasRealData, details } = await detectRealBusinessData()
-
-            // 统计测试数据量
-            const testUsers = await prisma.user.count({
-                where: {
-                    OR: [
-                        ...TEST_EMAIL_EXACT.map(e => ({ email: e })),
-                        ...TEST_EMAIL_DOMAINS.map(d => ({ email: { endsWith: d } })),
-                    ]
-                }
-            })
-            const testLeads = await prisma.lead.count({
-                where: { deletedAt: null }
-            })
-            const testProjects = await prisma.project.count({
-                where: { title: { in: TEST_PROJECT_TITLES }, deletedAt: null }
-            })
-            const testTasks = await prisma.task.count({ where: { deletedAt: null } })
-            const testDocuments = await prisma.document.count({ where: { deletedAt: null } })
-            const testInquiries = await prisma.inquiry.count()
-            const testAppointments = await prisma.appointment.count()
+            const dataCounts = await getDataCounts()
+            const confirmCode = generateConfirmCode()
 
             sendSuccess(res, {
-                canPurge: !hasRealData,
-                hasRealData,
-                realDataWarnings: details,
-                testDataCounts: {
-                    users: testUsers,
-                    leads: testLeads,
-                    projects: testProjects,
-                    tasks: testTasks,
-                    documents: testDocuments,
-                    inquiries: testInquiries,
-                    appointments: testAppointments,
-                },
+                dataCounts,
+                confirmCode,
                 environment: process.env.NODE_ENV || 'development',
             })
         } catch (error) {
@@ -151,44 +79,29 @@ router.get(
 )
 
 /**
- * DELETE /system/purge-test-data — 一键清除所有测试数据
- * 严格限制：仅 ADMIN 角色 + 无真实业务数据 + 非生产环境
+ * DELETE /system/purge-all-data — 一键清除所有数据
+ * 严格限制：仅 ADMIN 角色 + 动态确认码验证
+ * 保留 RBAC 角色权限配置和当前操作的管理员账号
  */
 router.delete(
-    '/purge-test-data',
+    '/purge-all-data',
     authMiddleware,
     requireRole('ADMIN'),
     async (req: Request, res: Response, next: NextFunction) => {
         try {
-            // 安全锁1：生产环境禁止
-            if (process.env.NODE_ENV === 'production') {
-                throw new ForbiddenError('生产环境严禁执行测试数据清除操作')
-            }
-
-            // 安全锁2：二次确认参数
+            // 安全锁1：动态确认码验证（基于日期，防止误操作）
             const { confirm } = req.body
-            if (confirm !== 'PURGE_ALL_TEST_DATA') {
-                throw new BadRequestError('请传入正确的确认参数 confirm="PURGE_ALL_TEST_DATA"')
-            }
-
-            // 安全锁3：检测真实业务数据
-            const { hasRealData, details } = await detectRealBusinessData()
-            if (hasRealData) {
-                throw new ForbiddenError(
-                    `系统中已存在真实业务数据，禁止清除。详情：${details.join('；')}`
+            const expectedCode = generateConfirmCode()
+            if (confirm !== expectedCode) {
+                throw new BadRequestError(
+                    `确认码不匹配，当前正确确认码为：${expectedCode}。请在设置页面查看并输入正确的确认码。`
                 )
             }
 
             // 执行清除（按外键依赖顺序）
-            logger.warn('SystemPurge', `管理员 ${req.user!.email} 正在清除所有测试数据...`)
+            logger.warn('SystemPurge', `管理员 ${req.user!.email} 正在清除所有数据...`)
 
             const result = await prisma.$transaction(async (tx) => {
-                // 再次在事务内检测真实数据（防止竞态）
-                const recheck = await detectRealBusinessData()
-                if (recheck.hasRealData) {
-                    throw new ForbiddenError('并发检测到真实业务数据，操作已中止')
-                }
-
                 const counts: Record<string, number> = {}
 
                 // 按外键依赖从子到父清除
@@ -285,19 +198,12 @@ router.delete(
                 // 27. 系统设置（保留 RBAC 数据）
                 counts.systemSettings = await tx.systemSetting.deleteMany({}).then(r => r.count)
 
-                // 28. 用户（保留 ADMIN 角色用户，删除其他）
-                const adminRole = await tx.role.findUnique({ where: { code: 'ADMIN' } })
-                if (adminRole) {
-                    // 删除所有非 ADMIN 用户
-                    counts.users = await tx.user.deleteMany({
-                        where: { roleId: { not: adminRole.id } }
-                    }).then(r => r.count)
-                    // 删除 ADMIN 中的测试账号
-                    const testAdminEmails = ['admin@thny.sg']
-                    counts.adminTestUsers = await tx.user.deleteMany({
-                        where: { email: { in: testAdminEmails }, roleId: adminRole.id }
-                    }).then(r => r.count)
-                }
+                // 28. 用户（保留当前操作的管理员账号，删除其他所有用户）
+                const currentAdminId = (req.user as any)?.id
+                // 删除所有非当前管理员的用户
+                counts.users = await tx.user.deleteMany({
+                    where: { id: { not: currentAdminId } }
+                }).then(r => r.count)
 
                 return counts
             })
@@ -305,12 +211,12 @@ router.delete(
             // 统计总删除数
             const totalDeleted = Object.values(result).reduce((sum, n) => sum + n, 0)
 
-            logger.warn('SystemPurge', `测试数据清除完成，共删除 ${totalDeleted} 条记录`)
+            logger.warn('SystemPurge', `所有数据清除完成，共删除 ${totalDeleted} 条记录。操作人：${req.user!.email}`)
 
             sendSuccess(res, {
                 deleted: result,
                 totalDeleted,
-                message: `已成功清除 ${totalDeleted} 条测试数据，系统保留 RBAC 角色权限配置`,
+                message: `已成功清除 ${totalDeleted} 条数据，系统保留 RBAC 角色权限配置和当前管理员账号`,
             })
         } catch (error) {
             next(error)
