@@ -218,13 +218,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync config files to server
+      - name: Generate SSL certs for deployment
+        run: |
+          mkdir -p certs/thny.sg certs/crm.thny.sg certs/portal.thny.sg
+          for DOMAIN in thny.sg crm.thny.sg portal.thny.sg; do
+            openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+              -keyout certs/$DOMAIN/privkey.pem \
+              -out certs/$DOMAIN/fullchain.pem \
+              -subj "/CN=$DOMAIN/O=TongHai Nanyang/C=SG" \
+              -addext "subjectAltName=DNS:$DOMAIN" 2>/dev/null
+          done
+
+      - name: Sync config and certs to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker/nginx.conf,docker/docker-compose.prod.yml"
+          source: "docker/nginx.conf,docker/docker-compose.prod.yml,certs"
           target: "/var/www/tonghai"
           strip_components: 1
 
@@ -242,9 +253,9 @@ jobs:
             # 将仓库的 docker-compose.prod.yml 复制为服务器使用的 docker-compose.yml
             cp -f docker-compose.prod.yml docker-compose.yml
 
-            # 验证 nginx.conf 存在
-            if [ ! -f nginx.conf ]; then
-              echo "❌ nginx.conf 不存在！"
+            # 确保 .env 文件存在
+            if [ ! -f .env ]; then
+              echo "❌ .env 文件不存在！请先在服务器上创建 /var/www/tonghai/.env"
               exit 1
             fi
 
@@ -254,52 +265,32 @@ jobs:
             # 2. 运行数据库迁移
             docker compose run --rm --no-deps backend npx prisma migrate deploy
 
-            # 3. 初始化 RBAC 角色和管理员账号（幂等操作，已存在则跳过）
+            # 3. 初始化 RBAC 角色和管理员账号（幂等操作）
             docker compose run --rm --no-deps backend npx tsx prisma/seed-rbac.ts
-            docker compose run --rm --no-deps -e ADMIN_EMAIL -e ADMIN_PASSWORD backend npx tsx prisma/seed-admin.ts 2>/dev/null || echo "⚠️ 管理员初始化跳过（缺少 ADMIN_EMAIL/ADMIN_PASSWORD 环境变量）"
+            docker compose run --rm --no-deps -e ADMIN_EMAIL -e ADMIN_PASSWORD backend npx tsx prisma/seed-admin.ts 2>/dev/null || echo "⚠️ 管理员初始化跳过"
 
-            # 4. 重启后端服务
-            docker compose up -d --force-recreate --remove-orphans backend
+            # 4. 启动所有服务（强制重建）
+            docker compose up -d --force-recreate --remove-orphans
+
+            # 5. 等待后端就绪
             echo "⏳ 等待后端启动 (最多 90 秒)..."
             sleep 10
             timeout 80 bash -c 'until docker compose exec -T backend curl -sf http://localhost:4000/api/v1/health > /dev/null 2>&1; do sleep 3; done' || {
-              echo "❌ 后端健康检查失败，输出最近日志："
+              echo "❌ 后端健康检查失败"
               docker compose logs --tail=50 backend
               exit 1
             }
             echo "✅ 后端已就绪"
 
-            # 5. 重启前端服务
-            docker compose up -d --force-recreate website management portal
-
-            # 6. 等待前端服务就绪
-            sleep 5
-
-            # 7. 测试 Nginx 配置并重启
-            echo "🔍 验证 Nginx 配置..."
-            docker compose run --rm nginx nginx -t 2>&1 || {
-              echo "❌ Nginx 配置验证失败"
-              cat nginx.conf
-              exit 1
-            }
-
-            docker compose up -d --force-recreate nginx
-
-            # 8. 验证 Nginx 是否正常运行
-            sleep 3
-            docker compose ps nginx || {
-              echo "❌ Nginx 容器未正常运行"
-              docker compose logs --tail=30 nginx
-              exit 1
-            }
-
-            # 9. 验证域名路由映射
+            # 6. 验证所有容器状态
             echo "📋 容器运行状态："
             docker compose ps
+
+            # 7. 验证域名映射
             echo "📋 Nginx 域名映射："
             grep -E "server_name|upstream.*server" nginx.conf | head -20
 
-            # 10. 清理旧镜像
+            # 8. 清理旧镜像
             docker image prune -f
 
             echo "✅ 部署完成"
