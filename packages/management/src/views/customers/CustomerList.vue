@@ -7,6 +7,7 @@
         <p class="page-subtitle">管理所有客户信息、画像与合规状态</p>
       </div>
       <div class="header-actions">
+        <el-button type="primary" :icon="Plus" @click="showAddDialog = true">新增客户</el-button>
         <el-button :icon="Refresh" @click="fetchAll">刷新</el-button>
         <el-button :icon="Download" @click="handleExport">导出 Excel</el-button>
       </div>
@@ -221,6 +222,7 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click="handleCreateProject(row)">创建项目</el-dropdown-item>
                   <el-dropdown-item @click="handleBookAppointment(row)">预约会议</el-dropdown-item>
+                  <el-dropdown-item @click="handleResetPassword(row)">重置密码</el-dropdown-item>
                   <el-dropdown-item divided @click="handleAutoTags(row)">重算标签</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -316,16 +318,63 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 新增客户弹窗 -->
+    <el-dialog v-model="showAddDialog" title="新增客户" width="520px" @closed="resetAddForm">
+      <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="90px">
+        <el-form-item label="姓名" prop="contactName">
+          <el-input v-model="addForm.contactName" placeholder="客户姓名" />
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="addForm.email" placeholder="登录邮箱" />
+        </el-form-item>
+        <el-form-item label="电话" prop="phone">
+          <el-input v-model="addForm.phone" placeholder="联系电话（可选）" />
+        </el-form-item>
+        <el-form-item label="公司" prop="companyName">
+          <el-input v-model="addForm.companyName" placeholder="公司名称（可选）" />
+        </el-form-item>
+        <el-form-item label="密码" prop="password">
+          <el-input v-model="addForm.password" type="password" placeholder="留空则发送邀请邮件" show-password />
+        </el-form-item>
+        <el-alert type="info" :closable="false" style="margin-top: -8px; margin-bottom: 12px;">
+          <template #default>密码留空时，系统将向客户邮箱发送设置密码的邀请链接。</template>
+        </el-alert>
+      </el-form>
+      <template #footer>
+        <el-button @click="showAddDialog = false">取消</el-button>
+        <el-button type="primary" :loading="addSubmitting" @click="submitAddCustomer">确认创建</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 重置密码弹窗 -->
+    <el-dialog v-model="resetPasswordDialogVisible" :title="`重置密码 — ${resetPasswordCustomer?.name || '客户'}`" width="460px">
+      <el-form label-width="90px">
+        <el-form-item label="客户邮箱">
+          <el-input :model-value="resetPasswordCustomer?.email" disabled />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="resetPasswordForm.newPassword" type="password" placeholder="留空则发送重置邮件" show-password />
+        </el-form-item>
+        <el-alert type="info" :closable="false">
+          <template #default>输入新密码将直接重置；留空则向客户邮箱发送密码重置链接。</template>
+        </el-alert>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetPasswordDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="resetPasswordSubmitting" @click="submitResetPassword">确认</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { apiClient } from '@/api'
 import {
-  User, Search, Refresh, Download, CircleCheck, Warning, Briefcase,
+  User, Search, Refresh, Download, CircleCheck, Warning, Briefcase, Plus,
 } from '@element-plus/icons-vue'
 import { logger } from '@/utils/logger'
 import { useAuthStore } from '@/stores/authStore'
@@ -354,6 +403,33 @@ const appointmentForm = reactive({
   startTime: '',
   endTime: '',
   location: '',
+})
+
+// 新增客户
+const showAddDialog = ref(false)
+const addSubmitting = ref(false)
+const addFormRef = ref()
+const addForm = reactive({
+  contactName: '',
+  email: '',
+  phone: '',
+  companyName: '',
+  password: '',
+})
+const addRules = {
+  contactName: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email' as const, message: '请输入有效的邮箱地址', trigger: 'blur' },
+  ],
+}
+
+// 重置密码
+const resetPasswordDialogVisible = ref(false)
+const resetPasswordSubmitting = ref(false)
+const resetPasswordCustomer = ref<any>(null)
+const resetPasswordForm = reactive({
+  newPassword: '',
 })
 
 const filters = reactive({
@@ -487,6 +563,63 @@ async function submitAppointment() {
     ElMessage.error(err?.message || '预约失败')
   } finally {
     appointmentSubmitting.value = false
+  }
+}
+
+function resetAddForm() {
+  addForm.contactName = ''
+  addForm.email = ''
+  addForm.phone = ''
+  addForm.companyName = ''
+  addForm.password = ''
+}
+
+async function submitAddCustomer() {
+  if (!addFormRef.value) return
+  const valid = await addFormRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  addSubmitting.value = true
+  try {
+    await apiClient.post('/customers', {
+      contactName: addForm.contactName,
+      email: addForm.email,
+      phone: addForm.phone || undefined,
+      companyName: addForm.companyName || undefined,
+      password: addForm.password || undefined,
+    })
+    ElMessage.success('客户创建成功')
+    showAddDialog.value = false
+    fetchAll()
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || err?.message || '创建失败')
+  } finally {
+    addSubmitting.value = false
+  }
+}
+
+function handleResetPassword(row: any) {
+  resetPasswordCustomer.value = {
+    id: row.id,
+    name: getDisplayName(row),
+    email: row.email || row.lead?.email || '',
+  }
+  resetPasswordForm.newPassword = ''
+  resetPasswordDialogVisible.value = true
+}
+
+async function submitResetPassword() {
+  resetPasswordSubmitting.value = true
+  try {
+    await apiClient.post(`/customers/${resetPasswordCustomer.value.id}/reset-password`, {
+      newPassword: resetPasswordForm.newPassword || undefined,
+    })
+    ElMessage.success(resetPasswordForm.newPassword ? '密码已重置' : '重置邮件已发送')
+    resetPasswordDialogVisible.value = false
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || err?.message || '操作失败')
+  } finally {
+    resetPasswordSubmitting.value = false
   }
 }
 
