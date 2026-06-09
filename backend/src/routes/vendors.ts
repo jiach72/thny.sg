@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { body, query, param } from 'express-validator'
 import { vendorService } from '../services/vendorService.js'
 import { validate, authMiddleware } from '../middlewares/index.js'
+import { sendSuccess } from '../utils/responseHelper.js'
 
 const router = Router()
 
@@ -66,7 +67,7 @@ router.get(
             }
 
             const result = await vendorService.getVendorList(filters, { page, limit })
-            res.json(result)
+            sendSuccess(res, result)
         } catch (error) {
             next(error)
         }
@@ -80,7 +81,7 @@ router.get(
     async (_req: Request, res: Response, next: NextFunction) => {
         try {
             const stats = await vendorService.getVendorStats()
-            res.json(stats)
+            sendSuccess(res, stats)
         } catch (error) {
             next(error)
         }
@@ -96,7 +97,7 @@ router.get(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const vendor = await vendorService.getVendorById(req.params.id)
-            res.json(vendor)
+            sendSuccess(res, vendor)
         } catch (error) {
             next(error)
         }
@@ -143,7 +144,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const vendor = await vendorService.createVendor(req.body)
-            res.status(201).json(vendor)
+            sendSuccess(res, vendor)
         } catch (error) {
             next(error)
         }
@@ -207,7 +208,7 @@ router.put(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const vendor = await vendorService.updateVendor(req.params.id, req.body)
-            res.json(vendor)
+            sendSuccess(res, vendor)
         } catch (error) {
             next(error)
         }
@@ -243,7 +244,7 @@ router.delete(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             await vendorService.deleteVendor(req.params.id)
-            res.json({ success: true, message: '供应商已删除' })
+            sendSuccess(res, null, '供应商已删除')
         } catch (error) {
             next(error)
         }
@@ -264,7 +265,7 @@ router.post(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const assignment = await vendorService.assignToProject(req.params.id, req.body)
-            res.status(201).json(assignment)
+            sendSuccess(res, assignment)
         } catch (error) {
             next(error)
         }
@@ -284,7 +285,7 @@ router.put(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const assignment = await vendorService.updateAssignment(req.params.id, req.body)
-            res.json(assignment)
+            sendSuccess(res, assignment)
         } catch (error) {
             next(error)
         }

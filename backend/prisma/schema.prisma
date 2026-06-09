@@ -160,10 +160,39 @@ model User {
   adminApprovedClaims   Claim[] @relation("ClaimAdminApprover")
   rejectedClaims        Claim[] @relation("ClaimRejector")
   recordedMinutes       MeetingMinutes[] @relation("MinutesRecorder")
+  preferences           UserPreferences? @relation("UserPreferences")
 
   @@index([roleId])
   @@index([status])
   @@map("users")
+}
+
+// 用户偏好设置
+model UserPreferences {
+  id                 String   @id @default(cuid())
+  userId             String   @unique @map("user_id")
+  user               User     @relation("UserPreferences", fields: [userId], references: [id], onDelete: Cascade)
+
+  emailNotifications Boolean  @default(true) @map("email_notifications")
+  smsNotifications   Boolean  @default(false) @map("sms_notifications")
+  projectUpdate      Boolean  @default(true) @map("project_update")
+  documentReminder   Boolean  @default(true) @map("document_reminder")
+
+  darkMode           Boolean  @default(true) @map("dark_mode")
+  compactMode        Boolean  @default(false) @map("compact_mode")
+  animations         Boolean  @default(true) @map("animations")
+  language           String   @default("zh-CN")
+  timezone           String   @default("Asia/Singapore")
+
+  activityLog        Boolean  @default(true) @map("activity_log")
+  loginNotification  Boolean  @default(true) @map("login_notification")
+
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([emailNotifications])
+  @@index([language])
+  @@map("user_preferences")
 }
 
 // 线索
@@ -237,6 +266,7 @@ model Customer {
   @@index([deletedAt])
   @@index([kycStatus])
   @@index([companyName])
+  @@index([email])
   @@map("customers")
 }
 
@@ -317,6 +347,7 @@ model Task {
   @@index([assignedToId])
   @@index([status])
   @@index([dueDate])
+  @@index([projectId, status])
   @@index([deletedAt])
   @@map("tasks")
 }
@@ -364,6 +395,7 @@ model Activity {
 
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([actorId])
   @@map("activities")
 }
 
@@ -757,6 +789,7 @@ model Invoice {
   @@index([projectId])
   @@index([customerId])
   @@index([status])
+  @@index([dueDate])
   @@index([deletedAt])
   @@map("invoices")
 }
@@ -1110,6 +1143,7 @@ model Claim {
 
   @@index([submitterId])
   @@index([status])
+  @@index([submitterId, status])
   @@index([deletedAt])
   @@map("claims")
 }

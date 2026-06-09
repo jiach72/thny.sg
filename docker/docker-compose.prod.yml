@@ -184,11 +184,82 @@ services:
           cpus: '0.3'
           memory: 256M
 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: tonghai-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml.template:ro
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus-data:/prometheus
+    environment:
+      METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        sed "s|__METRICS_BEARER_TOKEN__|$${METRICS_BEARER_TOKEN}|g" /etc/prometheus/prometheus.yml.template > /tmp/prometheus.yml
+        exec /bin/prometheus --config.file=/tmp/prometheus.yml --storage.tsdb.retention.time=30d
+    networks:
+      - tonghai-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: tonghai-grafana
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme_grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    networks:
+      - tonghai-network
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: tonghai-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://crm_user:${DB_PASSWORD:-changeme}@postgres:5432/crm_db?sslmode=disable"
+    networks:
+      - tonghai-network
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: tonghai-redis-exporter
+    environment:
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis}
+    networks:
+      - tonghai-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: tonghai-node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - tonghai-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
   backend_uploads:
   db_backups:
+  prometheus-data:
+  grafana-data:
 
 networks:
   tonghai-network:

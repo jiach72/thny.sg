@@ -1,8 +1,9 @@
-import { Router } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-import { authMiddleware } from '../middlewares/index.js'
+import { param } from 'express-validator'
+import { authMiddleware, validate } from '../middlewares/index.js'
 import { documentService } from '../services/documentService.js'
 import { NotFoundError, ForbiddenError } from '../middlewares/errorHandler.js'
 import { prisma } from '../config/index.js'
@@ -56,6 +57,16 @@ const upload = multer({
 const router = Router()
 
 router.use(authMiddleware)
+
+function assertCanDeleteDocument(doc: { uploadedById: string | null }, userId: string, userRole: string) {
+    if (userRole === 'ADMIN') {
+        return
+    }
+
+    if (doc.uploadedById !== userId) {
+        throw new ForbiddenError('无权删除此文档')
+    }
+}
 
 /**
  * @openapi
@@ -237,5 +248,26 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
         next(error)
     }
 })
+
+router.delete(
+    '/:id',
+    param('id').isString(),
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const document = await documentService.getDocumentById(req.params.id)
+            if (!document) {
+                throw new NotFoundError('文档不存在')
+            }
+
+            assertCanDeleteDocument(document, req.user!.id, req.user!.role)
+
+            const deletedDocument = await documentService.deleteDocument(req.params.id)
+            sendSuccess(res, deletedDocument, '文档已删除')
+        } catch (error) {
+            next(error)
+        }
+    }
+)
 
 export default router

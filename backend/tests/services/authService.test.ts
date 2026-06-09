@@ -33,6 +33,11 @@ vi.mock('../../src/config/index.js', () => ({
     },
 }))
 
+vi.mock('../../src/config/redis.js', () => ({
+    getRedis: vi.fn(),
+    isRedisConnected: false,
+}))
+
 // 3. Import service AFTER mocking
 import { authService } from '../../src/services/authService'
 

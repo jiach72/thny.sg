@@ -11,7 +11,7 @@ import { swaggerSpec } from './config/swagger.js'
 import routes from './routes/index.js'
 import { errorHandler } from './middlewares/index.js'
 import { apiRateLimiter } from './middlewares/rateLimiter.js'
-import { initWebSocket } from './services/websocketService.js'
+import { initWebSocket, getIO } from './services/websocketService.js'
 import logger from './config/logger.js'
 import morgan from 'morgan'
 import { prisma } from './config/index.js'
@@ -275,6 +275,16 @@ async function gracefulShutdown(signal: string) {
     forceExitTimer.unref() // 不阻止进程退出
 
     try {
+        // 0. 关闭 WebSocket 连接
+        try {
+            const io = getIO()
+            io.disconnectSockets(true)
+            io.close()
+            logger.info('✅ WebSocket 连接已关闭')
+        } catch {
+            // WebSocket 可能未初始化，忽略
+        }
+
         // 1. 停止接受新的 HTTP 请求（等待现有连接排空）
         await new Promise<void>((resolve, reject) => {
             httpServer.close((err) => {

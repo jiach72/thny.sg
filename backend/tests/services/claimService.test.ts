@@ -4,9 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const prismaMock = vi.hoisted(() => ({
     claim: {
         findFirst: vi.fn(),
+        findUnique: vi.fn(),
         findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
         count: vi.fn(),
         aggregate: vi.fn(),
     },
@@ -21,7 +23,12 @@ const prismaMock = vi.hoisted(() => ({
         // 支持回调式事务
         if (typeof fnOrCmds === 'function') {
             return fnOrCmds({
-                claim: { findFirst: prismaMock.claim.findFirst, update: prismaMock.claim.update },
+                claim: {
+                    findFirst: prismaMock.claim.findFirst,
+                    findUnique: prismaMock.claim.findUnique,
+                    update: prismaMock.claim.update,
+                    updateMany: prismaMock.claim.updateMany,
+                },
                 claimItem: { create: prismaMock.claimItem.create, aggregate: prismaMock.claimItem.aggregate },
             })
         }
@@ -223,7 +230,8 @@ describe('ClaimService', () => {
                 id: 'c-1',
                 status: 'SUBMITTED',
             })
-            prismaMock.claim.update.mockResolvedValue({
+            prismaMock.claim.updateMany.mockResolvedValue({ count: 1 })
+            prismaMock.claim.findUnique.mockResolvedValue({
                 id: 'c-1',
                 status: 'APPROVED',
             })
@@ -238,7 +246,8 @@ describe('ClaimService', () => {
                 id: 'c-1',
                 status: 'SUBMITTED',
             })
-            prismaMock.claim.update.mockResolvedValue({
+            prismaMock.claim.updateMany.mockResolvedValue({ count: 1 })
+            prismaMock.claim.findUnique.mockResolvedValue({
                 id: 'c-1',
                 status: 'MANAGER_APPROVED',
             })
@@ -257,7 +266,8 @@ describe('ClaimService', () => {
                 id: 'c-1',
                 status: 'SUBMITTED',
             })
-            prismaMock.claim.update.mockResolvedValue({
+            prismaMock.claim.updateMany.mockResolvedValue({ count: 1 })
+            prismaMock.claim.findUnique.mockResolvedValue({
                 id: 'c-1',
                 status: 'REJECTED',
                 rejectionReason: '金额超标',

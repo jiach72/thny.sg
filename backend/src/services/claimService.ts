@@ -213,43 +213,53 @@ export const claimService = {
 
         if (!claim) throw new NotFoundError('报销单不存在')
 
-        // 验证状态转换合法性
         if (isAdmin) {
-            // Admin 可以从 SUBMITTED 或 MANAGER_APPROVED 直接批准
             if (claim.status !== 'SUBMITTED' && claim.status !== 'MANAGER_APPROVED') {
                 throw new ConflictError('当前状态不允许审批')
             }
 
-            return prisma.claim.update({
-                where: { id: claimId },
+            const result = await prisma.claim.updateMany({
+                where: { id: claimId, status: claim.status },
                 data: {
                     status: 'APPROVED',
                     adminApprovedById: approverId,
                     adminApprovedAt: new Date(),
                     adminComment: comment,
-                    // 如果是直接从 SUBMITTED 审批，同时记录
                     ...(claim.status === 'SUBMITTED' ? {
                         managerApprovedById: approverId,
                         managerApprovedAt: new Date(),
                         managerComment: 'Admin 直接审批',
                     } : {}),
                 },
+            })
+            if (result.count === 0) {
+                throw new ConflictError('报销单状态已变更，请刷新后重试')
+            }
+
+            return prisma.claim.findUnique({
+                where: { id: claimId },
                 include: { items: true },
             })
         } else {
-            // Manager 只能从 SUBMITTED → MANAGER_APPROVED
             if (claim.status !== 'SUBMITTED') {
                 throw new ConflictError('当前状态不允许经理审批')
             }
 
-            return prisma.claim.update({
-                where: { id: claimId },
+            const result = await prisma.claim.updateMany({
+                where: { id: claimId, status: 'SUBMITTED' },
                 data: {
                     status: 'MANAGER_APPROVED',
                     managerApprovedById: approverId,
                     managerApprovedAt: new Date(),
                     managerComment: comment,
                 },
+            })
+            if (result.count === 0) {
+                throw new ConflictError('报销单状态已变更，请刷新后重试')
+            }
+
+            return prisma.claim.findUnique({
+                where: { id: claimId },
                 include: { items: true },
             })
         }
@@ -268,14 +278,21 @@ export const claimService = {
             throw new ConflictError('当前状态不允许驳回')
         }
 
-        return prisma.claim.update({
-            where: { id: claimId },
+        const result = await prisma.claim.updateMany({
+            where: { id: claimId, status: claim.status },
             data: {
                 status: 'REJECTED',
                 rejectedById: approverId,
                 rejectedAt: new Date(),
                 rejectionReason: reason,
             },
+        })
+        if (result.count === 0) {
+            throw new ConflictError('报销单状态已变更，请刷新后重试')
+        }
+
+        return prisma.claim.findUnique({
+            where: { id: claimId },
             include: { items: true },
         })
     },

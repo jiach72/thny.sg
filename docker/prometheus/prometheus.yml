@@ -1,33 +1,43 @@
-# Prometheus 配置
-# 部署方式: 将此文件映射到 Prometheus 容器中
-# docker-compose.yml 示例:
-#   prometheus:
-#     image: prom/prometheus:latest
-#     volumes:
-#       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-#       - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
-
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: tonghai-crm
+    environment: production
 
 rule_files:
-  - 'alert_rules.yml'
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            # - alertmanager:9093
 
 scrape_configs:
-  - job_name: 'tonghai-backend'
-    metrics_path: '/metrics'
-    scheme: http
-    bearer_token: 'CHANGE_ME_METRICS_BEARER_TOKEN'  # 生产环境替换为实际 token
+  - job_name: "backend"
+    metrics_path: "/metrics"
+    bearer_token: "__METRICS_BEARER_TOKEN__"
     static_configs:
-      - targets: ['backend:5000']
+      - targets: ["backend:4000"]
         labels:
-          environment: 'production'
+          service: "crm-api"
+    scrape_interval: 10s
 
-  - job_name: 'redis'
+  - job_name: "node-exporter"
     static_configs:
-      - targets: ['redis:6379']
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: "host-metrics"
 
-  - job_name: 'postgres'
+  - job_name: "postgres-exporter"
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          service: "postgresql"
+
+  - job_name: "redis-exporter"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          service: "redis"

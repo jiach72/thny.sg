@@ -1,5 +1,7 @@
-import { Router } from 'express'
+import { Router, Request, Response, NextFunction } from 'express'
+import { query } from 'express-validator'
 import { authMiddleware } from '../middlewares/auth.js'
+import { validate } from '../middlewares/validation.js'
 import { auditService } from '../services/auditService.js'
 import { sendSuccess, sendError } from '../utils/responseHelper.js'
 
@@ -9,7 +11,11 @@ const router = Router()
 router.use(authMiddleware)
 
 // 查询审计日志
-router.get('/', async (req, res, next) => {
+router.get('/', [
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('action').optional().isString(),
+], validate, async (req: Request, res: Response, next: NextFunction) => {
     try {
         // 仅管理员可查看
         if (req.user!.role !== 'ADMIN') {

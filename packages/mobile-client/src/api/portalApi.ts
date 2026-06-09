@@ -83,11 +83,35 @@ export const portalApi = {
   },
 
   // 偏好
-  updatePreferences(prefs: { email?: boolean; sms?: boolean; projectUpdate?: boolean; documentReminder?: boolean }) {
+  updatePreferences(prefs: {
+    emailNotifications?: boolean
+    smsNotifications?: boolean
+    projectUpdate?: boolean
+    documentReminder?: boolean
+    darkMode?: boolean
+    compactMode?: boolean
+    animations?: boolean
+    language?: string
+    timezone?: string
+    activityLog?: boolean
+    loginNotification?: boolean
+  }) {
     return http.put<void>('/portal/preferences', prefs)
   },
   getPreferences() {
-    return http.get<{ email: boolean; sms: boolean; projectUpdate: boolean; documentReminder: boolean }>('/portal/preferences')
+    return http.get<{
+      emailNotifications: boolean
+      smsNotifications: boolean
+      projectUpdate: boolean
+      documentReminder: boolean
+      darkMode: boolean
+      compactMode: boolean
+      animations: boolean
+      language: string
+      timezone: string
+      activityLog: boolean
+      loginNotification: boolean
+    }>('/portal/preferences')
   },
   
   // 导出数据

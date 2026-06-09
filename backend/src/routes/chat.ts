@@ -110,7 +110,7 @@ router.post('/faq/items/:id/helpful', async (req: Request, res: Response, next: 
 router.post('/message',
     chatRateLimiter,
     [
-        body('content').notEmpty().withMessage('消息内容不能为空'),
+        body('message').notEmpty().withMessage('消息内容不能为空'),
         body('sessionId').optional().isString(),
     ],
     validate,

@@ -1,7 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express'
+import { query } from 'express-validator'
 import { newsService } from '../services/newsService.js'
 import { sendSuccess } from '../utils/responseHelper.js'
 import { NotFoundError } from '../middlewares/index.js'
+import { validate } from '../middlewares/validation.js'
 
 const router = Router()
 
@@ -9,7 +11,10 @@ const router = Router()
  * 获取已发布的文章列表
  * GET /api/v1/news
  */
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', [
+    query('page').optional().isInt({ min: 1 }),
+    query('pageSize').optional().isInt({ min: 1, max: 50 }),
+], validate, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { type, category, page = '1', pageSize = '10', locale = 'zh' } = req.query
 

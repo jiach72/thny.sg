@@ -61,14 +61,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores'
 
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
-
-const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 function getRoleLabel(role: string): string {
   const map: Record<string, string> = {

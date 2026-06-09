@@ -6,7 +6,8 @@ const authenticator = (otplibPreset as any).authenticator || otplibPreset.authen
 import QRCode from 'qrcode'
 import crypto from 'crypto'
 import { prisma, config } from '../config/index.js'
-import { UnauthorizedError, NotFoundError, BadRequestError } from '../middlewares/index.js'
+import { UnauthorizedError, NotFoundError, BadRequestError, ForbiddenError } from '../middlewares/index.js'
+import { getRedis, isRedisConnected } from '../config/redis.js'
 
 const ENCRYPTION_KEY = process.env.TWO_FA_ENCRYPTION_KEY
 const ALGORITHM = 'aes-256-gcm'
@@ -74,6 +75,46 @@ interface RefreshTokenPayload {
     type: string
 }
 
+async function getLoginAttempts(userId: string): Promise<number> {
+    if (!isRedisConnected) {
+        return 0
+    }
+
+    try {
+        const attempts = await getRedis().get(`login_attempts:${userId}`)
+        return attempts ? Number(attempts) : 0
+    } catch {
+        return 0
+    }
+}
+
+async function incrementLoginAttempts(userId: string): Promise<void> {
+    if (!isRedisConnected) {
+        return
+    }
+
+    try {
+        await getRedis().multi()
+            .incr(`login_attempts:${userId}`)
+            .expire(`login_attempts:${userId}`, 1800)
+            .exec()
+    } catch {
+        // Redis 故障时降级为不阻断登录主流程
+    }
+}
+
+async function clearLoginAttempts(userId: string): Promise<void> {
+    if (!isRedisConnected) {
+        return
+    }
+
+    try {
+        await getRedis().del(`login_attempts:${userId}`)
+    } catch {
+        // Redis 故障时降级为不阻断登录主流程
+    }
+}
+
 export const authService = {
     /**
      * 用户登录
@@ -88,14 +129,22 @@ export const authService = {
             throw new UnauthorizedError('邮箱或密码错误')
         }
 
+        const attempts = await getLoginAttempts(user.id)
+        if (attempts >= 5) {
+            throw new ForbiddenError('账户已被临时锁定，请30分钟后重试')
+        }
+
         if (user.status !== 'ACTIVE') {
             throw new UnauthorizedError('账户已被禁用')
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash)
         if (!isPasswordValid) {
+            await incrementLoginAttempts(user.id)
             throw new UnauthorizedError('邮箱或密码错误')
         }
+
+        await clearLoginAttempts(user.id)
 
         // 检查是否开启了双因素认证
         if (user.twoFactorEnabled) {

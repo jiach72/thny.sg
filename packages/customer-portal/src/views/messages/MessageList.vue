@@ -493,11 +493,11 @@ async function handleBrowserNotifToggle(enabled: boolean): Promise<void> {
 async function saveNotifPrefs(): Promise<void> {
   try {
     await portalApi.updatePreferences({
-      email: notifPrefs.projectUpdate,
-      sms: notifPrefs.paymentReminder,
+      emailNotifications: notifPrefs.projectUpdate,
+      smsNotifications: notifPrefs.paymentReminder,
       projectUpdate: notifPrefs.projectUpdate,
       documentReminder: notifPrefs.documentReminder,
-    } as any)
+    })
     localStorage.setItem('thny_notif_prefs', JSON.stringify(notifPrefs))
   } catch {
     // ignore

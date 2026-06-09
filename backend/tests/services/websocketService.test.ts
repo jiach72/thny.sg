@@ -18,6 +18,9 @@ vi.mock('../../src/config/logger.js', () => ({
 vi.mock('../../src/config/redis.js', () => ({
     createRedisClient: vi.fn(),
     isRedisConnected: false,
+    tokenBlacklist: {
+        isBlacklisted: vi.fn().mockResolvedValue(false),
+    },
 }))
 
 vi.mock('jsonwebtoken', () => ({

@@ -371,17 +371,34 @@ router.delete(
 
 // ==================== 通知偏好接口 ====================
 
-/**
- * PUT /portal/preferences - 保存通知偏好
- */
+router.get(
+    '/preferences',
+    customerAuth,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const preferences = await portalService.getPreferences(req.user!.id)
+            sendSuccess(res, preferences)
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
 router.put(
     '/preferences',
     customerAuth,
     [
         body('emailNotifications').optional().isBoolean(),
         body('smsNotifications').optional().isBoolean(),
+        body('projectUpdate').optional().isBoolean(),
+        body('documentReminder').optional().isBoolean(),
+        body('darkMode').optional().isBoolean(),
+        body('compactMode').optional().isBoolean(),
+        body('animations').optional().isBoolean(),
         body('language').optional().isIn(['zh-CN','en','ms']),
         body('timezone').optional().isString(),
+        body('activityLog').optional().isBoolean(),
+        body('loginNotification').optional().isBoolean(),
     ],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {

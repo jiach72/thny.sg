@@ -591,50 +591,56 @@ export const portalService = {
 
     // ==================== 通知偏好 ====================
 
-    /**
-     * 更新通知偏好
-     */
-    async updatePreferences(userId: string, preferences: {
-        email?: boolean
-        sms?: boolean
-        projectUpdate?: boolean
-        documentReminder?: boolean
-    }) {
-        const customer = await prisma.customer.findFirst({
+    async getPreferences(userId: string) {
+        const prefs = await prisma.userPreferences.findUnique({
             where: { userId },
         })
 
-        if (!customer) {
-            throw new NotFoundError('客户信息不存在')
+        if (!prefs) {
+            return {
+                emailNotifications: true,
+                smsNotifications: false,
+                projectUpdate: true,
+                documentReminder: true,
+                darkMode: true,
+                compactMode: false,
+                animations: true,
+                language: 'zh-CN',
+                timezone: 'Asia/Singapore',
+                activityLog: true,
+                loginNotification: true,
+            }
         }
 
-        // 将通知偏好序列化后存入 profileNotes 的 JSON 段落
-        // TODO: 后续迭代应在 Customer 模型中增加独立的 preferences Json? 字段
-        const existingNotes = customer.profileNotes || ''
-        const prefMarker = '<!-- PREFERENCES -->'
-        const prefJson = JSON.stringify(preferences)
-        const prefBlock = `${prefMarker}\n${prefJson}\n${prefMarker}`
+        return prefs
+    },
 
-        // 替换已有的 preferences 块或追加
-        let updatedNotes: string
-        if (existingNotes.includes(prefMarker)) {
-            const regex = new RegExp(`${prefMarker}[\\s\\S]*?${prefMarker}`)
-            updatedNotes = existingNotes.replace(regex, prefBlock)
-        } else {
-            updatedNotes = existingNotes ? `${existingNotes}\n\n${prefBlock}` : prefBlock
-        }
-
-        await prisma.customer.update({
-            where: { id: customer.id },
-            data: {
-                profileNotes: updatedNotes,
+    async updatePreferences(userId: string, preferences: {
+        emailNotifications?: boolean
+        smsNotifications?: boolean
+        projectUpdate?: boolean
+        documentReminder?: boolean
+        darkMode?: boolean
+        compactMode?: boolean
+        animations?: boolean
+        language?: string
+        timezone?: string
+        activityLog?: boolean
+        loginNotification?: boolean
+    }) {
+        const result = await prisma.userPreferences.upsert({
+            where: { userId },
+            create: {
+                userId,
+                ...preferences,
             },
+            update: preferences,
         })
 
         return {
             success: true,
             message: '偏好已保存',
-            preferences,
+            preferences: result,
         }
     },
 
@@ -880,7 +886,12 @@ export const portalService = {
                 }
             })
 
-            // 6. 解除该用户作为顾问的 Lead 分配关系
+            // 6. 删除用户偏好设置
+            await tx.userPreferences.deleteMany({
+                where: { userId }
+            })
+
+            // 7. 解除该用户作为顾问的 Lead 分配关系
             await tx.lead.updateMany({
                 where: { assignedToId: userId },
                 data: { assignedToId: null }

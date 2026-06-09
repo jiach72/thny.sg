@@ -6,15 +6,10 @@ import { sendSuccess, success } from '../utils/responseHelper.js'
 
 const router = Router()
 
-// 所有路由需要管理员权限
-router.use(adminAuth)
+router.use(authMiddleware, adminAuth)
 
-// ==================== 会议纪要 ====================
-
-// 获取即将到来的会议
 router.get(
     '/upcoming',
-    authMiddleware,
     [query('days').optional().isInt({ min: 1, max: 30 }).toInt()],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
@@ -28,10 +23,8 @@ router.get(
     }
 )
 
-// 获取会议纪要
 router.get(
     '/:id/minutes',
-    authMiddleware,
     [param('id').isString()],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
@@ -44,10 +37,8 @@ router.get(
     }
 )
 
-// 创建/更新会议纪要
 router.post(
     '/:id/minutes',
-    authMiddleware,
     [
         param('id').isString(),
         body('content').notEmpty().withMessage('纪要内容不能为空'),
@@ -68,36 +59,8 @@ router.post(
     }
 )
 
-// ==================== 会议室管理 ====================
-
-/**
- * @openapi
- * /meetings/rooms:
- *   get:
- *     tags: [Meetings]
- *     summary: 获取活跃会议室列表
- *     description: 返回所有活跃状态的会议室，不含已停用的
- *     responses:
- *       200:
- *         description: 成功获取会议室列表
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 code:
- *                   type: integer
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *       401:
- *         description: 未授权
- */
-// 获取会议室列表（活跃的）
 router.get(
     '/rooms',
-    authMiddleware,
     async (_req: Request, res: Response, next: NextFunction) => {
         try {
             const rooms = await meetingService.getMeetingRooms()
@@ -108,10 +71,8 @@ router.get(
     }
 )
 
-// 获取所有会议室（管理页面用，含非活跃）
 router.get(
     '/rooms/all',
-    authMiddleware,
     async (_req: Request, res: Response, next: NextFunction) => {
         try {
             const rooms = await meetingService.getAllMeetingRooms()
@@ -122,35 +83,8 @@ router.get(
     }
 )
 
-/**
- * @openapi
- * /meetings/rooms:
- *   post:
- *     tags: [Meetings]
- *     summary: 创建会议室
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [name]
- *             properties:
- *               name:
- *                 type: string
- *               capacity:
- *                 type: integer
- *                 minimum: 1
- *     responses:
- *       201:
- *         description: 会议室创建成功
- *       401:
- *         description: 未授权
- */
-// 创建会议室
 router.post(
     '/rooms',
-    authMiddleware,
     [
         body('name').notEmpty().withMessage('会议室名称不能为空'),
         body('capacity').optional().isInt({ min: 1 }),
@@ -166,10 +100,8 @@ router.post(
     }
 )
 
-// 更新会议室
 router.put(
     '/rooms/:id',
-    authMiddleware,
     [
         param('id').isString(),
         body('name').optional().isString(),
@@ -189,10 +121,8 @@ router.put(
     }
 )
 
-// 删除会议室
 router.delete(
     '/rooms/:id',
-    authMiddleware,
     [param('id').isString()],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
@@ -205,12 +135,8 @@ router.delete(
     }
 )
 
-// ==================== 报销分类配置 ====================
-
-// 获取分类列表
 router.get(
     '/expense-categories',
-    authMiddleware,
     [query('all').optional().isBoolean().toBoolean()],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {
@@ -224,10 +150,8 @@ router.get(
     }
 )
 
-// 创建分类
 router.post(
     '/expense-categories',
-    authMiddleware,
     [
         body('code').notEmpty().withMessage('分类编码不能为空'),
         body('name').notEmpty().withMessage('分类名称不能为空'),
@@ -243,10 +167,8 @@ router.post(
     }
 )
 
-// 更新分类
 router.put(
     '/expense-categories/:id',
-    authMiddleware,
     [
         param('id').isString(),
         body('name').optional().isString(),
@@ -265,10 +187,8 @@ router.put(
     }
 )
 
-// 删除分类
 router.delete(
     '/expense-categories/:id',
-    authMiddleware,
     [param('id').isString()],
     validate,
     async (req: Request, res: Response, next: NextFunction) => {

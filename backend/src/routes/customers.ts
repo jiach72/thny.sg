@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express'
-import { body } from 'express-validator'
+import { body, param } from 'express-validator'
 import { authMiddleware, adminAuth, validate } from '../middlewares/index.js'
 import { customerService } from '../services/customerService.js'
 import { NotFoundError } from '../middlewares/errorHandler.js'
@@ -59,6 +59,56 @@ router.get('/options', async (req: Request, res: Response, next: NextFunction) =
         const { search } = req.query as { search?: string }
         const customers = await customerService.getConnectList(search)
         sendSuccess(res, customers)
+    } catch (error) {
+        next(error)
+    }
+})
+
+/**
+ * GET /customers/export — 导出客户列表为 CSV
+ */
+router.get('/export', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const result = await customerService.getCustomerList({
+            page: 1,
+            limit: 50000,
+            search: req.query.search as string,
+            kycStatus: req.query.kycStatus as string,
+            riskGrade: req.query.riskGrade as string,
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+        })
+
+        // BOM + CSV 头
+        const BOM = '\uFEFF'
+        const headers = ['客户名称', '邮箱', '电话', '公司', '来源渠道', 'KYC 状态', '风险等级', '服务类型', '创建日期']
+
+        const escapeCSV = (val: string | null | undefined): string => {
+            if (val == null) return ''
+            const str = String(val)
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`
+            }
+            return str
+        }
+
+        const rows = (result.data || []).map((c: any) => [
+            escapeCSV(c.name),
+            escapeCSV(c.email),
+            escapeCSV(c.phone),
+            escapeCSV(c.companyName),
+            escapeCSV(c.sourceChannel),
+            escapeCSV(c.kycStatus),
+            escapeCSV(c.riskGrade),
+            escapeCSV(Array.isArray(c.serviceTypes) ? c.serviceTypes.join('; ') : c.serviceTypes),
+            c.createdAt ? new Date(c.createdAt).toLocaleDateString('zh-CN') : '',
+        ].join(','))
+
+        const csv = BOM + headers.join(',') + '\n' + rows.join('\n')
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+        res.setHeader('Content-Disposition', `attachment; filename="customers_${new Date().toISOString().slice(0, 10)}.csv"`)
+        res.send(csv)
     } catch (error) {
         next(error)
     }
@@ -276,56 +326,6 @@ router.post('/:id/auto-tags', async (req: Request, res: Response, next: NextFunc
 })
 
 /**
- * GET /customers/export — 导出客户列表为 CSV
- */
-router.get('/export', async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const result = await customerService.getCustomerList({
-            page: 1,
-            limit: 50000,
-            search: req.query.search as string,
-            kycStatus: req.query.kycStatus as string,
-            riskGrade: req.query.riskGrade as string,
-            sortBy: 'createdAt',
-            sortOrder: 'desc',
-        })
-
-        // BOM + CSV 头
-        const BOM = '\uFEFF'
-        const headers = ['客户名称', '邮箱', '电话', '公司', '来源渠道', 'KYC 状态', '风险等级', '服务类型', '创建日期']
-
-        const escapeCSV = (val: string | null | undefined): string => {
-            if (val == null) return ''
-            const str = String(val)
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`
-            }
-            return str
-        }
-
-        const rows = (result.data || []).map((c: any) => [
-            escapeCSV(c.name),
-            escapeCSV(c.email),
-            escapeCSV(c.phone),
-            escapeCSV(c.companyName),
-            escapeCSV(c.sourceChannel),
-            escapeCSV(c.kycStatus),
-            escapeCSV(c.riskGrade),
-            escapeCSV(Array.isArray(c.serviceTypes) ? c.serviceTypes.join('; ') : c.serviceTypes),
-            c.createdAt ? new Date(c.createdAt).toLocaleDateString('zh-CN') : '',
-        ].join(','))
-
-        const csv = BOM + headers.join(',') + '\n' + rows.join('\n')
-
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8')
-        res.setHeader('Content-Disposition', `attachment; filename="customers_${new Date().toISOString().slice(0, 10)}.csv"`)
-        res.send(csv)
-    } catch (error) {
-        next(error)
-    }
-})
-
-/**
  * POST /customers — 手动创建客户（含用户账号）
  */
 router.post(
@@ -525,6 +525,23 @@ router.post(
 
                 sendSuccess(res, null, '重置邮件已发送')
             }
+        } catch (error) {
+            next(error)
+        }
+    }
+)
+
+router.delete(
+    '/:id',
+    param('id').isString(),
+    validate,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const customer = await prisma.customer.update({
+                where: { id: req.params.id },
+                data: { deletedAt: new Date() }
+            })
+            sendSuccess(res, customer, '客户已删除')
         } catch (error) {
             next(error)
         }

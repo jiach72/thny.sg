@@ -53,6 +53,20 @@ interface PaymentHistoryItem {
     createdAt: string
 }
 
+interface UserPreferences {
+    emailNotifications?: boolean
+    smsNotifications?: boolean
+    projectUpdate?: boolean
+    documentReminder?: boolean
+    darkMode?: boolean
+    compactMode?: boolean
+    animations?: boolean
+    language?: string
+    timezone?: string
+    activityLog?: boolean
+    loginNotification?: boolean
+}
+
 export const authApi = {
     /**
      * 客户登录
@@ -439,16 +453,12 @@ export const portalApi = {
 
     // ==================== 通知偏好接口 ====================
 
-    /**
-     * 保存通知偏好
-     */
-    updatePreferences(preferences: {
-        email?: boolean
-        sms?: boolean
-        projectUpdate?: boolean
-        documentReminder?: boolean
-    }) {
-        return apiClient.put<void>('/portal/preferences', preferences)
+    getPreferences() {
+        return apiClient.get<UserPreferences>('/portal/preferences')
+    },
+
+    updatePreferences(preferences: Partial<UserPreferences>) {
+        return apiClient.put<UserPreferences>('/portal/preferences', preferences)
     },
 
     // ==================== 在线支付接口 ====================

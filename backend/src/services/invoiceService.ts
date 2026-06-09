@@ -283,9 +283,19 @@ export const invoiceService = {
                 }
             })
 
-            // 更新发票已付金额和状态
-            const newPaidAmount = Number(invoice.paidAmount) + amountInInvoiceCurrency
-            const totalAmount = Number(invoice.totalAmount)
+            // 更新发票已付金额和状态（并发安全：检查不会超额支付）
+            const currentInvoice = await tx.invoice.findUnique({
+                where: { id: data.invoiceId },
+                select: { paidAmount: true, totalAmount: true }
+            })
+            if (!currentInvoice) throw new NotFoundError('发票不存在')
+
+            const newPaidAmount = Number(currentInvoice.paidAmount) + amountInInvoiceCurrency
+            const totalAmount = Number(currentInvoice.totalAmount)
+
+            if (newPaidAmount > totalAmount + 0.01) {
+                throw new BusinessLogicError(`收款金额超出未付余额，剩余未付: ${totalAmount - Number(currentInvoice.paidAmount)}`)
+            }
 
             let newStatus = invoice.status
             if (newPaidAmount >= totalAmount) {

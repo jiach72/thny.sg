@@ -43,6 +43,11 @@ const prismaMock = vi.hoisted(() => ({
     familyMember: {
         updateMany: vi.fn(),
     },
+    userPreferences: {
+        findUnique: vi.fn(),
+        upsert: vi.fn(),
+        deleteMany: vi.fn(),
+    },
     lead: {
         updateMany: vi.fn(),
     },
@@ -57,6 +62,11 @@ const prismaMock = vi.hoisted(() => ({
                 project: { findMany: prismaMock.project.findMany, updateMany: prismaMock.project.updateMany },
                 document: { updateMany: prismaMock.document.updateMany },
                 familyMember: { updateMany: prismaMock.familyMember.updateMany },
+                userPreferences: {
+                    findUnique: prismaMock.userPreferences.findUnique,
+                    upsert: prismaMock.userPreferences.upsert,
+                    deleteMany: prismaMock.userPreferences.deleteMany,
+                },
                 lead: { update: vi.fn(), updateMany: prismaMock.lead.updateMany, create: vi.fn() },
                 activity: { create: vi.fn() },
                 role: { findUnique: vi.fn() },
@@ -318,6 +328,33 @@ describe('PortalService', () => {
         })
     })
 
+    describe('preferences', () => {
+        it('无偏好记录时返回默认偏好', async () => {
+            prismaMock.userPreferences.findUnique.mockResolvedValue(null)
+
+            const result = await portalService.getPreferences('u1')
+
+            expect(result.language).toBe('zh-CN')
+            expect(result.emailNotifications).toBe(true)
+        })
+
+        it('应写入并返回偏好设置', async () => {
+            prismaMock.userPreferences.upsert.mockResolvedValue({
+                userId: 'u1',
+                language: 'en',
+                darkMode: false,
+            })
+
+            const result = await portalService.updatePreferences('u1', {
+                language: 'en',
+                darkMode: false,
+            })
+
+            expect(result.success).toBe(true)
+            expect(result.preferences.language).toBe('en')
+        })
+    })
+
     describe('getDocuments', () => {
         it('无客户时返回空列表', async () => {
             prismaMock.user.findUnique.mockResolvedValue({ id: 'u1', name: 'John', email: 'j@t.com', avatarUrl: null, createdAt: new Date() })
@@ -360,6 +397,7 @@ describe('PortalService', () => {
             prismaMock.project.updateMany.mockResolvedValue({ count: 1 })
             prismaMock.customer.update.mockResolvedValue({ id: 'c1' })
             prismaMock.user.update.mockResolvedValue({ id: 'u1' })
+            prismaMock.userPreferences.deleteMany.mockResolvedValue({ count: 1 })
             prismaMock.lead.updateMany.mockResolvedValue({ count: 0 })
 
             const result = await portalService.deleteAccount('u1')
@@ -370,6 +408,7 @@ describe('PortalService', () => {
             prismaMock.user.findUnique.mockResolvedValue({ id: 'u1', status: 'ACTIVE' })
             prismaMock.customer.findUnique.mockResolvedValue(null)
             prismaMock.user.update.mockResolvedValue({ id: 'u1' })
+            prismaMock.userPreferences.deleteMany.mockResolvedValue({ count: 0 })
             prismaMock.lead.updateMany.mockResolvedValue({ count: 0 })
 
             const result = await portalService.deleteAccount('u1')

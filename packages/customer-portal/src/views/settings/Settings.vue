@@ -320,19 +320,24 @@ const settings = reactive({
 
 onMounted(async () => {
   try {
-    const data = await authApi.getCurrentUser()
-    if (data) {
-      settings.twoFactorEnabled = !!(data as { twoFactorEnabled?: boolean }).twoFactorEnabled
-      const prefs = (data as any).preferences
-      if (prefs) {
-        if (prefs.darkMode !== undefined) settings.darkMode = prefs.darkMode
-        if (prefs.compactMode !== undefined) settings.compactMode = prefs.compactMode
-        if (prefs.animations !== undefined) settings.animations = prefs.animations
-        if (prefs.language !== undefined) settings.language = prefs.language
-        if (prefs.timezone !== undefined) settings.timezone = prefs.timezone
-        if (prefs.activityLog !== undefined) settings.activityLog = prefs.activityLog
-        if (prefs.loginNotification !== undefined) settings.loginNotification = prefs.loginNotification
-      }
+    const [userData, prefsData] = await Promise.all([
+      authApi.getCurrentUser().catch(() => null),
+      portalApi.getPreferences().catch(() => null),
+    ])
+
+    if (userData) {
+      settings.twoFactorEnabled = !!(userData as { twoFactorEnabled?: boolean }).twoFactorEnabled
+    }
+
+    if (prefsData) {
+      const prefs = prefsData as Record<string, unknown>
+      if (prefs.darkMode !== undefined) settings.darkMode = prefs.darkMode as boolean
+      if (prefs.compactMode !== undefined) settings.compactMode = prefs.compactMode as boolean
+      if (prefs.animations !== undefined) settings.animations = prefs.animations as boolean
+      if (prefs.language !== undefined) settings.language = prefs.language as string
+      if (prefs.timezone !== undefined) settings.timezone = prefs.timezone as string
+      if (prefs.activityLog !== undefined) settings.activityLog = prefs.activityLog as boolean
+      if (prefs.loginNotification !== undefined) settings.loginNotification = prefs.loginNotification as boolean
     }
   } catch(e) {
     logger.warn('Settings', 'Failed to fetch settings from backend:', e)
@@ -371,7 +376,7 @@ function handleSettingsChange(): void {
         timezone: settings.timezone,
         activityLog: settings.activityLog,
         loginNotification: settings.loginNotification,
-      } as any)
+      })
     } catch (e) {
       logger.warn('Settings', 'Failed to sync settings to backend:', e)
     }

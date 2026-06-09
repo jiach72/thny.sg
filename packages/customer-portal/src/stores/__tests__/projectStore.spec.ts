@@ -26,7 +26,7 @@ describe('projectStore (Customer Portal)', () => {
   })
 
   describe('fetchMyProjects', () => {
-    it('应获取项目列表并更新状态', async () => {
+    it('should fetch projects and update state', async () => {
       const mockProjects = [
         { id: '1', name: 'Project Alpha', status: 'ACTIVE' },
         { id: '2', name: 'Project Beta', status: 'COMPLETED' },
@@ -37,11 +37,11 @@ describe('projectStore (Customer Portal)', () => {
       await store.fetchMyProjects()
 
       expect(store.projects).toHaveLength(2)
-      expect(store.projects[0].title).toBe('Project Alpha')
+      expect(store.projects[0].name).toBe('Project Alpha')
       expect(store.isLoading).toBe(false)
     })
 
-    it('应在 API 失败时保持空列表', async () => {
+    it('should keep empty list on API failure', async () => {
       vi.mocked(portalApi.getMyProjects).mockRejectedValue(new Error('Network error'))
 
       const store = useProjectStore()
@@ -51,7 +51,7 @@ describe('projectStore (Customer Portal)', () => {
       expect(store.isLoading).toBe(false)
     })
 
-    it('应在返回 null 时设置空列表', async () => {
+    it('should set empty list when null returned', async () => {
       vi.mocked(portalApi.getMyProjects).mockResolvedValue(null as any)
 
       const store = useProjectStore()
@@ -62,7 +62,7 @@ describe('projectStore (Customer Portal)', () => {
   })
 
   describe('fetchProject', () => {
-    it('应获取单个项目并设置为 currentProject', async () => {
+    it('should fetch single project and set currentProject', async () => {
       const mockProject = { id: '1', name: 'Project Alpha', status: 'ACTIVE' }
       vi.mocked(portalApi.getProjectById).mockResolvedValue(mockProject as any)
 
@@ -70,11 +70,11 @@ describe('projectStore (Customer Portal)', () => {
       await store.fetchProject('1')
 
       expect(store.currentProject?.id).toBe('1')
-      expect(store.currentProject?.title).toBe('Project Alpha')
+      expect(store.currentProject?.name).toBe('Project Alpha')
       expect(store.isLoading).toBe(false)
     })
 
-    it('应在 API 失败时保持 currentProject 为 null', async () => {
+    it('should keep currentProject null on API failure', async () => {
       vi.mocked(portalApi.getProjectById).mockRejectedValue(new Error('Not found'))
 
       const store = useProjectStore()

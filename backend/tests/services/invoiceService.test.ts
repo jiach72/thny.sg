@@ -25,7 +25,12 @@ const prismaMock = vi.hoisted(() => ({
         // 支持回调式事务: prisma.$transaction(async (tx) => { ... })
         if (typeof fnOrCmds === 'function') {
             return fnOrCmds({
-                invoice: { count: prismaMock.invoice.count, create: prismaMock.invoice.create, update: prismaMock.invoice.update },
+                invoice: {
+                    count: prismaMock.invoice.count,
+                    create: prismaMock.invoice.create,
+                    findUnique: prismaMock.invoice.findUnique,
+                    update: prismaMock.invoice.update,
+                },
                 payment: { create: prismaMock.payment.create },
             })
         }

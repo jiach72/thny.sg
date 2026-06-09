@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { config } from '../config/index.js'
 import logger from '../config/logger.js'
-import { createRedisClient, isRedisConnected } from '../config/redis.js'
+import { createRedisClient, isRedisConnected, tokenBlacklist } from '../config/redis.js'
 
 let io: Server | null = null
 
@@ -42,7 +42,7 @@ export function initWebSocket(httpServer: HttpServer) {
     }
 
     // JWT 认证中间件
-    io.use((socket, next) => {
+    io.use(async (socket, next) => {
         const token = socket.handshake.auth.token as string | undefined
 
         if (!token) {
@@ -51,6 +51,12 @@ export function initWebSocket(httpServer: HttpServer) {
 
         try {
             const decoded = jwt.verify(token, config.jwt.secret) as { sub: string }
+
+            const isBlacklisted = await tokenBlacklist.isBlacklisted(token)
+            if (isBlacklisted) {
+                return next(new Error('认证令牌已失效'))
+            }
+
             socket.data.userId = decoded.sub
             next()
         } catch {

@@ -104,14 +104,14 @@
             <text class="setting-label">邮件通知</text>
             <text class="setting-desc">通过邮件接收重要更新</text>
           </view>
-          <nut-switch v-model="notifPrefs.email" @change="saveNotifPrefs" />
+          <nut-switch v-model="notifPrefs.emailNotifications" @change="saveNotifPrefs" />
         </view>
         <view class="setting-row">
           <view class="setting-info">
             <text class="setting-label">短信服务</text>
             <text class="setting-desc">紧急通知通过短信推送</text>
           </view>
-          <nut-switch v-model="notifPrefs.sms" @change="saveNotifPrefs" />
+          <nut-switch v-model="notifPrefs.smsNotifications" @change="saveNotifPrefs" />
         </view>
         <view class="setting-row">
           <view class="setting-info">
@@ -216,8 +216,8 @@ const settings = reactive({
 })
 
 const notifPrefs = reactive({
-  email: true,
-  sms: false,
+  emailNotifications: true,
+  smsNotifications: false,
   projectUpdate: true,
   documentReminder: true,
 })

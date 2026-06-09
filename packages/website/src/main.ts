@@ -22,8 +22,7 @@ export const createApp = ViteSSG(
         app.use(ElementPlus)
         app.use(i18n)
 
-        // MON-02: Sentry 初始化 — 仅在生产环境且配置了 DSN 时启用
-        if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
+        if (import.meta.env.VITE_SENTRY_DSN) {
             Sentry.init({
                 app,
                 dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -31,7 +30,7 @@ export const createApp = ViteSSG(
                     Sentry.browserTracingIntegration(),
                     Sentry.replayIntegration(),
                 ],
-                tracesSampleRate: 0.1,
+                tracesSampleRate: 0.2,
                 replaysSessionSampleRate: 0.1,
                 replaysOnErrorSampleRate: 1.0,
                 environment: import.meta.env.MODE,

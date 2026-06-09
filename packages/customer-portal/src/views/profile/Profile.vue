@@ -473,8 +473,8 @@ async function handlePreferencesChange(): Promise<void> {
     savingPreferences.value = true
     try {
       await portalApi.updatePreferences({
-        email: notifications.email,
-        sms: notifications.sms,
+        emailNotifications: notifications.email,
+        smsNotifications: notifications.sms,
         projectUpdate: notifications.projectUpdate,
         documentReminder: notifications.documentReminder,
       })
