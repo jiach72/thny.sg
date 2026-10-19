@@ -14,11 +14,9 @@ declare module 'vue' {
     NutCell: typeof import('nutui-uniapp/components/cell/cell.vue')['default']
     NutCollapse: typeof import('nutui-uniapp/components/collapse/collapse.vue')['default']
     NutCollapseItem: typeof import('nutui-uniapp/components/collapseitem/collapseitem.vue')['default']
-    NutForm: typeof import('nutui-uniapp/components/form/form.vue')['default']
-    NutFormItem: typeof import('nutui-uniapp/components/formitem/formitem.vue')['default']
-    NutInput: typeof import('nutui-uniapp/components/input/input.vue')['default']
     NutNoticebar: typeof import('nutui-uniapp/components/noticebar/noticebar.vue')['default']
     NutPopup: typeof import('nutui-uniapp/components/popup/popup.vue')['default']
+    NutSwitch: typeof import('nutui-uniapp/components/switch/switch.vue')['default']
     NutUploader: typeof import('nutui-uniapp/components/uploader/uploader.vue')['default']
     WizardTimeline: typeof import('./src/components/WizardTimeline.vue')['default']
   }

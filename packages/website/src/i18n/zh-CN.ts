@@ -320,11 +320,6 @@ const zhCN: MessageSchema = {
                     position: '创始人 | CEO',
                     bio: 'Finexis Advisory 总监，18年新加坡金融经验，CFP® 认证顾问'
                 },
-                mars: {
-                    name: 'Mars 杨栋',
-                    position: '联合创始人',
-                    bio: '新加坡文化与教育协会会长，28年国际教育经验'
-                },
                 wendy: {
                     name: 'Wendy 魏文帝',
                     position: '台湾执行官',
@@ -366,12 +361,6 @@ const zhCN: MessageSchema = {
                     position: '通海南洋创始人 | CEO',
                     tags: ['CFP®', 'WMI 家办顾问'],
                     bio: ['Finexis Advisory 总监, BNI 新加坡宝丰分会主席 (2022-2023)', '留学移民新加坡18年，专注一站式金融解决方案，包括保险、基金、家族信托、VCC 及银行开户等。']
-                },
-                mars: {
-                    name: 'Mars 杨栋',
-                    position: '联合创始人 | 跨境商业落地执行官',
-                    tags: ['北京社科院数学博士'],
-                    bio: ['新加坡文化与教育协会会长 (CEAS), 新加坡文化与教育学院院长', '拥有28年国际教育经验。负责市场考察与落地、身份与教育规划及本地化运营。']
                 },
                 wendy: {
                     name: 'Wendy 魏文帝',

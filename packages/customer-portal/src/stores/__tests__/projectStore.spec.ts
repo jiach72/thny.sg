@@ -28,8 +28,8 @@ describe('projectStore (Customer Portal)', () => {
   describe('fetchMyProjects', () => {
     it('should fetch projects and update state', async () => {
       const mockProjects = [
-        { id: '1', name: 'Project Alpha', status: 'ACTIVE' },
-        { id: '2', name: 'Project Beta', status: 'COMPLETED' },
+        { id: '1', title: 'Project Alpha', status: 'ACTIVE' },
+        { id: '2', title: 'Project Beta', status: 'COMPLETED' },
       ]
       vi.mocked(portalApi.getMyProjects).mockResolvedValue(mockProjects as any)
 
@@ -37,7 +37,7 @@ describe('projectStore (Customer Portal)', () => {
       await store.fetchMyProjects()
 
       expect(store.projects).toHaveLength(2)
-      expect(store.projects[0].name).toBe('Project Alpha')
+      expect(store.projects[0].title).toBe('Project Alpha')
       expect(store.isLoading).toBe(false)
     })
 
@@ -63,14 +63,14 @@ describe('projectStore (Customer Portal)', () => {
 
   describe('fetchProject', () => {
     it('should fetch single project and set currentProject', async () => {
-      const mockProject = { id: '1', name: 'Project Alpha', status: 'ACTIVE' }
+      const mockProject = { id: '1', title: 'Project Alpha', status: 'ACTIVE' }
       vi.mocked(portalApi.getProjectById).mockResolvedValue(mockProject as any)
 
       const store = useProjectStore()
       await store.fetchProject('1')
 
       expect(store.currentProject?.id).toBe('1')
-      expect(store.currentProject?.name).toBe('Project Alpha')
+      expect(store.currentProject?.title).toBe('Project Alpha')
       expect(store.isLoading).toBe(false)
     })
 

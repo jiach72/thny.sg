@@ -16,7 +16,7 @@
           <h2 class="category-title">{{ t('team.categories.founders.title') }}</h2>
           <h3 class="category-subtitle">{{ t('team.categories.founders.subtitle') }}</h3>
           <el-row :gutter="32">
-            <el-col v-for="member in founderMembers" :key="member.key" :lg="8" :md="12" :sm="24">
+            <el-col v-for="member in founderMembers" :key="member.key" :lg="12" :md="12" :sm="24">
               <div class="member-card card">
                 <div class="member-image">
                   <el-icon><Avatar /></el-icon>

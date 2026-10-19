@@ -123,6 +123,8 @@ describe('WebhookService', () => {
 
     describe('deliver', () => {
         it('should return failed result for unreachable URL', async () => {
+            vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('fetch failed: ENOTFOUND'))
+
             const result = await webhookService.deliver(
                 'ep-1',
                 'https://unreachable.example.com/webhook',

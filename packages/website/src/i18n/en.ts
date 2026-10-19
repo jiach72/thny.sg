@@ -320,11 +320,6 @@ const en: MessageSchema = {
                     position: 'Founder | CEO',
                     bio: 'Director at Finexis Advisory, 18 years of Singapore financial experience, CFP® Certified'
                 },
-                mars: {
-                    name: 'Mars Yang',
-                    position: 'Co-Founder',
-                    bio: 'President of Singapore Cultural and Education Association, 28 years of international education experience'
-                },
                 wendy: {
                     name: 'Wendy Wei',
                     position: 'Taiwan Executive',
@@ -366,12 +361,6 @@ const en: MessageSchema = {
                     position: 'TongHai Nanyang Founder | CEO',
                     tags: ['CFP®', 'WMI Family Office Advisor'],
                     bio: ['Director at Finexis Advisory, BNI Singapore Po Fung Chapter President (2022-2023)', '18 years in Singapore, specialized in one-stop financial solutions including insurance, funds, family trusts, VCC, and banking.']
-                },
-                mars: {
-                    name: 'Mars Yang',
-                    position: 'Co-Founder | Cross-border Business Executive',
-                    tags: ['PhD in Mathematics, Beijing Academy of Social Sciences'],
-                    bio: ['President of Singapore Cultural and Education Association (CEAS), Dean of Singapore Cultural and Education Institute', '28 years of international education experience. Responsible for market research, identity & education planning, and local operations.']
                 },
                 wendy: {
                     name: 'Wendy Wei',

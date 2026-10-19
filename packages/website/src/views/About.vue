@@ -66,7 +66,7 @@
         </div>
 
         <el-row :gutter="32" class="team-grid">
-          <el-col :lg="8" :md="12" :sm="24">
+          <el-col :lg="12" :md="12" :sm="24">
             <div class="team-member-card card">
               <div class="member-avatar"><el-icon><Avatar /></el-icon></div>
               <h4>{{ t('about.coreTeam.members.ada.name') }}</h4>
@@ -74,15 +74,7 @@
               <p class="member-bio">{{ t('about.coreTeam.members.ada.bio') }}</p>
             </div>
           </el-col>
-          <el-col :lg="8" :md="12" :sm="24">
-            <div class="team-member-card card">
-              <div class="member-avatar"><el-icon><Avatar /></el-icon></div>
-              <h4>{{ t('about.coreTeam.members.mars.name') }}</h4>
-              <p class="member-title">{{ t('about.coreTeam.members.mars.position') }}</p>
-              <p class="member-bio">{{ t('about.coreTeam.members.mars.bio') }}</p>
-            </div>
-          </el-col>
-          <el-col :lg="8" :md="12" :sm="24">
+          <el-col :lg="12" :md="12" :sm="24">
             <div class="team-member-card card">
               <div class="member-avatar"><el-icon><Avatar /></el-icon></div>
               <h4>{{ t('about.coreTeam.members.wendy.name') }}</h4>
