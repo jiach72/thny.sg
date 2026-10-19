@@ -220,14 +220,15 @@ jobs:
 
       - name: Generate SSL certs for deployment
         run: |
-          mkdir -p certs/thny.sg certs/crm.thny.sg certs/portal.thny.sg
+          mkdir -p docker/certs/thny.sg docker/certs/crm.thny.sg docker/certs/portal.thny.sg
           for DOMAIN in thny.sg crm.thny.sg portal.thny.sg; do
             openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-              -keyout certs/$DOMAIN/privkey.pem \
-              -out certs/$DOMAIN/fullchain.pem \
+              -keyout docker/certs/$DOMAIN/privkey.pem \
+              -out docker/certs/$DOMAIN/fullchain.pem \
               -subj "/CN=$DOMAIN/O=TongHai Nanyang/C=SG" \
               -addext "subjectAltName=DNS:$DOMAIN" 2>/dev/null
           done
+          chmod -R 755 docker/certs
 
       - name: Sync config and certs to server
         uses: appleboy/scp-action@v0.1.7
@@ -235,7 +236,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker/nginx.conf,docker/docker-compose.prod.yml,certs"
+          source: "docker/nginx.conf,docker/docker-compose.prod.yml,docker/certs"
           target: "/var/www/tonghai"
           strip_components: 1
 
